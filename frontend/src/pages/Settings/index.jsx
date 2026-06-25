@@ -131,7 +131,7 @@ export default function SettingsPage() {
 
   const { data: users = [] } = useQuery({
     queryKey: ['users'],
-    queryFn: () => usersApi.list().then(r => r.data),
+    queryFn: () => usersApi.list().then(r => [...r.data].sort((a, b) => (b.isActive - a.isActive) || a.name.localeCompare(b.name))),
     enabled: user?.role === 'admin',
   });
 

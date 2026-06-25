@@ -7,7 +7,7 @@ const SOURCES = ['Website', 'Referral', 'LinkedIn', 'Cold Call', 'Email Campaign
 
 export default function LeadForm({ onSubmit, defaultValues = {}, loading }) {
   const { register, handleSubmit, watch, formState: { errors } } = useForm({ defaultValues });
-  const { data: users = [] } = useQuery({ queryKey: ['users', 'active'], queryFn: () => usersApi.list({ activeOnly: 'true' }).then(r => r.data) });
+  const { data: users = [] } = useQuery({ queryKey: ['users', 'assignable'], queryFn: () => usersApi.list({ assignable: 'true' }).then(r => r.data) });
 
   const email = watch('email');
   const phone = watch('phone');
