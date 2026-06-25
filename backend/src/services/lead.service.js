@@ -7,6 +7,7 @@ const logActivity = async (leadId, userId, action, details) => {
 
 const getLeads = async (user, filters = {}) => {
   const where = {};
+  where.archived = filters.archived === 'true';
   if (user.role === 'agent') where.assignedToId = user.id;
   if (filters.status) where.status = filters.status;
   if (filters.source) where.source = filters.source;

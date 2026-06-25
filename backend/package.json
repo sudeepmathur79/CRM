@@ -8,6 +8,7 @@
     "build": "cd ../frontend && npm ci && npm run build",
     "db:push": "npx prisma db push",
     "db:seed": "node prisma/seed.js",
+    "archive:demo": "node scripts/archive-demo-leads.js",
     "db:studio": "npx prisma studio"
   },
   "prisma": {

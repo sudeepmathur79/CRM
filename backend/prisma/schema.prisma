@@ -36,6 +36,9 @@ model Lead {
   recordings   Recording[]
   activities   Activity[]
   tags         Tag[]       @relation("LeadTags")
+  archived     Boolean     @default(false)
+  archiveLabel String?
+  archivedAt   DateTime?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 }

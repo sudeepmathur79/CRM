@@ -5,7 +5,7 @@ import { leadsApi } from '../../services/api';
 import { StatusBadge, TagBadge } from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
 import LeadForm from '../../components/forms/LeadForm';
-import { Plus, Search, Sparkles, Trash2 } from 'lucide-react';
+import { Plus, Search, Sparkles, Trash2, Archive } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
@@ -21,11 +21,12 @@ export default function LeadsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [showSmartAdd, setShowSmartAdd] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const [selected, setSelected] = useState([]);
 
   const { data: leads = [], isLoading } = useQuery({
-    queryKey: ['leads', search, statusFilter],
-    queryFn: () => leadsApi.list({ search: search || undefined, status: statusFilter || undefined }).then(r => r.data),
+    queryKey: ['leads', search, statusFilter, showArchived],
+    queryFn: () => leadsApi.list({ search: search || undefined, status: statusFilter || undefined, archived: showArchived ? 'true' : 'false' }).then(r => r.data),
   });
 
   const createMutation = useMutation({
@@ -54,6 +55,10 @@ export default function LeadsPage() {
           <h1 className="text-2xl font-bold">Leads</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">{leads.length} total</p>
         </div>
+        <button onClick={() => setShowArchived(v => !v)}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${showArchived ? 'bg-amber-100 border-amber-300 text-amber-800 dark:bg-amber-900/30 dark:border-amber-700 dark:text-amber-300' : 'bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-400 hover:border-amber-400'}`}>
+          <Archive size={16} /> {showArchived ? 'Hide Archive' : 'View Archive'}
+        </button>
         <button onClick={() => setShowSmartAdd(true)}
           className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-sm font-medium transition-colors">
           <Sparkles size={16} /> Smart Add
