@@ -1,4 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { GoogleOAuthProvider } from '@react-oauth/google';
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Layout from './components/layout/Layout';
@@ -38,11 +41,13 @@ const AppRoutes = () => {
 };
 
 export default function App() {
-  return (
+  const inner = (
     <ThemeProvider>
       <AuthProvider>
         <AppRoutes />
       </AuthProvider>
     </ThemeProvider>
   );
+  if (!GOOGLE_CLIENT_ID) return inner;
+  return <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>{inner}</GoogleOAuthProvider>;
 }

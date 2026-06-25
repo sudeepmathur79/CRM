@@ -6,8 +6,9 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import Modal from '../../components/ui/Modal';
-import { Plus, Edit, UserX, UserCheck, LogOut, Sun, Moon, User, Shield } from 'lucide-react';
+import { Plus, Edit, UserX, UserCheck, LogOut, Sun, Moon, User, Shield, Smartphone, CheckCircle, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { authApi } from '../../services/api';
 
 const ROLES = ['admin', 'agent', 'viewer'];
 
@@ -121,6 +122,140 @@ const ProfileSection = () => {
   );
 };
 
+function TwoFactorSection() {
+  const { user, refreshUser } = useAuth();
+  const [phase, setPhase] = useState(null); // null | 'setup' | 'disable'
+  const [qrCode, setQrCode] = useState(null);
+  const [code, setCode] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const startSetup = async () => {
+    setLoading(true);
+    try {
+      const { data } = await authApi.setup2FA();
+      setQrCode(data.qrCode);
+      setPhase('setup');
+    } catch (e) {
+      toast.error(e.response?.data?.error || 'Failed to start 2FA setup');
+    } finally { setLoading(false); }
+  };
+
+  const confirmEnable = async () => {
+    setLoading(true);
+    try {
+      await authApi.enable2FA({ code });
+      toast.success('Two-factor authentication enabled');
+      setPhase(null); setCode(''); setQrCode(null);
+      refreshUser();
+    } catch (e) {
+      toast.error(e.response?.data?.error || 'Invalid code');
+      setCode('');
+    } finally { setLoading(false); }
+  };
+
+  const confirmDisable = async () => {
+    setLoading(true);
+    try {
+      await authApi.disable2FA({ code });
+      toast.success('Two-factor authentication disabled');
+      setPhase(null); setCode('');
+      refreshUser();
+    } catch (e) {
+      toast.error(e.response?.data?.error || 'Invalid code');
+      setCode('');
+    } finally { setLoading(false); }
+  };
+
+  const enabled = user?.twoFactorEnabled;
+
+  return (
+    <section className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Smartphone size={16} className="text-gray-400" />
+          <h2 className="font-semibold text-sm">Two-Factor Authentication</h2>
+        </div>
+        {enabled
+          ? <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400"><CheckCircle size={13} /> Enabled</span>
+          : <span className="flex items-center gap-1 text-xs text-gray-400"><XCircle size={13} /> Not enabled</span>
+        }
+      </div>
+
+      {phase === null && (
+        <div>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+            {enabled
+              ? 'Your account is secured with an authenticator app. Disable only if you\'re switching devices.'
+              : 'Add an extra layer of security. You\'ll need an authenticator app (Google Authenticator, Authy, etc.).'
+            }
+          </p>
+          {enabled ? (
+            <button onClick={() => setPhase('disable')}
+              className="px-4 py-2 text-sm rounded-lg border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+              Disable 2FA
+            </button>
+          ) : (
+            <button onClick={startSetup} disabled={loading}
+              className="px-4 py-2 text-sm rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors disabled:opacity-60">
+              {loading ? 'Setting up…' : 'Enable 2FA'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {phase === 'setup' && qrCode && (
+        <div className="space-y-3">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            1. Open your authenticator app and scan this QR code.<br />
+            2. Enter the 6-digit code to confirm.
+          </p>
+          <div className="flex justify-center bg-white p-3 rounded-xl border border-gray-200 dark:border-slate-700">
+            <img src={qrCode} alt="2FA QR Code" className="w-40 h-40" />
+          </div>
+          <input
+            type="text" inputMode="numeric" maxLength={6}
+            value={code} onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            placeholder="000000"
+            className="w-full text-center text-xl tracking-[0.4em] font-mono px-4 py-2.5 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
+          <div className="flex gap-2">
+            <button onClick={() => { setPhase(null); setCode(''); setQrCode(null); }}
+              className="flex-1 px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-slate-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
+              Cancel
+            </button>
+            <button onClick={confirmEnable} disabled={code.length !== 6 || loading}
+              className="flex-1 px-3 py-2 text-sm rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium disabled:opacity-60 transition-colors">
+              {loading ? 'Verifying…' : 'Confirm & Enable'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {phase === 'disable' && (
+        <div className="space-y-3">
+          <p className="text-xs text-gray-500 dark:text-gray-400">Enter your current authenticator code to disable 2FA.</p>
+          <input
+            type="text" inputMode="numeric" maxLength={6}
+            value={code} onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            placeholder="000000"
+            className="w-full text-center text-xl tracking-[0.4em] font-mono px-4 py-2.5 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
+          <div className="flex gap-2">
+            <button onClick={() => { setPhase(null); setCode(''); }}
+              className="flex-1 px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-slate-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
+              Cancel
+            </button>
+            <button onClick={confirmDisable} disabled={code.length !== 6 || loading}
+              className="flex-1 px-3 py-2 text-sm rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium disabled:opacity-60 transition-colors">
+              {loading ? 'Disabling…' : 'Disable 2FA'}
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function SettingsPage() {
   const { user, logout } = useAuth();
   const { dark, toggle } = useTheme();
@@ -178,6 +313,9 @@ export default function SettingsPage() {
           <ProfileSection />
         </div>
       </section>
+
+      {/* 2FA Section */}
+      <TwoFactorSection />
 
       {/* Preferences */}
       <section className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-4">

@@ -38,6 +38,11 @@ export const authApi = {
   register: (data) => api.post('/auth/register', data),
   setup: (data) => api.post('/auth/setup', data),
   me: () => api.get('/auth/me'),
+  googleLogin: (data) => api.post('/auth/google', data),
+  verify2FALogin: (data) => api.post('/auth/2fa/verify-login', data),
+  setup2FA: () => api.post('/auth/2fa/setup'),
+  enable2FA: (data) => api.post('/auth/2fa/enable', data),
+  disable2FA: (data) => api.post('/auth/2fa/disable', data),
 };
 
 export const leadsApi = {

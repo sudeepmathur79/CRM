@@ -9,12 +9,15 @@ datasource db {
 }
 
 model User {
-  id         String     @id @default(cuid())
-  email      String     @unique
-  password   String
-  name       String
-  role       String     @default("agent") // "admin", "agent", "viewer"
-  isActive   Boolean    @default(true)
+  id               String     @id @default(cuid())
+  email            String     @unique
+  password         String?
+  name             String
+  role             String     @default("agent") // "admin", "agent", "viewer"
+  isActive         Boolean    @default(true)
+  googleId         String?    @unique
+  twoFactorSecret  String?
+  twoFactorEnabled Boolean    @default(false)
   leads        Lead[]     @relation("AssignedLeads")
   createdLeads Lead[]     @relation("CreatedLeads")
   activities   Activity[]
