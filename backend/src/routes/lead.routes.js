@@ -60,11 +60,36 @@ router.delete('/:id', requireRole('admin', 'agent'), async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Lead notes timeline
+router.get('/:id/notes', async (req, res, next) => {
+  try {
+    const notes = await prisma.leadNote.findMany({
+      where: { leadId: req.params.id },
+      orderBy: { createdAt: 'desc' },
+      include: { lead: false },
+    });
+    res.json(notes);
+  } catch (e) { next(e); }
+});
+
 router.post('/:id/notes', async (req, res, next) => {
   try {
-    const { notes } = req.body;
-    const lead = await updateLead(req.params.id, { notes }, req.user.id, req.user);
-    res.json(lead);
+    const { content, type = 'manual' } = req.body;
+    if (!content?.trim()) return res.status(400).json({ error: 'Note content required' });
+    const note = await prisma.leadNote.create({
+      data: { leadId: req.params.id, userId: req.user.id, content: content.trim(), type },
+    });
+    await prisma.activity.create({
+      data: { leadId: req.params.id, userId: req.user.id, action: 'note_added', details: { preview: content.trim().slice(0, 80) } },
+    });
+    res.status(201).json(note);
+  } catch (e) { next(e); }
+});
+
+router.delete('/:id/notes/:noteId', async (req, res, next) => {
+  try {
+    await prisma.leadNote.delete({ where: { id: req.params.noteId, leadId: req.params.id } });
+    res.json({ success: true });
   } catch (e) { next(e); }
 });
 

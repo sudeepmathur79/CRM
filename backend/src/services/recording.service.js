@@ -61,13 +61,17 @@ const saveRecording = async ({ leadId, file, type, userId }) => {
     data: { leadId, fileName: file.originalname, fileUrl, fileSize: file.size, type, transcript, summary, nextSteps }
   });
   await logActivity(leadId, userId, 'recording_added', { fileName: file.originalname, type });
+  if (summary) {
+    const noteContent = buildAiNoteContent(file.originalname, summary, nextSteps);
+    await prisma.leadNote.create({ data: { leadId, userId, content: noteContent, type: 'ai_summary' } });
+  }
   return recording;
 };
 
 const getRecordings = async (leadId) =>
   prisma.recording.findMany({ where: { leadId }, orderBy: { createdAt: 'desc' } });
 
-const deleteRecording = async (id) => {
+const deleteRecording = async (id, userId) => {
   const rec = await prisma.recording.findUnique({ where: { id } });
   if (!rec) throw Object.assign(new Error('Not found'), { status: 404 });
 
@@ -80,6 +84,13 @@ const deleteRecording = async (id) => {
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
   }
   await prisma.recording.delete({ where: { id } });
+  if (userId) await logActivity(rec.leadId, userId, 'recording_deleted', { fileName: rec.fileName, type: rec.type });
+};
+
+const buildAiNoteContent = (fileName, summary, nextSteps) => {
+  let content = `📎 ${fileName}\n\n${summary || ''}`;
+  if (nextSteps) content += `\n\n🎯 Next Steps:\n${nextSteps}`;
+  return content;
 };
 
 const analyzeRecording = async (id) => {
@@ -112,10 +123,21 @@ const analyzeRecording = async (id) => {
   if (!transcript) throw Object.assign(new Error('No transcript available. Upload a text file or enable Whisper for audio.'), { status: 400 });
 
   const analysis = await analyzeConversation(transcript);
-  return prisma.recording.update({
+  const updated = await prisma.recording.update({
     where: { id },
     data: { transcript, summary: analysis.summary, nextSteps: analysis.nextSteps }
   });
+  if (analysis.summary) {
+    const noteContent = buildAiNoteContent(rec.fileName, analysis.summary, analysis.nextSteps);
+    await prisma.leadNote.upsert({
+      where: { id: `ai_${id}` },
+      update: { content: noteContent },
+      create: { id: `ai_${id}`, leadId: rec.leadId, content: noteContent, type: 'ai_summary' },
+    }).catch(() =>
+      prisma.leadNote.create({ data: { leadId: rec.leadId, content: noteContent, type: 'ai_summary' } })
+    );
+  }
+  return updated;
 };
 
 module.exports = { saveRecording, getRecordings, deleteRecording, analyzeRecording, UPLOAD_DIR };

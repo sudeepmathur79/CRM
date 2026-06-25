@@ -35,12 +35,23 @@ model Lead {
   assignedTo   User?       @relation("AssignedLeads", fields: [assignedToId], references: [id])
   recordings   Recording[]
   activities   Activity[]
+  leadNotes    LeadNote[]
   tags         Tag[]       @relation("LeadTags")
   archived     Boolean     @default(false)
   archiveLabel String?
   archivedAt   DateTime?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
+}
+
+model LeadNote {
+  id        String   @id @default(cuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  userId    String?
+  content   String
+  type      String   @default("manual") // "manual" | "ai_summary"
+  createdAt DateTime @default(now())
 }
 
 model Recording {

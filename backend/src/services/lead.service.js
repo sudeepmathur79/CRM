@@ -36,6 +36,7 @@ const getLead = async (id, user) => {
       assignedTo: { select: { id: true, name: true, email: true } },
       tags: true,
       recordings: { orderBy: { createdAt: 'desc' } },
+      leadNotes: { orderBy: { createdAt: 'desc' } },
       activities: {
         include: { user: { select: { id: true, name: true } } },
         orderBy: { createdAt: 'desc' },

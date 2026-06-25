@@ -47,6 +47,9 @@ export const leadsApi = {
   delete: (id) => api.delete(`/leads/${id}`),
   bulk: (data) => api.post('/leads/bulk', data),
   activities: (id) => api.get(`/leads/${id}/activities`),
+  getNotes: (id) => api.get(`/leads/${id}/notes`),
+  addNote: (id, content) => api.post(`/leads/${id}/notes`, { content, type: 'manual' }),
+  deleteNote: (leadId, noteId) => api.delete(`/leads/${leadId}/notes/${noteId}`),
 };
 
 export const recordingsApi = {

@@ -43,7 +43,7 @@ router.post('/record/:leadId', upload.single('audio'), async (req, res, next) =>
 });
 
 router.delete('/:id', async (req, res, next) => {
-  try { await deleteRecording(req.params.id); res.json({ success: true }); } catch (e) { next(e); }
+  try { await deleteRecording(req.params.id, req.user.id); res.json({ success: true }); } catch (e) { next(e); }
 });
 
 // Trigger AI analysis on an existing recording

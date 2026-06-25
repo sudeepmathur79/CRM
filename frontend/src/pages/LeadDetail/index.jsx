@@ -5,13 +5,14 @@ import { leadsApi, recordingsApi } from '../../services/api';
 import { StatusBadge, TagBadge } from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
 import LeadForm from '../../components/forms/LeadForm';
-import { format } from 'date-fns'; // kept for safeFormat helper
-import { ArrowLeft, Edit, Mic, Upload, Play, Pause, Trash2, FileText, Clock, Tag } from 'lucide-react';
+import { format } from 'date-fns';
+import { ArrowLeft, Edit, Mic, Upload, Play, Pause, Trash2, FileText, Clock, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const ACTION_LABELS = {
   created: '✨ Lead created', updated: '✏️ Updated', status_changed: '🔄 Status changed',
-  assigned: '👤 Assigned', recording_added: '🎙️ Recording added', notes_updated: '📝 Notes updated'
+  assigned: '👤 Assigned', recording_added: '🎙️ Recording added', notes_updated: '📝 Notes updated',
+  note_added: '📝 Note added', recording_deleted: '🗑️ Recording deleted',
 };
 
 const AudioPlayer = ({ recording }) => {
@@ -42,6 +43,8 @@ export default function LeadDetailPage() {
   const [recording, setRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState(null);
   const [chunks, setChunks] = useState([]);
+  const [newNote, setNewNote] = useState('');
+  const [expandedNotes, setExpandedNotes] = useState({});
   const fileInputRef = useRef(null);
 
   const { data: lead, isLoading } = useQuery({
@@ -76,7 +79,18 @@ export default function LeadDetailPage() {
 
   const deleteRecMutation = useMutation({
     mutationFn: (recId) => recordingsApi.delete(recId),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['lead', id] }); toast.success('Deleted'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['lead', id] }); toast.success('File deleted'); },
+  });
+
+  const addNoteMutation = useMutation({
+    mutationFn: (content) => leadsApi.addNote(id, content),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['lead', id] }); setNewNote(''); toast.success('Note saved'); },
+    onError: () => toast.error('Failed to save note'),
+  });
+
+  const deleteNoteMutation = useMutation({
+    mutationFn: (noteId) => leadsApi.deleteNote(id, noteId),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['lead', id] }); toast.success('Note deleted'); },
   });
 
   const startRecording = async () => {
@@ -154,12 +168,82 @@ export default function LeadDetailPage() {
               </div>
             )}
 
-            {lead.notes && (
-              <div className="mt-4 p-3 bg-gray-50 dark:bg-slate-700/50 rounded-xl">
-                <p className="text-xs text-gray-400 mb-1 font-medium">Notes</p>
-                <p className="text-sm whitespace-pre-wrap">{lead.notes}</p>
+          </div>
+
+          {/* Notes Timeline */}
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-gray-100 dark:border-slate-700">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold flex items-center gap-2"><FileText size={16} /> Notes</h2>
+            </div>
+
+            {/* Add note input */}
+            <div className="mb-4">
+              <textarea
+                value={newNote}
+                onChange={e => setNewNote(e.target.value)}
+                placeholder="Add a note… (Shift+Enter for new line, Enter to save)"
+                rows={2}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (newNote.trim()) addNoteMutation.mutate(newNote.trim());
+                  }
+                }}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 resize-none focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+              <div className="flex justify-end mt-1">
+                <button
+                  onClick={() => { if (newNote.trim()) addNoteMutation.mutate(newNote.trim()); }}
+                  disabled={!newNote.trim() || addNoteMutation.isPending}
+                  className="flex items-center gap-1 px-3 py-1 text-xs bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-40"
+                >
+                  <Plus size={12} /> Save Note
+                </button>
               </div>
+            </div>
+
+            {/* Notes list */}
+            {(!lead.leadNotes || lead.leadNotes.length === 0) && (
+              <p className="text-sm text-gray-400 text-center py-3">No notes yet</p>
             )}
+            <div className="space-y-2">
+              {lead.leadNotes?.map(note => {
+                const isAI = note.type === 'ai_summary';
+                const isExpanded = expandedNotes[note.id];
+                const lines = note.content.split('\n');
+                const preview = lines.slice(0, 2).join('\n');
+                const hasMore = lines.length > 2;
+                return (
+                  <div key={note.id} className={`rounded-xl border p-3 text-xs ${isAI ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-100 dark:border-primary-800' : 'bg-gray-50 dark:bg-slate-700/50 border-gray-100 dark:border-slate-600'}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          {isAI && <span className="text-[10px] font-semibold uppercase tracking-wide text-primary-500">AI Summary</span>}
+                          <span className="text-[10px] text-gray-400">{safeFormat(note.createdAt, 'MMM d, yyyy HH:mm')}</span>
+                        </div>
+                        <p className="whitespace-pre-wrap leading-relaxed text-gray-700 dark:text-gray-300">
+                          {isAI && hasMore && !isExpanded ? preview + '…' : note.content}
+                        </p>
+                        {isAI && hasMore && (
+                          <button
+                            onClick={() => setExpandedNotes(prev => ({ ...prev, [note.id]: !isExpanded }))}
+                            className="mt-1 flex items-center gap-1 text-primary-500 hover:text-primary-700"
+                          >
+                            {isExpanded ? <><ChevronUp size={11} /> Show less</> : <><ChevronDown size={11} /> Show full history</>}
+                          </button>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => { if (confirm('Delete note?')) deleteNoteMutation.mutate(note.id); }}
+                        className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500 flex-shrink-0"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* Recordings */}
