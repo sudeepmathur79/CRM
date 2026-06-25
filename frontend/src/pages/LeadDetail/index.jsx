@@ -198,16 +198,20 @@ export default function LeadDetailPage() {
                           <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 whitespace-pre-wrap">{rec.transcript}</p>
                         </details>
                       )}
-                      {rec.summary && (
-                        <div className="mt-2 p-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg text-xs text-primary-700 dark:text-primary-300">
-                          <p className="font-semibold mb-0.5">AI Summary</p>
-                          <p>{rec.summary}</p>
-                        </div>
-                      )}
                       {rec.nextSteps && (
                         <div className="mt-2 p-2 bg-green-50 dark:bg-green-900/20 rounded-lg text-xs text-green-800 dark:text-green-300 border border-green-100 dark:border-green-800">
-                          <p className="font-semibold mb-0.5">🎯 Next Steps</p>
+                          <p className="font-semibold mb-1">🎯 Next Steps</p>
                           <p className="whitespace-pre-line">{rec.nextSteps}</p>
+                        </div>
+                      )}
+                      {rec.summary && (
+                        <div className="mt-2 p-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg text-xs text-primary-700 dark:text-primary-300">
+                          <p className="font-semibold mb-1">AI Summary</p>
+                          <div className="space-y-1">
+                            {rec.summary.split(/(?=\[\d{2}\/\d{2}\/\d{4}\]|\[\d+\s\w+\]|\[\w{3}\s\d+\])/g).filter(Boolean).map((entry, i) => (
+                              <p key={i} className="leading-relaxed">{entry.trim()}</p>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
