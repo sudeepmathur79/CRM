@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { authenticate, requireRole } = require('../middleware/auth.middleware');
 const { getLeads, getLead, createLead, updateLead, deleteLead, bulkAction } = require('../services/lead.service');
+const { scoreLead } = require('../services/ai.service');
 const prisma = new (require('@prisma/client').PrismaClient)();
 
 router.use(authenticate);
@@ -117,6 +118,30 @@ router.get('/:id/activities', async (req, res, next) => {
       take: 100
     });
     res.json(activities);
+  } catch (e) { next(e); }
+});
+
+router.post('/:id/score', async (req, res, next) => {
+  try {
+    const lead = await prisma.lead.findUnique({
+      where: { id: req.params.id },
+      include: {
+        leadNotes: true,
+        recordings: { select: { summary: true, transcript: true } },
+        activities: { orderBy: { createdAt: 'desc' }, take: 1, select: { createdAt: true } },
+      },
+    });
+    if (!lead) return res.status(404).json({ error: 'Lead not found' });
+
+    lead.lastActivityAt = lead.activities[0]?.createdAt || null;
+    const result = await scoreLead(lead);
+    if (!result) return res.status(400).json({ error: 'AI provider not configured' });
+
+    const updated = await prisma.lead.update({
+      where: { id: req.params.id },
+      data: { aiScore: result.score, aiScoreReason: result.reason, aiNextAction: result.nextAction, aiScoredAt: new Date() },
+    });
+    res.json({ score: updated.aiScore, reason: updated.aiScoreReason, nextAction: updated.aiNextAction, aiScoredAt: updated.aiScoredAt });
   } catch (e) { next(e); }
 });
 

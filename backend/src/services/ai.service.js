@@ -252,4 +252,68 @@ No markdown, no wrapper object — just the raw JSON array.`;
   }
 };
 
-module.exports = { extractLeadFromText, summarizeTranscript, analyzeConversation, transcribeAudio, recommendManagementActions };
+const scoreLead = async (lead) => {
+  const provider = getClient();
+  if (!provider) return null;
+
+  const daysSinceCreated = Math.floor((Date.now() - new Date(lead.createdAt)) / 86400000);
+  const daysSinceActivity = lead.lastActivityAt
+    ? Math.floor((Date.now() - new Date(lead.lastActivityAt)) / 86400000)
+    : daysSinceCreated;
+
+  const notes = [
+    lead.notes,
+    ...(lead.leadNotes || []).map(n => n.content),
+    ...(lead.recordings || []).map(r => r.summary || r.transcript?.slice(0, 400)),
+  ].filter(Boolean).join('\n\n').slice(0, 2000);
+
+  const prompt = `You are a sales scoring assistant. Score this lead 1-10 based on the available information.
+
+=== LEAD DATA ===
+Name: ${lead.name}
+Company: ${lead.company || 'unknown'}
+Status: ${lead.status}
+Deal value: ${lead.value ? `$${lead.value.toLocaleString()}` : 'not set'}
+Source: ${lead.source || 'unknown'}
+Days in pipeline: ${daysSinceCreated}
+Days since last activity: ${daysSinceActivity}
+Follow-up overdue: ${lead.nextFollowUp && new Date(lead.nextFollowUp) < new Date() ? 'YES' : 'no'}
+Notes / call summaries:
+${notes || '(none)'}
+
+=== SCORING GUIDE ===
+9-10: Strong buying signals, high value, recent engagement, decision maker confirmed
+7-8: Clear interest, budget likely, active engagement
+5-6: Some interest, needs nurturing, no strong signals yet
+3-4: Uncertain interest, stale, or early stage
+1-2: Cold, lost contact, no budget signal, long inactive
+
+Return ONLY valid JSON, no markdown:
+{
+  "score": <integer 1-10>,
+  "reason": "<one sentence explaining the score based on specific data points>",
+  "nextAction": "<one specific, actionable next step tailored to this lead's situation>"
+}`;
+
+  try {
+    const completion = await callWithFallback(provider, {
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.2,
+      max_tokens: 200,
+    });
+    const raw = completion.choices[0].message.content.trim()
+      .replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const match = raw.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(match ? match[0] : raw);
+    return {
+      score: Math.min(10, Math.max(1, Math.round(parsed.score))),
+      reason: parsed.reason || null,
+      nextAction: parsed.nextAction || null,
+    };
+  } catch (e) {
+    console.error('AI score error:', e.message);
+    return null;
+  }
+};
+
+module.exports = { extractLeadFromText, summarizeTranscript, analyzeConversation, transcribeAudio, recommendManagementActions, scoreLead };

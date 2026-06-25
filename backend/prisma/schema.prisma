@@ -39,6 +39,10 @@ model Lead {
   value        Float?
   nextFollowUp    DateTime?
   reminderSentAt  DateTime?
+  aiScore         Int?
+  aiScoreReason   String?
+  aiNextAction    String?
+  aiScoredAt      DateTime?
   assignedToId String?
   assignedTo   User?       @relation("AssignedLeads", fields: [assignedToId], references: [id])
   createdById  String?

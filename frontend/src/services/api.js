@@ -60,6 +60,7 @@ export const leadsApi = {
   getNotes: (id) => api.get(`/leads/${id}/notes`),
   addNote: (id, content) => api.post(`/leads/${id}/notes`, { content, type: 'manual' }),
   deleteNote: (leadId, noteId) => api.delete(`/leads/${leadId}/notes/${noteId}`),
+  score: (id) => api.post(`/leads/${id}/score`),
 };
 
 export const recordingsApi = {

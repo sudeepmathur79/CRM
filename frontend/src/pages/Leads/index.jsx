@@ -190,6 +190,7 @@ export default function LeadsPage() {
                 <th className="p-4 text-left font-medium text-gray-600 dark:text-gray-400">Name</th>
                 <th className="p-4 text-left font-medium text-gray-600 dark:text-gray-400">Company</th>
                 <th className="p-4 text-left font-medium text-gray-600 dark:text-gray-400">Status</th>
+                <th className="p-4 text-left font-medium text-gray-600 dark:text-gray-400 hidden lg:table-cell">AI Score</th>
                 <th className="p-4 text-left font-medium text-gray-600 dark:text-gray-400 hidden lg:table-cell">Assigned</th>
                 <th className="p-4 text-left font-medium text-gray-600 dark:text-gray-400 hidden lg:table-cell">Follow-up</th>
                 <th className="p-4 text-left font-medium text-gray-600 dark:text-gray-400 hidden xl:table-cell">Tags</th>
@@ -215,6 +216,13 @@ export default function LeadsPage() {
                   </td>
                   <td className="p-4 text-gray-600 dark:text-gray-400">{lead.company || '—'}</td>
                   <td className="p-4"><StatusBadge status={lead.status} /></td>
+                  <td className="p-4 hidden lg:table-cell">
+                    {lead.aiScore ? (
+                      <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full text-white ${
+                        lead.aiScore >= 8 ? 'bg-green-500' : lead.aiScore >= 6 ? 'bg-yellow-500' : lead.aiScore >= 4 ? 'bg-orange-500' : 'bg-red-500'
+                      }`}>✦ {lead.aiScore}/10</span>
+                    ) : <span className="text-gray-300 text-xs">—</span>}
+                  </td>
                   <td className="p-4 text-gray-600 dark:text-gray-400 hidden lg:table-cell">{lead.assignedTo?.name || '—'}</td>
                   <td className="p-4 text-gray-600 dark:text-gray-400 hidden lg:table-cell">
                     {lead.nextFollowUp ? format(new Date(lead.nextFollowUp), 'MMM d') : '—'}

@@ -6,7 +6,7 @@ import { StatusBadge, TagBadge } from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
 import LeadForm from '../../components/forms/LeadForm';
 import { format } from 'date-fns';
-import { ArrowLeft, Edit, Mic, Upload, Play, Pause, Trash2, FileText, Clock, Plus, ChevronDown, ChevronUp, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Edit, Mic, Upload, Play, Pause, Trash2, FileText, Clock, Plus, ChevronDown, ChevronUp, MessageSquare, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import MentionTextarea, { MentionText } from '../../components/ui/MentionTextarea';
 import { useAuth } from '../../contexts/AuthContext';
@@ -110,6 +110,12 @@ export default function LeadDetailPage() {
     mutationFn: (content) => leadsApi.addNote(id, content),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['lead', id] }); setNewNote(''); toast.success('Note saved'); },
     onError: () => toast.error('Failed to save note'),
+  });
+
+  const scoreMutation = useMutation({
+    mutationFn: () => leadsApi.score(id).then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['lead', id] }); toast.success('Lead scored'); },
+    onError: (e) => toast.error(e.response?.data?.error || 'Scoring failed'),
   });
 
   const deleteNoteMutation = useMutation({
@@ -226,6 +232,43 @@ export default function LeadDetailPage() {
               </div>
             )}
 
+          </div>
+
+          {/* AI Score Card */}
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 md:p-5 border border-gray-100 dark:border-slate-700">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-semibold flex items-center gap-2"><Sparkles size={16} className="text-violet-500" /> AI Lead Score</h2>
+              <button
+                onClick={() => scoreMutation.mutate()}
+                disabled={scoreMutation.isPending}
+                className="text-xs px-3 py-1.5 rounded-lg bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300 hover:bg-violet-100 dark:hover:bg-violet-900/40 disabled:opacity-50 transition-colors"
+              >
+                {scoreMutation.isPending ? 'Scoring…' : lead.aiScore ? 'Re-score' : 'Score with AI'}
+              </button>
+            </div>
+            {lead.aiScore ? (
+              <div className="flex items-start gap-4">
+                <div className={`flex-shrink-0 w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-bold text-white ${
+                  lead.aiScore >= 8 ? 'bg-green-500' : lead.aiScore >= 6 ? 'bg-yellow-500' : lead.aiScore >= 4 ? 'bg-orange-500' : 'bg-red-500'
+                }`}>
+                  {lead.aiScore}
+                </div>
+                <div className="flex-1 min-w-0">
+                  {lead.aiScoreReason && <p className="text-sm text-gray-600 dark:text-gray-300">{lead.aiScoreReason}</p>}
+                  {lead.aiNextAction && (
+                    <div className="mt-2 p-2 rounded-lg bg-violet-50 dark:bg-violet-900/20 border border-violet-100 dark:border-violet-800">
+                      <div className="text-xs text-violet-500 font-medium mb-0.5">Suggested next action</div>
+                      <p className="text-sm text-gray-700 dark:text-gray-200">{lead.aiNextAction}</p>
+                    </div>
+                  )}
+                  {lead.aiScoredAt && (
+                    <p className="text-xs text-gray-400 mt-2">Scored {safeFormat(lead.aiScoredAt, 'MMM d, h:mm a')}</p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400">Click "Score with AI" to get an AI-generated lead quality score and next action suggestion.</p>
+            )}
           </div>
 
           {/* Notes Timeline */}

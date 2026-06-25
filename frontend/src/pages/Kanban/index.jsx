@@ -33,6 +33,13 @@ const LeadCard = ({ lead, isDragging }) => {
       </div>
       {lead.company && <div className="text-xs text-gray-400 mt-0.5">{lead.company}</div>}
       {lead.assignedTo && <div className="text-xs text-gray-400 mt-1">→ {lead.assignedTo.name}</div>}
+      {lead.aiScore && (
+        <div className={`inline-flex items-center gap-1 text-[10px] font-semibold mt-1 px-1.5 py-0.5 rounded-full text-white ${
+          lead.aiScore >= 8 ? 'bg-green-500' : lead.aiScore >= 6 ? 'bg-yellow-500' : lead.aiScore >= 4 ? 'bg-orange-500' : 'bg-red-500'
+        }`}>
+          ✦ {lead.aiScore}/10
+        </div>
+      )}
       {lead.nextFollowUp && (() => {
         const isOverdue = new Date(lead.nextFollowUp) < new Date() && !['Closed Won','Closed Lost'].includes(lead.status);
         return (
