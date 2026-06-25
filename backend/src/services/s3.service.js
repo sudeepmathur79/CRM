@@ -13,8 +13,11 @@ const getClient = () => {
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
     },
   };
-  // Cloudflare R2 (or any S3-compatible provider) uses a custom endpoint
-  if (process.env.AWS_ENDPOINT_URL) config.endpoint = process.env.AWS_ENDPOINT_URL;
+  // Cloudflare R2 requires path-style URLs and a custom endpoint
+  if (process.env.AWS_ENDPOINT_URL) {
+    config.endpoint = process.env.AWS_ENDPOINT_URL;
+    config.forcePathStyle = true;
+  }
   return new S3Client(config);
 };
 
