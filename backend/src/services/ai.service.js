@@ -102,19 +102,23 @@ const analyzeConversation = async (transcript) => {
     const completion = await callWithFallback(provider, {
       messages: [{
         role: 'user',
-        content: `Analyze this sales conversation transcript. Today is ${today}.
+        content: `Analyze this conversation transcript. Today is ${today}.
+
+The conversation may span multiple days, involve partners, referrals, introductions, and business discussions — not just direct sales. Treat all meaningful interactions (partner meetings, introductions, follow-ups, deal discussions) as relevant.
+
+Parse the transcript by date. For each date that has meaningful interaction, write a 1-2 sentence summary of what happened that day. Return dates in reverse chronological order (most recent first).
 
 Return ONLY valid JSON, no markdown:
 {
-  "summary": "2-3 sentence summary of the conversation covering key points, prospect's interest level, and any decisions made",
-  "nextSteps": "Numbered list of 2-4 specific, actionable next steps the sales agent should take, e.g.: 1. Send proposal by Friday 2. Schedule demo for next week 3. Follow up on budget approval"
+  "summary": "Chronological log, latest first. Format each entry as: [DATE]: summary of that day's interaction. Separate entries with a newline. Example:\\n[14 Jun]: Agreed to sign MNDA; Sudiip shared address for DocuSign.\\n[12 Jun]: Gopal shared Symulat deck and proposed formalizing finder relationship.\\n[05 May]: First meeting at Starbucks with Srini Ramani introduction.",
+  "nextSteps": "Numbered list of 2-4 specific actionable next steps based on the most recent interactions, e.g.: 1. Follow up on MNDA from Gopal via DocuSign 2. Connect with Ivan Rosas regarding Mexico City BPO 3. Schedule call with Ganesan on OpenPOWER"
 }
 
 Transcript:
 ${transcript}`
       }],
       temperature: 0.2,
-      max_tokens: 800,
+      max_tokens: 1200,
     });
     const raw = completion.choices[0].message.content.trim()
       .replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
