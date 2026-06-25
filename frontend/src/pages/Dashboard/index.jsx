@@ -4,7 +4,7 @@ import { dashboardApi } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
-import { Users, TrendingUp, Clock, AlertCircle, DollarSign, Trophy, UserCheck, AlertTriangle, Inbox, Sparkles } from 'lucide-react';
+import { Users, TrendingUp, Clock, AlertCircle, DollarSign, Trophy, UserCheck, AlertTriangle, Inbox, Sparkles, UserX, Ghost } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 
@@ -32,6 +32,85 @@ const STATUS_COLORS = {
   'Proposal': '#8b5cf6', 'Closed Won': '#10b981', 'Closed Lost': '#ef4444',
 };
 
+const FUNNEL_STAGES = ['New', 'Contacted', 'Qualified', 'Proposal', 'Closed Won'];
+
+function ConversionFunnel({ stats }) {
+  const navigate = useNavigate();
+  const counts = FUNNEL_STAGES.map(s => stats?.byStatus?.[s] || 0);
+  const max = Math.max(...counts, 1);
+
+  return (
+    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-4 md:p-5">
+      <h2 className="font-semibold text-sm mb-4">Conversion Funnel</h2>
+      <div className="space-y-2">
+        {FUNNEL_STAGES.map((stage, i) => {
+          const count = counts[i];
+          const prev = i > 0 ? counts[i - 1] : null;
+          const dropPct = prev > 0 ? Math.round((1 - count / prev) * 100) : null;
+          const barWidth = max > 0 ? Math.max((count / max) * 100, 2) : 2;
+          return (
+            <button key={stage} onClick={() => navigate(`/leads?status=${encodeURIComponent(stage)}`)}
+              className="w-full text-left group">
+              <div className="flex items-center gap-3">
+                <div className="w-24 text-xs text-gray-500 dark:text-gray-400 text-right flex-shrink-0">{stage}</div>
+                <div className="flex-1 relative h-7 flex items-center">
+                  <div className="absolute inset-y-0 left-0 rounded-lg transition-all duration-500"
+                    style={{ width: `${barWidth}%`, background: STATUS_COLORS[stage], opacity: 0.85 }} />
+                  <span className="relative z-10 pl-2 text-xs font-semibold text-white mix-blend-multiply dark:mix-blend-normal">{count}</span>
+                </div>
+                {dropPct !== null && (
+                  <div className={`text-xs flex-shrink-0 w-16 text-right font-medium ${dropPct > 50 ? 'text-red-500' : dropPct > 25 ? 'text-amber-500' : 'text-gray-400'}`}>
+                    {dropPct > 0 ? `↓ ${dropPct}%` : '—'}
+                  </div>
+                )}
+                {dropPct === null && <div className="w-16 flex-shrink-0" />}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-xs text-gray-400 mt-3">Drop-off % vs previous stage · click a stage to filter leads</p>
+    </div>
+  );
+}
+
+function AlertsRow({ stats }) {
+  const navigate = useNavigate();
+  const stale = stats?.stale || 0;
+  const unassigned = stats?.unassigned || 0;
+
+  if (!stale && !unassigned) return null;
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {stale > 0 && (
+        <button onClick={() => navigate('/leads?stale=1')}
+          className="flex items-center gap-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 text-left hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors group">
+          <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center flex-shrink-0">
+            <Ghost size={20} className="text-amber-600 dark:text-amber-400" />
+          </div>
+          <div>
+            <div className="font-semibold text-amber-800 dark:text-amber-300">{stale} stale lead{stale !== 1 ? 's' : ''}</div>
+            <div className="text-xs text-amber-600 dark:text-amber-400">No activity in 14+ days</div>
+          </div>
+        </button>
+      )}
+      {unassigned > 0 && (
+        <button onClick={() => navigate('/leads?unassigned=1')}
+          className="flex items-center gap-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-4 text-left hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors group">
+          <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-900/40 flex items-center justify-center flex-shrink-0">
+            <UserX size={20} className="text-red-600 dark:text-red-400" />
+          </div>
+          <div>
+            <div className="font-semibold text-red-800 dark:text-red-300">{unassigned} unassigned lead{unassigned !== 1 ? 's' : ''}</div>
+            <div className="text-xs text-red-600 dark:text-red-400">Need to be assigned to an agent</div>
+          </div>
+        </button>
+      )}
+    </div>
+  );
+}
+
 function MyDashboard({ stats, charts }) {
   const hasValue = (stats?.totalPipelineValue || 0) > 0;
   return (
@@ -41,24 +120,15 @@ function MyDashboard({ stats, charts }) {
         <StatCard icon={TrendingUp} label="Conversion" value={`${stats?.conversionRate || 0}%`} color="bg-green-500" sub="Closed Won" />
         <StatCard icon={Clock} label="Follow-ups Today" value={stats?.followUpsToday || 0} color="bg-yellow-500" />
         <StatCard icon={AlertCircle} label="Overdue" value={stats?.overdue || 0} color="bg-red-500" />
-        <StatCard icon={DollarSign} label="Pipeline Value" value={hasValue ? fmt(stats.totalPipelineValue) : '—'} color="bg-violet-500" sub="All active stages" />
-        <StatCard icon={Trophy} label="Won Value" value={(stats?.wonValue || 0) > 0 ? fmt(stats.wonValue) : '—'} color="bg-emerald-500" sub="Closed Won" />
+        <StatCard icon={Ghost} label="Stale" value={stats?.stale || 0} color="bg-amber-500" sub="14+ days quiet" />
+        <StatCard icon={UserX} label="Unassigned" value={stats?.unassigned || 0} color="bg-slate-500" sub="Need assignment" />
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        {['New','Contacted','Qualified','Proposal','Closed Won','Closed Lost'].map(status => {
-          const count = stats?.byStatus?.[status] || 0;
-          const val = stats?.valueByStatus?.[status];
-          return (
-            <div key={status} className="bg-white dark:bg-slate-800 rounded-xl p-3 border border-gray-100 dark:border-slate-700 text-center">
-              <div className="w-2 h-2 rounded-full mx-auto mb-2" style={{ background: STATUS_COLORS[status] }} />
-              <p className="text-2xl font-bold">{count}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{status}</p>
-              {val > 0 && <p className="text-xs font-medium mt-1" style={{ color: STATUS_COLORS[status] }}>{fmt(val)}</p>}
-            </div>
-          );
-        })}
-      </div>
+      {/* Conversion funnel */}
+      <ConversionFunnel stats={stats} />
+
+      {/* Stale + Unassigned alerts */}
+      <AlertsRow stats={stats} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-slate-700">

@@ -33,9 +33,15 @@ const LeadCard = ({ lead, isDragging }) => {
       </div>
       {lead.company && <div className="text-xs text-gray-400 mt-0.5">{lead.company}</div>}
       {lead.assignedTo && <div className="text-xs text-gray-400 mt-1">→ {lead.assignedTo.name}</div>}
-      {lead.nextFollowUp && (
-        <div className="text-xs text-primary-500 mt-1">📅 {format(new Date(lead.nextFollowUp), 'MMM d')}</div>
-      )}
+      {lead.nextFollowUp && (() => {
+        const isOverdue = new Date(lead.nextFollowUp) < new Date() && !['Closed Won','Closed Lost'].includes(lead.status);
+        return (
+          <div className={`text-xs mt-1 flex items-center gap-1 ${isOverdue ? 'text-red-500 dark:text-red-400 font-medium' : 'text-amber-500 dark:text-amber-400'}`}>
+            {isOverdue ? '⚠' : '📅'} {format(new Date(lead.nextFollowUp), 'MMM d')}
+            {isOverdue && <span className="text-[10px] bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-1 rounded">overdue</span>}
+          </div>
+        );
+      })()}
     </div>
   );
 };

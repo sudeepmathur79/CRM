@@ -13,13 +13,18 @@ router.get('/stats', async (req, res, next) => {
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const [total, byStatus, followUpsToday, newToday, overdue, valueAgg] = await Promise.all([
+    const staleThreshold = new Date(now); staleThreshold.setDate(staleThreshold.getDate() - 14);
+    const adminWhere = { archived: false }; // unassigned is always global (admin-level insight)
+
+    const [total, byStatus, followUpsToday, newToday, overdue, valueAgg, stale, unassigned] = await Promise.all([
       prisma.lead.count({ where }),
       prisma.lead.groupBy({ by: ['status'], where, _count: { id: true }, _sum: { value: true } }),
       prisma.lead.count({ where: { ...where, nextFollowUp: { gte: today, lt: tomorrow } } }),
       prisma.lead.count({ where: { ...where, createdAt: { gte: today } } }),
       prisma.lead.count({ where: { ...where, nextFollowUp: { lt: today }, status: { notIn: ['Closed Won', 'Closed Lost'] } } }),
       prisma.lead.aggregate({ where, _sum: { value: true } }),
+      prisma.lead.count({ where: { ...where, status: { notIn: ['Closed Won', 'Closed Lost'] }, activities: { none: { createdAt: { gte: staleThreshold } } } } }),
+      req.user.role !== 'agent' ? prisma.lead.count({ where: { ...adminWhere, assignedToId: null } }) : Promise.resolve(0),
     ]);
 
     const statusMap = {};
@@ -38,6 +43,7 @@ router.get('/stats', async (req, res, next) => {
       total, byStatus: statusMap, followUpsToday, newToday, overdue,
       conversionRate: Number(conversionRate),
       totalPipelineValue, wonValue, valueByStatus,
+      stale, unassigned,
     });
   } catch (e) { next(e); }
 });

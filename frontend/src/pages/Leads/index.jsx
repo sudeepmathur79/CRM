@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { leadsApi, csvApi } from '../../services/api';
 import { StatusBadge, TagBadge } from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
@@ -19,6 +19,7 @@ export default function LeadsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const [searchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [showCreate, setShowCreate] = useState(false);
@@ -27,9 +28,23 @@ export default function LeadsPage() {
   const [selected, setSelected] = useState([]);
   const [showImport, setShowImport] = useState(false);
 
+  // Support ?stale=1, ?unassigned=1, ?status=X from dashboard deep-links
+  const staleFilter = searchParams.get('stale') === '1';
+  const unassignedFilter = searchParams.get('unassigned') === '1';
+  useEffect(() => {
+    const s = searchParams.get('status');
+    if (s) setStatusFilter(s);
+  }, []);
+
   const { data: leads = [], isLoading } = useQuery({
-    queryKey: ['leads', search, statusFilter, showArchived],
-    queryFn: () => leadsApi.list({ search: search || undefined, status: statusFilter || undefined, archived: showArchived ? 'true' : 'false' }).then(r => r.data),
+    queryKey: ['leads', search, statusFilter, showArchived, staleFilter, unassignedFilter],
+    queryFn: () => leadsApi.list({
+      search: search || undefined,
+      status: statusFilter || undefined,
+      archived: showArchived ? 'true' : 'false',
+      stale: staleFilter ? '1' : undefined,
+      unassigned: unassignedFilter ? '1' : undefined,
+    }).then(r => r.data),
   });
 
   const createMutation = useMutation({
@@ -122,6 +137,14 @@ export default function LeadsPage() {
           )}
         </div>
       </div>
+
+      {/* Active filter banner */}
+      {(staleFilter || unassignedFilter) && (
+        <div className="flex items-center justify-between mb-3 px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-300">
+          <span>{staleFilter ? '⏱ Showing stale leads (no activity in 14+ days)' : '👤 Showing unassigned leads'}</span>
+          <button onClick={() => navigate('/leads')} className="text-xs underline ml-2">Clear</button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex gap-2 mb-4">

@@ -20,6 +20,12 @@ const getLeads = async (user, filters = {}) => {
       { phone: { contains: filters.search, mode: 'insensitive' } },
     ];
   }
+  if (filters.unassigned === '1') where.assignedToId = null;
+  if (filters.stale === '1') {
+    const staleThreshold = new Date(); staleThreshold.setDate(staleThreshold.getDate() - 14);
+    where.status = { notIn: ['Closed Won', 'Closed Lost'] };
+    where.activities = { none: { createdAt: { gte: staleThreshold } } };
+  }
   return prisma.lead.findMany({
     where,
     include: { assignedTo: { select: { id: true, name: true, email: true } }, tags: true },
