@@ -3,12 +3,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { authApi } from '../services/api';
-import { GoogleLogin } from '@react-oauth/google';
 import toast from 'react-hot-toast';
 import { Shield, ArrowLeft } from 'lucide-react';
-import { useAppConfig } from '../App';
 
-// ── 2FA code entry step ───────────────────────────────────────────────────────
 function TwoFactorStep({ tempToken, onBack, onSuccess }) {
   const { verify2FA } = useAuth();
   const [code, setCode] = useState('');
@@ -44,7 +41,6 @@ function TwoFactorStep({ tempToken, onBack, onSuccess }) {
           <p className="text-xs text-gray-500 dark:text-gray-400">Enter the 6-digit code from your authenticator app</p>
         </div>
       </div>
-
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
           ref={inputRef}
@@ -62,7 +58,6 @@ function TwoFactorStep({ tempToken, onBack, onSuccess }) {
           {loading ? 'Verifying…' : 'Verify'}
         </button>
       </form>
-
       <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
         <ArrowLeft size={14} /> Back to login
       </button>
@@ -70,13 +65,12 @@ function TwoFactorStep({ tempToken, onBack, onSuccess }) {
   );
 }
 
-// ── Main login form ───────────────────────────────────────────────────────────
-function LoginForm({ onTwoFactor }) {
-  const { login, googleLogin } = useAuth();
-  const { googleClientId } = useAppConfig();
+export default function LoginPage() {
+  const { login } = useAuth();
   const navigate = useNavigate();
   const { register, handleSubmit, formState: { errors } } = useForm();
   const [loading, setLoading] = useState(false);
+  const [tempToken, setTempToken] = useState(null);
 
   useEffect(() => {
     authApi.setup({}).catch(e => {
@@ -89,7 +83,7 @@ function LoginForm({ onTwoFactor }) {
     try {
       const result = await login(data);
       if (result?.requiresTwoFactor) {
-        onTwoFactor(result.tempToken);
+        setTempToken(result.tempToken);
       } else {
         navigate('/');
       }
@@ -100,76 +94,7 @@ function LoginForm({ onTwoFactor }) {
     }
   };
 
-  const handleGoogleSuccess = async ({ credential }) => {
-    try {
-      await googleLogin(credential);
-      navigate('/');
-    } catch (e) {
-      toast.error(e.response?.data?.error || 'Google sign-in failed');
-    }
-  };
-
   return (
-    <div className="space-y-5">
-      {/* Google Sign-In — only shown when clientId available */}
-      {googleClientId && (
-        <>
-          <div className="flex justify-center">
-            <GoogleLogin
-              onSuccess={handleGoogleSuccess}
-              onError={() => toast.error('Google sign-in failed')}
-              theme="outline"
-              size="large"
-              width="360"
-              text="signin_with"
-              shape="rectangular"
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-gray-200 dark:bg-slate-600" />
-            <span className="text-xs text-gray-400">or sign in with password</span>
-            <div className="flex-1 h-px bg-gray-200 dark:bg-slate-600" />
-          </div>
-        </>
-      )}
-
-      {/* Password form */}
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
-          <input
-            type="email"
-            {...register('email', { required: 'Email is required' })}
-            className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500"
-            placeholder="you@example.com"
-          />
-          {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
-          <input
-            type="password"
-            {...register('password', { required: 'Password is required' })}
-            className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500"
-            placeholder="••••••••"
-          />
-          {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>}
-        </div>
-        <button type="submit" disabled={loading}
-          className="w-full py-2.5 px-4 bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white font-medium rounded-lg transition-colors">
-          {loading ? 'Signing in…' : 'Sign in'}
-        </button>
-      </form>
-    </div>
-  );
-}
-
-// ── Page wrapper ──────────────────────────────────────────────────────────────
-export default function LoginPage() {
-  const navigate = useNavigate();
-  const [tempToken, setTempToken] = useState(null); // set when 2FA step required
-
-  const inner = (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-900 px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
@@ -178,7 +103,6 @@ export default function LoginPage() {
             {tempToken ? 'Verify your identity' : 'Sign in to your account'}
           </p>
         </div>
-
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-8">
           {tempToken ? (
             <TwoFactorStep
@@ -187,12 +111,29 @@ export default function LoginPage() {
               onSuccess={() => navigate('/')}
             />
           ) : (
-            <LoginForm onTwoFactor={setTempToken} />
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
+                <input type="email" {...register('email', { required: 'Email is required' })}
+                  className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="you@example.com" />
+                {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
+                <input type="password" {...register('password', { required: 'Password is required' })}
+                  className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="••••••••" />
+                {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>}
+              </div>
+              <button type="submit" disabled={loading}
+                className="w-full py-2.5 px-4 bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white font-medium rounded-lg transition-colors">
+                {loading ? 'Signing in…' : 'Sign in'}
+              </button>
+            </form>
           )}
         </div>
       </div>
     </div>
   );
-
-  return inner;
 }

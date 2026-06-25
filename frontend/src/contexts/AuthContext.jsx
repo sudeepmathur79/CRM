@@ -26,15 +26,6 @@ export const AuthProvider = ({ children }) => {
     return data.user;
   };
 
-  // Google SSO login
-  const googleLogin = async (credential) => {
-    const { data } = await authApi.googleLogin({ credential });
-    localStorage.setItem('accessToken', data.accessToken);
-    localStorage.setItem('refreshToken', data.refreshToken);
-    setUser(data.user);
-    return data.user;
-  };
-
   // Complete 2FA step after password login
   const verify2FA = async ({ tempToken, code }) => {
     const { data } = await authApi.verify2FALogin({ tempToken, code });
@@ -52,7 +43,7 @@ export const AuthProvider = ({ children }) => {
   const refreshUser = () => authApi.me().then(r => setUser(r.data));
 
   return (
-    <AuthContext.Provider value={{ user, setUser, login, googleLogin, verify2FA, logout, refreshUser, loading }}>
+    <AuthContext.Provider value={{ user, setUser, login, verify2FA, logout, refreshUser, loading }}>
       {children}
     </AuthContext.Provider>
   );
