@@ -5,10 +5,11 @@ import { leadsApi } from '../../services/api';
 import { StatusBadge, TagBadge } from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
 import LeadForm from '../../components/forms/LeadForm';
-import { Plus, Search, Filter, Trash2, UserCheck, RefreshCw } from 'lucide-react';
+import { Plus, Search, Sparkles, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
+import SmartAdd from '../../components/forms/SmartAdd';
 
 const STATUSES = ['', 'New', 'Contacted', 'Qualified', 'Proposal', 'Closed Won', 'Closed Lost'];
 
@@ -19,6 +20,7 @@ export default function LeadsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [showSmartAdd, setShowSmartAdd] = useState(false);
   const [selected, setSelected] = useState([]);
 
   const { data: leads = [], isLoading } = useQuery({
@@ -52,6 +54,10 @@ export default function LeadsPage() {
           <h1 className="text-2xl font-bold">Leads</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">{leads.length} total</p>
         </div>
+        <button onClick={() => setShowSmartAdd(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-sm font-medium transition-colors">
+          <Sparkles size={16} /> Smart Add
+        </button>
         <button onClick={() => setShowCreate(true)}
           className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors">
           <Plus size={16} /> New Lead
@@ -149,6 +155,10 @@ export default function LeadsPage() {
 
       <Modal open={showCreate} onClose={() => setShowCreate(false)} title="New Lead" size="lg">
         <LeadForm onSubmit={createMutation.mutate} loading={createMutation.isPending} />
+      </Modal>
+
+      <Modal open={showSmartAdd} onClose={() => setShowSmartAdd(false)} title="✨ Smart Add — AI Lead Extraction" size="lg">
+        <SmartAdd onClose={() => setShowSmartAdd(false)} onSuccess={() => setShowSmartAdd(false)} />
       </Modal>
     </div>
   );
