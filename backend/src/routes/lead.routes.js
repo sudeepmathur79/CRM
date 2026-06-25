@@ -17,26 +17,6 @@ router.post('/', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-router.get('/:id', async (req, res, next) => {
-  try { res.json(await getLead(req.params.id, req.user)); } catch (e) { next(e); }
-});
-
-router.put('/:id', async (req, res, next) => {
-  try {
-    const lead = await updateLead(req.params.id, req.body, req.user.id, req.user);
-    req.app.get('io')?.emit('lead:updated', lead);
-    res.json(lead);
-  } catch (e) { next(e); }
-});
-
-router.delete('/:id', requireRole('admin', 'agent'), async (req, res, next) => {
-  try {
-    await deleteLead(req.params.id, req.user.id, req.user);
-    req.app.get('io')?.emit('lead:deleted', { id: req.params.id });
-    res.json({ success: true });
-  } catch (e) { next(e); }
-});
-
 // Admin-only: archive all active leads as demo data
 router.post('/admin/archive-demo', requireRole('admin'), async (req, res, next) => {
   try {
