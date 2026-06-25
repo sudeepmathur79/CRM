@@ -6,8 +6,9 @@ RUN npm ci
 COPY frontend/ .
 RUN npm run build
 
-# Stage 2: Build backend
+# Stage 2: Backend
 FROM node:20-alpine
+RUN apk add --no-cache openssl
 WORKDIR /app
 COPY backend/package*.json ./
 RUN npm ci --only=production
@@ -15,9 +16,7 @@ COPY backend/prisma ./prisma
 RUN npx prisma generate
 COPY backend/src ./src
 
-# Copy built frontend into place so Express can serve it
 COPY --from=frontend-builder /frontend/dist ./frontend/dist
-
 RUN mkdir -p uploads
 
 EXPOSE 3000
