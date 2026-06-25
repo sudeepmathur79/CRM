@@ -62,8 +62,15 @@ export default function LeadDetailPage() {
   });
 
   const analyzeMutation = useMutation({
-    mutationFn: (recId) => recordingsApi.analyze(recId),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['lead', id] }); toast.success('AI analysis complete'); },
+    mutationFn: (recId) => recordingsApi.analyze(recId).then(r => r.data),
+    onSuccess: (updated) => {
+      qc.invalidateQueries({ queryKey: ['lead', id] });
+      if (updated?.summary || updated?.nextSteps) {
+        toast.success('AI analysis complete');
+      } else {
+        toast.error('AI ran but could not extract summary — check transcript content');
+      }
+    },
     onError: (e) => toast.error(e.response?.data?.error || 'Analysis failed'),
   });
 

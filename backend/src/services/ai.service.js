@@ -104,10 +104,24 @@ ${transcript}`
     const raw = completion.choices[0].message.content.trim()
       .replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     try {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      return {
+        summary: parsed.summary || parsed.Summary || null,
+        nextSteps: parsed.nextSteps || parsed.next_steps || parsed.NextSteps || parsed['next steps'] || null,
+      };
     } catch {
       const match = raw.match(/\{[\s\S]*\}/);
-      return match ? JSON.parse(match[0]) : { summary: raw, nextSteps: null };
+      if (match) {
+        try {
+          const parsed = JSON.parse(match[0]);
+          return {
+            summary: parsed.summary || parsed.Summary || null,
+            nextSteps: parsed.nextSteps || parsed.next_steps || null,
+          };
+        } catch {}
+      }
+      // Last resort: use full response as summary
+      return { summary: raw.slice(0, 500), nextSteps: null };
     }
   } catch (e) {
     console.error('AI analyze error:', e.message);
