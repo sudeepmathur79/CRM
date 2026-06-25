@@ -86,6 +86,7 @@ export const csvApi = {
 export const dashboardApi = {
   stats: () => api.get('/dashboard/stats'),
   charts: () => api.get('/dashboard/charts'),
+  management: () => api.get('/dashboard/management'),
 };
 
 export const tagsApi = {

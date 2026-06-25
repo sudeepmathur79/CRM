@@ -346,6 +346,7 @@ export default function LeadDetailPage() {
           defaultValues={{
             ...lead,
             assignedToId: lead.assignedToId || '',
+            value: lead.value ?? '',
             nextFollowUp: safeFormat(lead.nextFollowUp, 'yyyy-MM-dd') === '—' ? '' : safeFormat(lead.nextFollowUp, 'yyyy-MM-dd')
           }}
         />

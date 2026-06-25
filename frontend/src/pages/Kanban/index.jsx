@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { leadsApi } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 import { StatusBadge } from '../../components/ui/Badge';
 import { DndContext, closestCenter, DragOverlay, useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
@@ -64,11 +65,12 @@ const Column = ({ status, leads }) => {
 
 export default function KanbanPage() {
   const qc = useQueryClient();
+  const { user } = useAuth();
   const [activeId, setActiveId] = useState(null);
 
   const { data: leads = [] } = useQuery({
-    queryKey: ['leads', '', ''],
-    queryFn: () => leadsApi.list({ take: 500 }).then(r => r.data),
+    queryKey: ['leads-kanban', user?.id],
+    queryFn: () => leadsApi.list({ take: 500, archived: 'false' }).then(r => r.data),
   });
 
   const updateMutation = useMutation({

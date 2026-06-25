@@ -74,4 +74,61 @@ router.get('/charts', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Admin-only management view
+router.get('/management', async (req, res, next) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const thirtyDaysAgo = new Date(now); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const staleThreshold = new Date(now); staleThreshold.setDate(staleThreshold.getDate() - 14);
+
+    const [agents, unassigned, staleLeads] = await Promise.all([
+      // All active agents
+      prisma.user.findMany({
+        where: { role: { not: 'admin' }, isActive: true },
+        select: { id: true, name: true, email: true, role: true },
+      }),
+      // Unassigned active leads
+      prisma.lead.findMany({
+        where: { archived: false, assignedToId: null },
+        select: { id: true, name: true, company: true, status: true, createdAt: true, value: true },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      }),
+      // Leads with no activity in 14+ days (not closed)
+      prisma.lead.findMany({
+        where: {
+          archived: false,
+          status: { notIn: ['Closed Won', 'Closed Lost'] },
+          activities: { none: { createdAt: { gte: staleThreshold } } },
+        },
+        select: { id: true, name: true, company: true, status: true, assignedTo: { select: { name: true } }, createdAt: true, value: true },
+        orderBy: { createdAt: 'asc' },
+        take: 20,
+      }),
+    ]);
+
+    // Per-agent stats
+    const agentStats = await Promise.all(agents.map(async (agent) => {
+      const [total, won, overdue, newThisMonth] = await Promise.all([
+        prisma.lead.count({ where: { assignedToId: agent.id, archived: false } }),
+        prisma.lead.count({ where: { assignedToId: agent.id, status: 'Closed Won' } }),
+        prisma.lead.count({ where: { assignedToId: agent.id, archived: false, nextFollowUp: { lt: today }, status: { notIn: ['Closed Won', 'Closed Lost'] } } }),
+        prisma.lead.count({ where: { assignedToId: agent.id, createdAt: { gte: thirtyDaysAgo } } }),
+      ]);
+      const valueAgg = await prisma.lead.aggregate({ where: { assignedToId: agent.id, archived: false }, _sum: { value: true } });
+      return {
+        ...agent,
+        total, won, overdue, newThisMonth,
+        pipelineValue: valueAgg._sum.value || 0,
+        conversionRate: total > 0 ? ((won / total) * 100).toFixed(1) : 0,
+      };
+    }));
+
+    res.json({ agentStats, unassigned, staleLeads });
+  } catch (e) { next(e); }
+});
+
 module.exports = router;
