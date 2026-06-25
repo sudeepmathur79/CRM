@@ -50,8 +50,8 @@ function MessageBubble({ m, mine, onReplyInThread }) {
           <span className="text-xs text-gray-400">{fmtTime(m.createdAt)}</span>
           {onReplyInThread && (
             <button onClick={onReplyInThread}
-              className="hidden group-hover:flex items-center gap-1 text-[10px] text-gray-400 hover:text-primary-500 transition-colors">
-              <CornerDownRight size={11} /> Reply in thread
+              className="flex items-center gap-1 text-[10px] text-gray-300 dark:text-slate-600 hover:text-primary-500 dark:hover:text-primary-400 active:text-primary-500 md:opacity-0 md:group-hover:opacity-100 transition-all">
+              <CornerDownRight size={11} /> Reply
             </button>
           )}
         </div>
