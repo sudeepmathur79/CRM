@@ -21,6 +21,7 @@ const { startAgents } = require('./services/agents');
 const isProd = process.env.NODE_ENV === 'production';
 
 const app = express();
+if (isProd) app.set('trust proxy', 1); // Render sits behind a proxy
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: isProd ? false : { origin: process.env.CORS_ORIGIN || 'http://localhost:5173', credentials: true }

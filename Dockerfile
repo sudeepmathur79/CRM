@@ -23,4 +23,6 @@ EXPOSE 3000
 ENV PORT=3000
 ENV NODE_ENV=production
 
-CMD npx prisma db push --accept-data-loss && npx prisma db seed && node src/index.js
+CMD npx prisma db push --accept-data-loss && \
+    node -e "const{PrismaClient}=require('@prisma/client');const p=new PrismaClient();p.user.count().then(n=>{if(n===0){require('child_process').execSync('npx prisma db seed',{stdio:'inherit'})}else{console.log('DB has data, skipping seed')}}).finally(()=>p.\$disconnect())" && \
+    node src/index.js
