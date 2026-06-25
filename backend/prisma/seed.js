@@ -13,6 +13,10 @@ const randDate = (daysAgo) => { const d = new Date(); d.setDate(d.getDate() - Ma
 const futureDate = (days) => { const d = new Date(); d.setDate(d.getDate() + Math.floor(Math.random() * days)); return d; };
 
 async function main() {
+  if (process.env.SEED !== 'true') {
+    console.log('Seed skipped (set SEED=true to run)');
+    return;
+  }
   console.log('Seeding database...');
 
   const password = await bcrypt.hash('password123', 12);
