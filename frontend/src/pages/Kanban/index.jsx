@@ -88,17 +88,19 @@ export default function KanbanPage() {
   }, [leads, byStatus, updateMutation]);
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Kanban Board</h1>
+    <div className="p-4 md:p-6">
+      <div className="mb-4">
+        <h1 className="text-xl md:text-2xl font-bold">Kanban Board</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">Drag cards to update lead status</p>
       </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter}
         onDragStart={({ active }) => setActiveId(active.id)}
         onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 overflow-x-auto pb-4">
+        <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory" style={{ minHeight: '60vh' }}>
           {STATUSES.map(status => (
-            <Column key={status} status={status} leads={byStatus[status] || []} />
+            <div key={status} className="snap-start flex-shrink-0 w-64 md:w-72">
+              <Column status={status} leads={byStatus[status] || []} />
+            </div>
           ))}
         </div>
         <DragOverlay>

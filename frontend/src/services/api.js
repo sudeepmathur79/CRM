@@ -53,7 +53,7 @@ export const leadsApi = {
 };
 
 export const recordingsApi = {
-  list: (leadId) => api.get('/recordings', { params: { leadId } }),
+  list: (leadId) => api.get('/recordings', leadId ? { params: { leadId } } : undefined),
   upload: (leadId, formData) => api.post(`/recordings/upload/${leadId}`, formData),
   record: (leadId, formData) => api.post(`/recordings/record/${leadId}`, formData),
   delete: (id) => api.delete(`/recordings/${id}`),

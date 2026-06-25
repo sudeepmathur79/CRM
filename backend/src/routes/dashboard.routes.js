@@ -7,7 +7,7 @@ router.use(authenticate);
 
 router.get('/stats', async (req, res, next) => {
   try {
-    const where = req.user.role === 'agent' ? { assignedToId: req.user.id } : {};
+    const where = { archived: false, ...(req.user.role === 'agent' ? { assignedToId: req.user.id } : {}) };
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
@@ -33,7 +33,7 @@ router.get('/stats', async (req, res, next) => {
 
 router.get('/charts', async (req, res, next) => {
   try {
-    const where = req.user.role === 'agent' ? { assignedToId: req.user.id } : {};
+    const where = { archived: false, ...(req.user.role === 'agent' ? { assignedToId: req.user.id } : {}) };
     const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     const recentLeads = await prisma.lead.findMany({

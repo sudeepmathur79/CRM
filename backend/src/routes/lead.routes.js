@@ -66,7 +66,6 @@ router.get('/:id/notes', async (req, res, next) => {
     const notes = await prisma.leadNote.findMany({
       where: { leadId: req.params.id },
       orderBy: { createdAt: 'desc' },
-      include: { lead: false },
     });
     res.json(notes);
   } catch (e) { next(e); }

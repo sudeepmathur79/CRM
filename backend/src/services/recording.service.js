@@ -68,8 +68,14 @@ const saveRecording = async ({ leadId, file, type, userId }) => {
   return recording;
 };
 
-const getRecordings = async (leadId) =>
-  prisma.recording.findMany({ where: { leadId }, orderBy: { createdAt: 'desc' } });
+const getRecordings = async (leadId) => {
+  const where = leadId ? { leadId } : {};
+  return prisma.recording.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    include: leadId ? undefined : { lead: { select: { id: true, name: true } } },
+  });
+};
 
 const deleteRecording = async (id, userId) => {
   const rec = await prisma.recording.findUnique({ where: { id } });
@@ -129,13 +135,9 @@ const analyzeRecording = async (id) => {
   });
   if (analysis.summary) {
     const noteContent = buildAiNoteContent(rec.fileName, analysis.summary, analysis.nextSteps);
-    await prisma.leadNote.upsert({
-      where: { id: `ai_${id}` },
-      update: { content: noteContent },
-      create: { id: `ai_${id}`, leadId: rec.leadId, content: noteContent, type: 'ai_summary' },
-    }).catch(() =>
-      prisma.leadNote.create({ data: { leadId: rec.leadId, content: noteContent, type: 'ai_summary' } })
-    );
+    // Delete any existing AI note for this recording before creating a fresh one
+    await prisma.leadNote.deleteMany({ where: { leadId: rec.leadId, type: 'ai_summary', content: { contains: rec.fileName } } });
+    await prisma.leadNote.create({ data: { leadId: rec.leadId, content: noteContent, type: 'ai_summary' } });
   }
   return updated;
 };
