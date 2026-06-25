@@ -24,6 +24,7 @@ model User {
   activities   Activity[]
   sentMessages     Message[] @relation("SentMessages")
   receivedMessages Message[] @relation("ReceivedMessages")
+  voiceDrafts      VoiceDraft[]
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 }
@@ -115,4 +116,13 @@ model Message {
   body       String
   read       Boolean  @default(false)
   createdAt  DateTime @default(now())
+}
+
+model VoiceDraft {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  content   String
+  resolved  Boolean  @default(false)
+  createdAt DateTime @default(now())
 }

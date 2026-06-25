@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { usersApi } from '../../services/api';
+import { usersApi, voiceDraftsApi, leadsApi } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import Modal from '../../components/ui/Modal';
-import { Plus, Edit, UserX, UserCheck, LogOut, Sun, Moon, User, Shield, Smartphone, CheckCircle, XCircle, Camera } from 'lucide-react';
+import { Plus, Edit, UserX, UserCheck, LogOut, Sun, Moon, User, Shield, Smartphone, CheckCircle, XCircle, Camera, Mic, Check, Trash2, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { authApi } from '../../services/api';
 
@@ -289,6 +289,101 @@ function TwoFactorSection() {
   );
 }
 
+function VoiceDraftsSection() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const [assigningId, setAssigningId] = useState(null);
+  const [leadQuery, setLeadQuery] = useState('');
+  const [selectedLead, setSelectedLead] = useState(null);
+
+  const { data: drafts = [] } = useQuery({
+    queryKey: ['voice-drafts'],
+    queryFn: () => voiceDraftsApi.list().then(r => r.data),
+    enabled: user?.role === 'agent' || user?.role === 'admin',
+  });
+
+  const { data: leadsData } = useQuery({
+    queryKey: ['leads-draft-picker', leadQuery],
+    queryFn: () => leadsApi.list({ search: leadQuery, take: 8, archived: 'false' }).then(r => r.data),
+    enabled: !!assigningId,
+  });
+  const leads = Array.isArray(leadsData) ? leadsData : (leadsData?.leads || []);
+
+  const resolveMutation = useMutation({
+    mutationFn: ({ id, leadId }) => voiceDraftsApi.resolve(id, leadId),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['voice-drafts'] }); setAssigningId(null); setSelectedLead(null); setLeadQuery(''); toast.success('Saved to lead'); },
+    onError: () => toast.error('Failed'),
+  });
+
+  const dismissMutation = useMutation({
+    mutationFn: (id) => voiceDraftsApi.dismiss(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['voice-drafts'] }); toast.success('Dismissed'); },
+  });
+
+  if (!drafts.length) return null;
+
+  return (
+    <section className="bg-white dark:bg-slate-800 rounded-2xl border border-amber-200 dark:border-amber-800">
+      <div className="flex items-center gap-2 p-4 border-b border-amber-100 dark:border-amber-800">
+        <Mic size={16} className="text-amber-500" />
+        <h2 className="font-semibold text-sm">Unresolved Recordings</h2>
+        <span className="ml-auto text-xs bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-full font-medium">{drafts.length}</span>
+      </div>
+      <div className="divide-y divide-gray-50 dark:divide-slate-700">
+        {drafts.map(draft => (
+          <div key={draft.id} className="p-4">
+            <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-3 mb-3">{draft.content}</p>
+            <div className="text-xs text-gray-400 mb-3">{new Date(draft.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+
+            {assigningId === draft.id ? (
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input autoFocus type="text" placeholder="Search leads…" value={leadQuery}
+                    onChange={e => { setLeadQuery(e.target.value); setSelectedLead(null); }}
+                    className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 outline-none focus:ring-1 focus:ring-primary-500" />
+                </div>
+                {selectedLead ? (
+                  <div className="flex items-center gap-2 justify-between">
+                    <span className="text-sm font-medium text-primary-600">{selectedLead.name}</span>
+                    <div className="flex gap-2">
+                      <button onClick={() => resolveMutation.mutate({ id: draft.id, leadId: selectedLead.id })}
+                        className="px-3 py-1.5 bg-primary-600 text-white text-xs rounded-lg font-medium">Save</button>
+                      <button onClick={() => { setAssigningId(null); setSelectedLead(null); setLeadQuery(''); }}
+                        className="px-3 py-1.5 bg-gray-100 dark:bg-slate-700 text-xs rounded-lg">Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-1 max-h-40 overflow-y-auto">
+                    {leads.map(l => (
+                      <button key={l.id} onClick={() => { setSelectedLead(l); setLeadQuery(l.name); }}
+                        className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 text-sm">{l.name}
+                        {l.company && <span className="text-gray-400 ml-1 text-xs">· {l.company}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <button onClick={() => { setAssigningId(draft.id); setLeadQuery(''); setSelectedLead(null); }}
+                  className="flex-1 py-1.5 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 text-xs font-medium rounded-lg hover:bg-primary-100 transition-colors">
+                  Assign to lead
+                </button>
+                <button onClick={() => dismissMutation.mutate(draft.id)}
+                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function SettingsPage() {
   const { user, logout } = useAuth();
   const { dark, toggle } = useTheme();
@@ -329,7 +424,13 @@ export default function SettingsPage() {
 
   return (
     <div className="p-4 md:p-6 max-w-3xl space-y-6">
-      <h1 className="text-xl md:text-2xl font-bold">Settings</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl md:text-2xl font-bold">Settings</h1>
+        <button onClick={handleLogout} title="Sign out"
+          className="p-2 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+          <LogOut size={20} />
+        </button>
+      </div>
 
       {/* My Profile */}
       <section className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700">
@@ -361,14 +462,8 @@ export default function SettingsPage() {
         </button>
       </section>
 
-      {/* Logout — always visible, especially useful on mobile */}
-      <section className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-4">
-        <button onClick={handleLogout}
-          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-medium">
-          <LogOut size={18} />
-          Sign out
-        </button>
-      </section>
+      {/* Unresolved voice recordings */}
+      <VoiceDraftsSection />
 
       {/* Team Management — admin only */}
       {user?.role === 'admin' && (

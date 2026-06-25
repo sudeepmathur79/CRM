@@ -18,6 +18,7 @@ const aiRoutes = require('./routes/ai.routes');
 const csvRoutes = require('./routes/csv.routes');
 const migrateRoutes = require('./routes/migrate.routes');
 const messageRoutes = require('./routes/message.routes');
+const voiceDraftRoutes = require('./routes/voicedraft.routes');
 
 const { startAgents } = require('./services/agents');
 const { startReminderScheduler } = require('./services/reminders');
@@ -60,6 +61,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/csv', csvRoutes);
 app.use('/api/migrate', migrateRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/voice-drafts', voiceDraftRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date() }));
 

@@ -111,3 +111,10 @@ export const tagsApi = {
   list: () => api.get('/tags'),
   setLeadTags: (leadId, tagNames) => api.post(`/tags/lead/${leadId}`, { tagNames }),
 };
+
+export const voiceDraftsApi = {
+  list: () => api.get('/voice-drafts'),
+  create: (content) => api.post('/voice-drafts', { content }),
+  resolve: (id, leadId) => api.post(`/voice-drafts/${id}/resolve`, { leadId }),
+  dismiss: (id) => api.delete(`/voice-drafts/${id}`),
+};
