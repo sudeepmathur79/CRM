@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { leadsApi } from '../../services/api';
+import { leadsApi, csvApi } from '../../services/api';
 import { StatusBadge, TagBadge } from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
 import LeadForm from '../../components/forms/LeadForm';
-import { Plus, Search, Sparkles, Trash2, Archive, ChevronRight } from 'lucide-react';
+import { Plus, Search, Sparkles, Trash2, Archive, ChevronRight, Upload, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import SmartAdd from '../../components/forms/SmartAdd';
+import CsvImportModal from '../../components/csv/CsvImportModal';
 import api from '../../services/api';
 
 const STATUSES = ['', 'New', 'Contacted', 'Qualified', 'Proposal', 'Closed Won', 'Closed Lost'];
@@ -24,6 +25,7 @@ export default function LeadsPage() {
   const [showSmartAdd, setShowSmartAdd] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [selected, setSelected] = useState([]);
+  const [showImport, setShowImport] = useState(false);
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ['leads', search, statusFilter, showArchived],
@@ -58,6 +60,20 @@ export default function LeadsPage() {
   const toggleSelect = (id) => setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
   const allSelected = leads.length > 0 && selected.length === leads.length;
 
+  const handleExport = async () => {
+    try {
+      const res = await csvApi.export(statusFilter ? { status: statusFilter } : undefined);
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'text/csv' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `leads-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Export failed');
+    }
+  };
+
   return (
     <div className="p-4 md:p-6">
       {/* Header */}
@@ -82,6 +98,16 @@ export default function LeadsPage() {
 
         {/* Secondary actions row */}
         <div className="flex flex-wrap gap-2 mt-3">
+          {(user.role === 'admin' || user.role === 'agent') && (
+            <button onClick={() => setShowImport(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700">
+              <Upload size={13} /> Import CSV
+            </button>
+          )}
+          <button onClick={handleExport}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700">
+            <Download size={13} /> Export CSV
+          </button>
           <button onClick={() => setShowArchived(v => !v)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${showArchived ? 'bg-amber-100 border-amber-300 text-amber-800 dark:bg-amber-900/30 dark:border-amber-700 dark:text-amber-300' : 'bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-400'}`}>
             <Archive size={13} /> {showArchived ? 'Hide Archive' : 'View Archive'}
@@ -222,6 +248,8 @@ export default function LeadsPage() {
       <Modal open={showSmartAdd} onClose={() => setShowSmartAdd(false)} title="✨ Smart Add" size="lg">
         <SmartAdd onClose={() => setShowSmartAdd(false)} onSuccess={() => setShowSmartAdd(false)} />
       </Modal>
+
+      <CsvImportModal open={showImport} onClose={() => setShowImport(false)} />
     </div>
   );
 }

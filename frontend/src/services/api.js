@@ -68,6 +68,20 @@ export const usersApi = {
   delete: (id) => api.delete(`/users/${id}`),
 };
 
+export const csvApi = {
+  preview: (file) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return api.post('/csv/import?preview=true', fd);
+  },
+  import: (file) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return api.post('/csv/import?preview=false', fd);
+  },
+  export: (params) => api.get('/csv/export', { params, responseType: 'blob' }),
+};
+
 export const dashboardApi = {
   stats: () => api.get('/dashboard/stats'),
   charts: () => api.get('/dashboard/charts'),
