@@ -62,6 +62,23 @@ router.delete('/:id', requireRole('admin'), async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Self-update: any authenticated user can update their own name/email/password
+router.put('/me', async (req, res, next) => {
+  try {
+    const { name, email, password } = req.body;
+    const data = {};
+    if (name) data.name = name;
+    if (email) data.email = email;
+    if (password) data.password = await bcrypt.hash(password, 12);
+    const user = await prisma.user.update({
+      where: { id: req.user.id },
+      data,
+      select: { id: true, email: true, name: true, role: true, isActive: true, avatar: true },
+    });
+    res.json(user);
+  } catch (e) { next(e); }
+});
+
 router.post('/me/avatar', avatarUpload.single('avatar'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No image uploaded' });

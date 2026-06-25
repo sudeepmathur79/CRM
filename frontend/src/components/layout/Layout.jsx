@@ -6,6 +6,7 @@ import { messagesApi } from '../../services/api';
 import {
   LayoutDashboard, Users, Columns, Mic, Settings, LogOut, Sun, Moon, ChevronLeft, ChevronRight, MessageSquare,
 } from 'lucide-react';
+
 import { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
@@ -173,7 +174,7 @@ export default function Layout() {
         <Outlet />
       </main>
 
-      {/* Voice capture — agent only, hidden on desktop via CSS */}
+      {/* Voice capture sheet — agent only */}
       {user?.role === 'agent' && <VoiceCapture />}
 
       {/* Bottom tab bar — mobile only */}
@@ -181,7 +182,8 @@ export default function Layout() {
         className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 flex items-center"
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
-        {mobileNavItems.map(({ to, icon: Icon, label, exact, badge }) => (
+        {/* Dashboard + Leads */}
+        {mobileNavItems.slice(0, 2).map(({ to, icon: Icon, label, exact, badge }) => (
           <NavLink key={to} to={to} end={exact}
             className={({ isActive }) =>
               `flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-[10px] font-medium transition-colors ${
@@ -193,18 +195,49 @@ export default function Layout() {
               <>
                 <div className="relative">
                   <Icon size={20} className={isActive ? 'text-primary-600 dark:text-primary-400' : ''} />
-                  {badge > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 rounded-full text-white text-[10px] flex items-center justify-center font-bold">
-                      {badge > 9 ? '9+' : badge}
-                    </span>
-                  )}
+                  {badge > 0 && <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 rounded-full text-white text-[10px] flex items-center justify-center font-bold">{badge > 9 ? '9+' : badge}</span>}
                 </div>
                 {label}
               </>
             )}
           </NavLink>
         ))}
-        {/* Profile / Settings */}
+
+        {/* Centre mic button — agents only, or placeholder spacer */}
+        {user?.role === 'agent' ? (
+          <div className="flex-1 flex items-center justify-center">
+            <button
+              onClick={() => window.__openVoiceCapture?.()}
+              className="-mt-5 w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 active:scale-95 shadow-lg shadow-red-500/40 flex items-center justify-center text-white transition-all"
+            >
+              <Mic size={24} />
+            </button>
+          </div>
+        ) : (
+          <div className="flex-1" />
+        )}
+
+        {/* Messages + Profile */}
+        {mobileNavItems.slice(2).map(({ to, icon: Icon, label, exact, badge }) => (
+          <NavLink key={to} to={to} end={exact}
+            className={({ isActive }) =>
+              `flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-[10px] font-medium transition-colors ${
+                isActive ? 'text-primary-600 dark:text-primary-400' : 'text-gray-500 dark:text-gray-400'
+              }`
+            }
+          >
+            {({ isActive }) => (
+              <>
+                <div className="relative">
+                  <Icon size={20} className={isActive ? 'text-primary-600 dark:text-primary-400' : ''} />
+                  {badge > 0 && <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 rounded-full text-white text-[10px] flex items-center justify-center font-bold">{badge > 9 ? '9+' : badge}</span>}
+                </div>
+                {label}
+              </>
+            )}
+          </NavLink>
+        ))}
+        {/* Profile */}
         <NavLink to="/settings"
           className={({ isActive }) =>
             `flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-[10px] font-medium transition-colors ${

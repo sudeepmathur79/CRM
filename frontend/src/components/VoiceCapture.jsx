@@ -95,18 +95,16 @@ export default function VoiceCapture() {
     setSaveMode('existing');
   };
 
-  useEffect(() => () => recognitionRef.current?.stop(), []);
+  useEffect(() => {
+    window.__openVoiceCapture = () => setOpen(true);
+    return () => {
+      recognitionRef.current?.stop();
+      delete window.__openVoiceCapture;
+    };
+  }, []);
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        className="md:hidden fixed bottom-20 right-4 z-50 w-14 h-14 rounded-full bg-primary-600 hover:bg-primary-700 active:scale-95 shadow-lg shadow-primary-500/40 flex items-center justify-center text-white transition-all"
-        aria-label="Record conversation"
-      >
-        <Mic size={24} />
-      </button>
-
       {open && (
         <div className="fixed inset-0 z-[60] flex flex-col bg-slate-900 text-white">
           <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-slate-700">

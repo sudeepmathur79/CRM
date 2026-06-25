@@ -84,7 +84,7 @@ const ProfileSection = () => {
     mutationFn: (data) => {
       const payload = { name: data.name, email: data.email };
       if (data.password) payload.password = data.password;
-      return usersApi.update(user.id, payload);
+      return usersApi.updateMe(payload);
     },
     onSuccess: () => {
       refreshUser();
@@ -424,28 +424,11 @@ export default function SettingsPage() {
 
   return (
     <div className="p-4 md:p-6 max-w-3xl space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl md:text-2xl font-bold">Settings</h1>
-        <button onClick={handleLogout} title="Sign out"
-          className="p-2 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-          <LogOut size={20} />
-        </button>
-      </div>
+      <h1 className="text-xl md:text-2xl font-bold">Settings</h1>
 
       {/* My Profile */}
-      <section className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700">
-        <div className="flex items-center gap-3 p-4 border-b border-gray-100 dark:border-slate-700">
-          <div className="w-9 h-9 rounded-full bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center text-primary-700 dark:text-primary-400">
-            <User size={18} />
-          </div>
-          <div>
-            <div className="font-semibold text-sm">{user?.name}</div>
-            <div className="text-xs text-gray-500 capitalize">{user?.email} · {user?.role}</div>
-          </div>
-        </div>
-        <div className="p-4">
-          <ProfileSection />
-        </div>
+      <section className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-4">
+        <ProfileSection />
       </section>
 
       {/* 2FA Section */}
@@ -576,6 +559,13 @@ export default function SettingsPage() {
           />
         )}
       </Modal>
+
+      {/* Logout */}
+      <button onClick={handleLogout}
+        className="w-full py-3 rounded-2xl border-2 border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 font-semibold text-sm flex items-center justify-center gap-2 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+        <LogOut size={16} />
+        Sign out
+      </button>
     </div>
   );
 }

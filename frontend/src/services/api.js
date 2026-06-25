@@ -76,6 +76,7 @@ export const usersApi = {
   list: (params) => api.get('/users', { params }),
   create: (data) => api.post('/users', data),
   update: (id, data) => api.put(`/users/${id}`, data),
+  updateMe: (data) => api.put('/users/me', data),
   delete: (id) => api.delete(`/users/${id}`),
   uploadAvatar: (formData) => api.post('/users/me/avatar', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
 };
