@@ -1,7 +1,8 @@
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { authApi } from '../services/api';
 import toast from 'react-hot-toast';
 
 export default function LoginPage() {
@@ -9,6 +10,13 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const { register, handleSubmit, formState: { errors } } = useForm();
   const [loading, setLoading] = useState(false);
+
+  // If the DB is empty (fresh deploy), redirect to first-time setup
+  useEffect(() => {
+    authApi.setup({}).catch(e => {
+      if (e.response?.status === 400) navigate('/setup'); // setup endpoint returns 400 if fields missing = DB is empty
+    });
+  }, []);
 
   const onSubmit = async (data) => {
     setLoading(true);

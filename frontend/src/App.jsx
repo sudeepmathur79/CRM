@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Layout from './components/layout/Layout';
 import LoginPage from './pages/Login';
+import SetupPage from './pages/Setup';
 import DashboardPage from './pages/Dashboard';
 import LeadsPage from './pages/Leads';
 import KanbanPage from './pages/Kanban';
@@ -20,6 +21,7 @@ const AppRoutes = () => {
   const { user } = useAuth();
   return (
     <Routes>
+      <Route path="/setup" element={<SetupPage />} />
       <Route path="/login" element={user ? <Navigate to="/" /> : <LoginPage />} />
       <Route path="/" element={<Protected><Layout /></Protected>}>
         <Route index element={<DashboardPage />} />

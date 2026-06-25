@@ -36,6 +36,7 @@ export default api;
 export const authApi = {
   login: (data) => api.post('/auth/login', data),
   register: (data) => api.post('/auth/register', data),
+  setup: (data) => api.post('/auth/setup', data),
   me: () => api.get('/auth/me'),
 };
 
