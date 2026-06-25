@@ -32,27 +32,22 @@ const uploadToStorage = async (file, leadId) => {
 };
 
 const saveRecording = async ({ leadId, file, type, userId }) => {
+  let transcript = null;
+  let summary = null;
+  let nextSteps = null;
+
+  // Read text content BEFORE uploading (temp file still exists at this point)
+  if (isTextFile(file.originalname)) {
+    try { transcript = fs.readFileSync(file.path, 'utf8'); } catch {}
+  } else {
+    transcript = await transcribeAudio(file.path);
+  }
+
   const fileUrl = await uploadToStorage(file, leadId);
 
   // Clean up local temp file after cloud upload
   if (!fileUrl.startsWith('/uploads/') && fs.existsSync(file.path)) {
     fs.unlinkSync(file.path);
-  }
-
-  let transcript = null;
-  let summary = null;
-  let nextSteps = null;
-
-  // For text files (transcripts), read contents directly
-  if (isTextFile(file.originalname)) {
-    try {
-      transcript = fs.existsSync(file.path)
-        ? fs.readFileSync(file.path, 'utf8')
-        : null;
-    } catch {}
-  } else {
-    // Try audio transcription if Whisper configured
-    transcript = await transcribeAudio(file.path);
   }
 
   // AI analysis if we have a transcript
@@ -93,10 +88,25 @@ const analyzeRecording = async (id) => {
 
   let transcript = rec.transcript;
 
-  // If no transcript yet, try transcribing audio
-  if (!transcript && !rec.fileUrl?.includes('.amazonaws.com/') && !rec.fileUrl?.includes('cloudinary')) {
-    const filePath = path.join(__dirname, '../../', rec.fileUrl);
-    transcript = await transcribeAudio(filePath);
+  // If no transcript yet, try to fetch it
+  if (!transcript) {
+    const isRemote = rec.fileUrl?.startsWith('http');
+    const isText = isTextFile(rec.fileName);
+
+    if (isRemote && isText) {
+      // Fetch text file content from R2/Cloudinary
+      try {
+        const res = await fetch(rec.fileUrl);
+        if (res.ok) transcript = await res.text();
+      } catch (e) { console.error('Fetch transcript error:', e.message); }
+    } else if (!isRemote) {
+      const filePath = path.join(__dirname, '../../', rec.fileUrl);
+      if (isText && fs.existsSync(filePath)) {
+        transcript = fs.readFileSync(filePath, 'utf8');
+      } else {
+        transcript = await transcribeAudio(filePath);
+      }
+    }
   }
 
   if (!transcript) throw Object.assign(new Error('No transcript available. Upload a text file or enable Whisper for audio.'), { status: 400 });
