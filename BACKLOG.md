@@ -10,9 +10,9 @@ Status: `[ ]` = todo · `[~]` = in progress · `[x]` = done
 ## 🔴 P1 — Table Stakes (Competitive blockers)
 
 ### Data & Migration
-- [ ] **CSV import for leads** — without this, no one can migrate from another CRM. Map columns to fields, preview before import, report skipped rows.
-- [ ] **CSV export** — full lead export with filters (status, tag, date range, assigned agent).
-- [ ] **Duplicate detection on import** — match on email or phone, offer merge or skip.
+- [x] **CSV import for leads** — fuzzy column matching, preview with error/duplicate report, sample template download.
+- [x] **CSV export** — full lead export respecting current status filter.
+- [x] **Duplicate detection on import** — matches on email or phone, skips with count in report.
 
 ### Pipeline & Dashboard
 - [ ] **Pipeline $ value** — replace "count by stage" with total deal value per stage. Requires a `value` field on leads.
