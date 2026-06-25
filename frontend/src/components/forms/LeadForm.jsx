@@ -7,7 +7,7 @@ const SOURCES = ['Website', 'Referral', 'LinkedIn', 'Cold Call', 'Email Campaign
 
 export default function LeadForm({ onSubmit, defaultValues = {}, loading }) {
   const { register, handleSubmit, formState: { errors } } = useForm({ defaultValues });
-  const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data) });
+  const { data: users = [] } = useQuery({ queryKey: ['users', 'active'], queryFn: () => usersApi.list({ activeOnly: 'true' }).then(r => r.data) });
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

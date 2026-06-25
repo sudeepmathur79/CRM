@@ -8,7 +8,9 @@ router.use(authenticate);
 
 router.get('/', async (req, res, next) => {
   try {
+    const where = req.query.activeOnly === 'true' ? { isActive: true } : {};
     const users = await prisma.user.findMany({
+      where,
       select: { id: true, email: true, name: true, role: true, isActive: true, createdAt: true }
     });
     res.json(users);

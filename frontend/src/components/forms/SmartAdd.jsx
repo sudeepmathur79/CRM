@@ -22,7 +22,7 @@ export default function SmartAdd({ onClose, onSuccess }) {
   const [extracted, setExtracted] = useState(null);
   const qc = useQueryClient();
 
-  const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data) });
+  const { data: users = [] } = useQuery({ queryKey: ['users', 'active'], queryFn: () => usersApi.list({ activeOnly: 'true' }).then(r => r.data) });
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
