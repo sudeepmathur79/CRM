@@ -9,6 +9,7 @@ import {
 import { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
+import VoiceCapture from '../VoiceCapture';
 
 // Inline style applied only on mobile via JS — avoids needing a Tailwind plugin for safe-area
 const mobileMainStyle = {
@@ -163,6 +164,9 @@ export default function Layout() {
       >
         <Outlet />
       </main>
+
+      {/* Voice capture — mobile + agent only */}
+      {isMobile && user?.role === 'agent' && <VoiceCapture />}
 
       {/* Bottom tab bar — mobile only */}
       <nav
