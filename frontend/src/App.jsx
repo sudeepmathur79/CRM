@@ -1,9 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { GoogleOAuthProvider } from '@react-oauth/google';
-
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import Layout from './components/layout/Layout';
 import LoginPage from './pages/Login';
 import SetupPage from './pages/Setup';
@@ -14,6 +12,8 @@ import LeadDetailPage from './pages/LeadDetail';
 import RecordingsPage from './pages/Recordings';
 import SettingsPage from './pages/Settings';
 import InboxPage from './pages/Inbox';
+import { useEffect, useState } from 'react';
+import { configApi } from './services/api';
 
 const Protected = ({ children }) => {
   const { user, loading } = useAuth();
@@ -41,6 +41,23 @@ const AppRoutes = () => {
 };
 
 export default function App() {
+  const [googleClientId, setGoogleClientId] = useState(null);
+  const [configLoaded, setConfigLoaded] = useState(false);
+
+  useEffect(() => {
+    configApi.get()
+      .then(r => setGoogleClientId(r.data.googleClientId))
+      .catch(() => {})
+      .finally(() => setConfigLoaded(true));
+  }, []);
+
+  // Wait for config so GoogleOAuthProvider is only mounted once we know the ID
+  if (!configLoaded) return (
+    <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-slate-900">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500" />
+    </div>
+  );
+
   const inner = (
     <ThemeProvider>
       <AuthProvider>
@@ -48,6 +65,7 @@ export default function App() {
       </AuthProvider>
     </ThemeProvider>
   );
-  if (!GOOGLE_CLIENT_ID) return inner;
-  return <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>{inner}</GoogleOAuthProvider>;
+
+  if (!googleClientId) return inner;
+  return <GoogleOAuthProvider clientId={googleClientId}>{inner}</GoogleOAuthProvider>;
 }

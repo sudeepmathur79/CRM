@@ -43,6 +43,11 @@ app.use('/api/', limiter);
 
 app.set('io', io);
 
+// Public config — exposes non-secret runtime values to the frontend
+app.get('/api/config', (req, res) => {
+  res.json({ googleClientId: process.env.GOOGLE_CLIENT_ID || null });
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/leads', leadRoutes);

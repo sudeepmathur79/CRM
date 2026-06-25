@@ -33,6 +33,10 @@ api.interceptors.response.use(
 
 export default api;
 
+export const configApi = {
+  get: () => api.get('/config'),
+};
+
 export const authApi = {
   login: (data) => api.post('/auth/login', data),
   register: (data) => api.post('/auth/register', data),

@@ -3,11 +3,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { authApi } from '../services/api';
-import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
+import { GoogleLogin } from '@react-oauth/google';
 import toast from 'react-hot-toast';
 import { Shield, ArrowLeft } from 'lucide-react';
-
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 // ── 2FA code entry step ───────────────────────────────────────────────────────
 function TwoFactorStep({ tempToken, onBack, onSuccess }) {
@@ -111,27 +109,23 @@ function LoginForm({ onTwoFactor }) {
 
   return (
     <div className="space-y-5">
-      {/* Google Sign-In */}
-      {GOOGLE_CLIENT_ID && (
-        <>
-          <div className="flex justify-center">
-            <GoogleLogin
-              onSuccess={handleGoogleSuccess}
-              onError={() => toast.error('Google sign-in failed')}
-              theme="outline"
-              size="large"
-              width="100%"
-              text="signin_with"
-              shape="rectangular"
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-gray-200 dark:bg-slate-600" />
-            <span className="text-xs text-gray-400">or sign in with password</span>
-            <div className="flex-1 h-px bg-gray-200 dark:bg-slate-600" />
-          </div>
-        </>
-      )}
+      {/* Google Sign-In — only rendered when GoogleOAuthProvider is mounted (clientId exists) */}
+      <div className="flex justify-center">
+        <GoogleLogin
+          onSuccess={handleGoogleSuccess}
+          onError={() => toast.error('Google sign-in failed')}
+          theme="outline"
+          size="large"
+          width="360"
+          text="signin_with"
+          shape="rectangular"
+        />
+      </div>
+      <div className="flex items-center gap-3">
+        <div className="flex-1 h-px bg-gray-200 dark:bg-slate-600" />
+        <span className="text-xs text-gray-400">or sign in with password</span>
+        <div className="flex-1 h-px bg-gray-200 dark:bg-slate-600" />
+      </div>
 
       {/* Password form */}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -194,6 +188,5 @@ export default function LoginPage() {
     </div>
   );
 
-  if (!GOOGLE_CLIENT_ID) return inner;
-  return <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>{inner}</GoogleOAuthProvider>;
+  return inner;
 }
