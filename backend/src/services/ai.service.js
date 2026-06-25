@@ -78,6 +78,43 @@ const extractLeadFromText = async (text) => {
   }
 };
 
+const analyzeConversation = async (transcript) => {
+  const provider = getClient();
+  if (!provider || !transcript) return { summary: null, nextSteps: null };
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const completion = await provider.client.chat.completions.create({
+      model: provider.model,
+      messages: [{
+        role: 'user',
+        content: `Analyze this sales conversation transcript. Today is ${today}.
+
+Return ONLY valid JSON, no markdown:
+{
+  "summary": "2-3 sentence summary of the conversation covering key points, prospect's interest level, and any decisions made",
+  "nextSteps": "Numbered list of 2-4 specific, actionable next steps the sales agent should take, e.g.: 1. Send proposal by Friday 2. Schedule demo for next week 3. Follow up on budget approval"
+}
+
+Transcript:
+${transcript}`
+      }],
+      temperature: 0.2,
+      max_tokens: 400,
+    });
+    const raw = completion.choices[0].message.content.trim()
+      .replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    try {
+      return JSON.parse(raw);
+    } catch {
+      const match = raw.match(/\{[\s\S]*\}/);
+      return match ? JSON.parse(match[0]) : { summary: raw, nextSteps: null };
+    }
+  } catch (e) {
+    console.error('AI analyze error:', e.message);
+    return { summary: null, nextSteps: null };
+  }
+};
+
 const summarizeTranscript = async (transcript) => {
   const provider = getClient();
   if (!provider || !transcript) return null;
@@ -110,4 +147,4 @@ const transcribeAudio = async (filePath) => {
   return null;
 };
 
-module.exports = { extractLeadFromText, summarizeTranscript, transcribeAudio };
+module.exports = { extractLeadFromText, summarizeTranscript, analyzeConversation, transcribeAudio };

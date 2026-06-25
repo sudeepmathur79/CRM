@@ -2,35 +2,68 @@ const path = require('path');
 const fs = require('fs');
 const { PrismaClient } = require('@prisma/client');
 const { logActivity } = require('./lead.service');
-const { uploadFile, deleteFile, isConfigured: cloudinaryConfigured } = require('./cloudinary.service');
-const { summarizeTranscript, transcribeAudio } = require('./ai.service');
+const { uploadFile: s3Upload, deleteFile: s3Delete, isConfigured: s3Configured } = require('./s3.service');
+const { uploadFile: cloudinaryUpload, deleteFile: cloudinaryDelete, isConfigured: cloudinaryConfigured } = require('./cloudinary.service');
+const { analyzeConversation, transcribeAudio } = require('./ai.service');
 const prisma = new PrismaClient();
 
 const UPLOAD_DIR = path.join(__dirname, '../../uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
-const saveRecording = async ({ leadId, file, type, userId, autoTranscribe = false }) => {
-  let fileUrl = `/uploads/${file.filename}`;
+const TEXT_EXTS = ['.txt', '.vtt', '.srt', '.md'];
 
-  // Upload to Cloudinary if configured (persistent storage)
+const isTextFile = (fileName) => TEXT_EXTS.includes(path.extname(fileName).toLowerCase());
+
+const uploadToStorage = async (file, leadId) => {
+  // S3 takes priority, then Cloudinary, then local
+  if (s3Configured()) {
+    try {
+      const url = await s3Upload(file.path, file.originalname, leadId);
+      if (url) return url;
+    } catch (e) { console.error('S3 upload error, trying Cloudinary:', e.message); }
+  }
   if (cloudinaryConfigured()) {
     try {
-      const cloudUrl = await uploadFile(file.path, file.originalname, leadId);
-      if (cloudUrl) {
-        fileUrl = cloudUrl;
-        // Clean up local temp file
-        if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-      }
-    } catch (e) {
-      console.error('Cloudinary upload error, falling back to local:', e.message);
-    }
+      const url = await cloudinaryUpload(file.path, file.originalname, leadId);
+      if (url) return url;
+    } catch (e) { console.error('Cloudinary upload error, falling back to local:', e.message); }
+  }
+  return `/uploads/${file.filename}`;
+};
+
+const saveRecording = async ({ leadId, file, type, userId }) => {
+  const fileUrl = await uploadToStorage(file, leadId);
+
+  // Clean up local temp file after cloud upload
+  if (!fileUrl.startsWith('/uploads/') && fs.existsSync(file.path)) {
+    fs.unlinkSync(file.path);
   }
 
-  const transcript = autoTranscribe ? await transcribeAudio(file.path) : null;
-  const summary = transcript ? await summarizeTranscript(transcript) : null;
+  let transcript = null;
+  let summary = null;
+  let nextSteps = null;
+
+  // For text files (transcripts), read contents directly
+  if (isTextFile(file.originalname)) {
+    try {
+      transcript = fs.existsSync(file.path)
+        ? fs.readFileSync(file.path, 'utf8')
+        : null;
+    } catch {}
+  } else {
+    // Try audio transcription if Whisper configured
+    transcript = await transcribeAudio(file.path);
+  }
+
+  // AI analysis if we have a transcript
+  if (transcript) {
+    const analysis = await analyzeConversation(transcript);
+    summary = analysis.summary;
+    nextSteps = analysis.nextSteps;
+  }
 
   const recording = await prisma.recording.create({
-    data: { leadId, fileName: file.originalname, fileUrl, fileSize: file.size, type, transcript, summary }
+    data: { leadId, fileName: file.originalname, fileUrl, fileSize: file.size, type, transcript, summary, nextSteps }
   });
   await logActivity(leadId, userId, 'recording_added', { fileName: file.originalname, type });
   return recording;
@@ -43,8 +76,10 @@ const deleteRecording = async (id) => {
   const rec = await prisma.recording.findUnique({ where: { id } });
   if (!rec) throw Object.assign(new Error('Not found'), { status: 404 });
 
-  if (rec.fileUrl?.includes('cloudinary')) {
-    await deleteFile(rec.fileUrl);
+  if (rec.fileUrl?.includes('.amazonaws.com/')) {
+    try { await s3Delete(rec.fileUrl); } catch (e) { console.error('S3 delete error:', e.message); }
+  } else if (rec.fileUrl?.includes('cloudinary')) {
+    try { await cloudinaryDelete(rec.fileUrl); } catch (e) { console.error('Cloudinary delete error:', e.message); }
   } else {
     const filePath = path.join(__dirname, '../../', rec.fileUrl);
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
@@ -52,17 +87,25 @@ const deleteRecording = async (id) => {
   await prisma.recording.delete({ where: { id } });
 };
 
-const transcribeRecording = async (id) => {
+const analyzeRecording = async (id) => {
   const rec = await prisma.recording.findUnique({ where: { id } });
   if (!rec) throw Object.assign(new Error('Not found'), { status: 404 });
 
-  let transcript = null;
-  if (!rec.fileUrl?.includes('cloudinary')) {
+  let transcript = rec.transcript;
+
+  // If no transcript yet, try transcribing audio
+  if (!transcript && !rec.fileUrl?.includes('.amazonaws.com/') && !rec.fileUrl?.includes('cloudinary')) {
     const filePath = path.join(__dirname, '../../', rec.fileUrl);
     transcript = await transcribeAudio(filePath);
   }
-  const summary = transcript ? await summarizeTranscript(transcript) : null;
-  return prisma.recording.update({ where: { id }, data: { transcript, summary } });
+
+  if (!transcript) throw Object.assign(new Error('No transcript available. Upload a text file or enable Whisper for audio.'), { status: 400 });
+
+  const analysis = await analyzeConversation(transcript);
+  return prisma.recording.update({
+    where: { id },
+    data: { transcript, summary: analysis.summary, nextSteps: analysis.nextSteps }
+  });
 };
 
-module.exports = { saveRecording, getRecordings, deleteRecording, transcribeRecording, UPLOAD_DIR };
+module.exports = { saveRecording, getRecordings, deleteRecording, analyzeRecording, UPLOAD_DIR };

@@ -55,6 +55,7 @@ export const recordingsApi = {
   record: (leadId, formData) => api.post(`/recordings/record/${leadId}`, formData),
   delete: (id) => api.delete(`/recordings/${id}`),
   transcribe: (id) => api.post(`/recordings/${id}/transcribe`),
+  analyze: (id) => api.post(`/recordings/${id}/analyze`),
 };
 
 export const usersApi = {

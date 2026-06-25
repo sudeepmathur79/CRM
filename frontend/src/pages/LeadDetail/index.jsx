@@ -61,10 +61,10 @@ export default function LeadDetailPage() {
     onError: () => toast.error('Upload failed'),
   });
 
-  const transcribeMutation = useMutation({
-    mutationFn: (recId) => recordingsApi.transcribe(recId),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['lead', id] }); toast.success('Transcribed'); },
-    onError: () => toast.error('Transcription failed (check OPENAI_API_KEY)'),
+  const analyzeMutation = useMutation({
+    mutationFn: (recId) => recordingsApi.analyze(recId),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['lead', id] }); toast.success('AI analysis complete'); },
+    onError: (e) => toast.error(e.response?.data?.error || 'Analysis failed'),
   });
 
   const deleteRecMutation = useMutation({
@@ -192,15 +192,23 @@ export default function LeadDetailPage() {
                         </details>
                       )}
                       {rec.summary && (
-                        <div className="mt-2 p-2 bg-primary-50 dark:bg-primary-900/20 rounded text-xs text-primary-700 dark:text-primary-300">
-                          <strong>Summary:</strong> {rec.summary}
+                        <div className="mt-2 p-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg text-xs text-primary-700 dark:text-primary-300">
+                          <p className="font-semibold mb-0.5">AI Summary</p>
+                          <p>{rec.summary}</p>
+                        </div>
+                      )}
+                      {rec.nextSteps && (
+                        <div className="mt-2 p-2 bg-green-50 dark:bg-green-900/20 rounded-lg text-xs text-green-800 dark:text-green-300 border border-green-100 dark:border-green-800">
+                          <p className="font-semibold mb-0.5">🎯 Next Steps</p>
+                          <p className="whitespace-pre-line">{rec.nextSteps}</p>
                         </div>
                       )}
                     </div>
                     <div className="flex gap-1 ml-2">
-                      {!rec.transcript && (
-                        <button onClick={() => transcribeMutation.mutate(rec.id)}
-                          disabled={transcribeMutation.isPending}
+                      {!rec.summary && (
+                        <button onClick={() => analyzeMutation.mutate(rec.id)}
+                          disabled={analyzeMutation.isPending}
+                          title="Analyze with AI"
                           className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-slate-600 text-xs text-gray-500">
                           <FileText size={13} />
                         </button>

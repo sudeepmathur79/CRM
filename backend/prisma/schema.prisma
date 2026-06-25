@@ -53,6 +53,7 @@ model Recording {
   duration   Int?
   transcript String?
   summary    String?
+  nextSteps  String?
   type       String   // "call", "upload"
   channel    String?  @default("browser")
   createdAt  DateTime @default(now())

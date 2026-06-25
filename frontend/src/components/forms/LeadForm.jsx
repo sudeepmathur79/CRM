@@ -6,8 +6,11 @@ const STATUSES = ['New', 'Contacted', 'Qualified', 'Proposal', 'Closed Won', 'Cl
 const SOURCES = ['Website', 'Referral', 'LinkedIn', 'Cold Call', 'Email Campaign', 'Event', 'Other'];
 
 export default function LeadForm({ onSubmit, defaultValues = {}, loading }) {
-  const { register, handleSubmit, formState: { errors } } = useForm({ defaultValues });
+  const { register, handleSubmit, watch, formState: { errors } } = useForm({ defaultValues });
   const { data: users = [] } = useQuery({ queryKey: ['users', 'active'], queryFn: () => usersApi.list({ activeOnly: 'true' }).then(r => r.data) });
+
+  const email = watch('email');
+  const phone = watch('phone');
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -24,14 +27,27 @@ export default function LeadForm({ onSubmit, defaultValues = {}, loading }) {
             className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
-          <input type="email" {...register('email')}
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Email {!phone && <span className="text-red-400">*</span>}
+          </label>
+          <input type="email" {...register('email', {
+            validate: (val) => val || phone || 'Email or phone is required'
+          })}
             className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+          {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phone</label>
-          <input {...register('phone')}
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Phone {!email && <span className="text-red-400">*</span>}
+          </label>
+          <input {...register('phone', {
+            validate: (val) => val || email || 'Email or phone is required'
+          })}
             className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+          {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
+        </div>
+        <div className="col-span-2 -mt-2">
+          <p className="text-xs text-gray-400">At least one of email or phone is required.</p>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
