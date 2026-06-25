@@ -76,7 +76,7 @@ const deleteRecording = async (id) => {
   const rec = await prisma.recording.findUnique({ where: { id } });
   if (!rec) throw Object.assign(new Error('Not found'), { status: 404 });
 
-  if (rec.fileUrl?.includes('.amazonaws.com/')) {
+  if (rec.fileUrl?.includes('.amazonaws.com/') || rec.fileUrl?.includes('r2.cloudflarestorage.com') || (process.env.AWS_PUBLIC_URL && rec.fileUrl?.startsWith(process.env.AWS_PUBLIC_URL))) {
     try { await s3Delete(rec.fileUrl); } catch (e) { console.error('S3 delete error:', e.message); }
   } else if (rec.fileUrl?.includes('cloudinary')) {
     try { await cloudinaryDelete(rec.fileUrl); } catch (e) { console.error('Cloudinary delete error:', e.message); }
