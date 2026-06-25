@@ -212,7 +212,7 @@ export default function LeadDetailPage() {
                     label="Assigned to"
                     person={lead.assignedTo}
                     isSelf={lead.assignedTo.id === currentUser?.id}
-                    onMessage={() => navigate(`/inbox?with=${lead.assignedTo.id}`)}
+                    onMessage={() => navigate(`/inbox?with=${lead.assignedTo.id}&lead=${lead.id}`)}
                   />
                 )}
                 {lead.createdBy && lead.createdBy.id !== lead.assignedTo?.id && (
@@ -220,7 +220,7 @@ export default function LeadDetailPage() {
                     label="Created by"
                     person={lead.createdBy}
                     isSelf={lead.createdBy.id === currentUser?.id}
-                    onMessage={() => navigate(`/inbox?with=${lead.createdBy.id}`)}
+                    onMessage={() => navigate(`/inbox?with=${lead.createdBy.id}&lead=${lead.id}`)}
                   />
                 )}
               </div>

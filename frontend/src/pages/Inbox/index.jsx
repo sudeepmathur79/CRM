@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { messagesApi, usersApi } from '../../services/api';
+import { messagesApi, usersApi, leadsApi } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Send, MessageSquare, ChevronLeft } from 'lucide-react';
+import { Send, MessageSquare, ChevronLeft, X } from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
 import MentionTextarea, { MentionText } from '../../components/ui/MentionTextarea';
 
@@ -23,9 +23,13 @@ export default function InboxPage() {
   const qc = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeUserId = searchParams.get('with');
+  const leadIdParam = searchParams.get('lead');
   const [body, setBody] = useState('');
-  const [leadRef, setLeadRef] = useState('');
+  const [leadRef, setLeadRef] = useState(leadIdParam || '');
   const bottomRef = useRef(null);
+
+  // When URL changes (e.g. navigating from a lead), sync the leadRef
+  useEffect(() => { setLeadRef(leadIdParam || ''); }, [leadIdParam]);
   const navigate = useNavigate();
 
   const { data: conversations = [] } = useQuery({
@@ -44,6 +48,13 @@ export default function InboxPage() {
   const { data: users = [] } = useQuery({
     queryKey: ['users-all'],
     queryFn: () => usersApi.list().then(r => r.data),
+  });
+
+  const { data: refLead } = useQuery({
+    queryKey: ['lead', leadRef],
+    queryFn: () => leadsApi.get(leadRef).then(r => r.data),
+    enabled: !!leadRef,
+    staleTime: 60000,
   });
 
   const sendMutation = useMutation({
@@ -211,6 +222,21 @@ export default function InboxPage() {
 
           {/* Compose */}
           <div className="p-4 bg-white dark:bg-slate-800 border-t border-gray-100 dark:border-slate-700">
+            {/* Lead reference pill */}
+            {leadRef && (
+              <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-1.5 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-lg px-2.5 py-1 text-xs text-primary-700 dark:text-primary-300">
+                  <span className="text-gray-400">re:</span>
+                  <button onClick={() => navigate(`/leads/${leadRef}`)} className="font-medium hover:underline">
+                    {refLead ? `${refLead.name}${refLead.company ? ` · ${refLead.company}` : ''}` : 'Loading…'}
+                  </button>
+                  <button onClick={() => { setLeadRef(''); setSearchParams(p => { p.delete('lead'); return p; }); }}
+                    className="ml-0.5 text-gray-400 hover:text-red-500 transition-colors">
+                    <X size={12} />
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="flex items-end gap-2">
               <div className="flex-1">
                 <MentionTextarea
