@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { PrismaClient } = require('@prisma/client');
 const { authenticate } = require('../middleware/auth.middleware');
+const { recommendManagementActions } = require('../services/ai.service');
 const prisma = new PrismaClient();
 
 router.use(authenticate);
@@ -77,7 +78,7 @@ router.get('/charts', async (req, res, next) => {
 // Admin-only management view
 router.get('/management', async (req, res, next) => {
   try {
-    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+    if (req.user.role === 'agent') return res.status(403).json({ error: 'Management view not available to agents' });
 
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -127,7 +128,13 @@ router.get('/management', async (req, res, next) => {
       };
     }));
 
-    res.json({ agentStats, unassigned, staleLeads });
+    // AI recommendations (non-blocking — if AI fails, still return data)
+    let recommendations = [];
+    try {
+      recommendations = await recommendManagementActions({ agentStats, unassigned, staleLeads });
+    } catch (e) { console.error('AI recommendations failed:', e.message); }
+
+    res.json({ agentStats, unassigned, staleLeads, recommendations });
   } catch (e) { next(e); }
 });
 

@@ -185,4 +185,40 @@ const transcribeAudio = async (filePath) => {
   return null;
 };
 
-module.exports = { extractLeadFromText, summarizeTranscript, analyzeConversation, transcribeAudio };
+const recommendManagementActions = async ({ agentStats, unassigned, staleLeads }) => {
+  const provider = getClient();
+  if (!provider) return [{ priority: 'info', action: 'Configure an AI provider (GROQ_API_KEY) to enable AI recommendations.' }];
+
+  const summary = `
+You are a sales manager AI assistant. Based on this CRM snapshot, provide 4-6 specific, actionable recommendations.
+
+TEAM SNAPSHOT:
+${agentStats.map(a => `- ${a.name} (${a.role}): ${a.total} leads, ${a.won} won, ${a.conversionRate}% conversion, ${a.overdue} overdue follow-ups, pipeline $${a.pipelineValue}`).join('\n')}
+
+UNASSIGNED LEADS: ${unassigned.length}
+${unassigned.slice(0, 5).map(l => `- ${l.name}${l.company ? ` (${l.company})` : ''}${l.value ? `, $${l.value}` : ''}`).join('\n')}
+
+STALE LEADS (14+ days no activity): ${staleLeads.length}
+${staleLeads.slice(0, 5).map(l => `- ${l.name}, owned by ${l.assignedTo?.name || 'unassigned'}, status: ${l.status}${l.value ? `, $${l.value}` : ''}`).join('\n')}
+
+Return a JSON array of recommendations. Each item: { "priority": "high|medium|low", "action": "specific action text", "reason": "brief why" }
+Return ONLY the JSON array, no other text.`;
+
+  const completion = await callWithFallback(provider, {
+    messages: [{ role: 'user', content: summary }],
+    temperature: 0.4,
+    max_tokens: 600,
+    response_format: { type: 'json_object' },
+  });
+
+  const raw = completion.choices[0]?.message?.content || '{}';
+  try {
+    const parsed = JSON.parse(raw);
+    const arr = Array.isArray(parsed) ? parsed : parsed.recommendations || parsed.actions || Object.values(parsed)[0] || [];
+    return arr.slice(0, 6);
+  } catch {
+    return [{ priority: 'info', action: 'AI recommendations unavailable — could not parse response.' }];
+  }
+};
+
+module.exports = { extractLeadFromText, summarizeTranscript, analyzeConversation, transcribeAudio, recommendManagementActions };

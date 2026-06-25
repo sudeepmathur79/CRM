@@ -89,6 +89,13 @@ export const dashboardApi = {
   management: () => api.get('/dashboard/management'),
 };
 
+export const messagesApi = {
+  list: () => api.get('/messages'),
+  thread: (userId) => api.get(`/messages/${userId}`),
+  send: (data) => api.post('/messages', data),
+  unreadCount: () => api.get('/messages/unread-count'),
+};
+
 export const tagsApi = {
   list: () => api.get('/tags'),
   setLeadTags: (leadId, tagNames) => api.post(`/tags/lead/${leadId}`, { tagNames }),

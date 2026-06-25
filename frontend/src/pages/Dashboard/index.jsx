@@ -4,7 +4,7 @@ import { dashboardApi } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
-import { Users, TrendingUp, Clock, AlertCircle, DollarSign, Trophy, UserCheck, AlertTriangle, Inbox } from 'lucide-react';
+import { Users, TrendingUp, Clock, AlertCircle, DollarSign, Trophy, UserCheck, AlertTriangle, Inbox, Sparkles, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 
@@ -185,6 +185,35 @@ function ManagementView() {
         </div>
       </section>
 
+      {/* AI Recommendations */}
+      {data?.recommendations?.length > 0 && (
+        <section className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700">
+          <div className="flex items-center gap-2 p-4 border-b border-gray-100 dark:border-slate-700">
+            <Sparkles size={16} className="text-violet-500" />
+            <h2 className="font-semibold text-sm">AI Recommendations</h2>
+          </div>
+          <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+            {data.recommendations.map((r, i) => (
+              <div key={i} className={`rounded-xl p-3 border-l-4 ${
+                r.priority === 'high' ? 'bg-red-50 dark:bg-red-900/10 border-red-400' :
+                r.priority === 'medium' ? 'bg-amber-50 dark:bg-amber-900/10 border-amber-400' :
+                'bg-blue-50 dark:bg-blue-900/10 border-blue-400'
+              }`}>
+                <div className="flex items-start gap-2">
+                  <span className={`text-xs font-bold uppercase mt-0.5 flex-shrink-0 ${
+                    r.priority === 'high' ? 'text-red-600' : r.priority === 'medium' ? 'text-amber-600' : 'text-blue-600'
+                  }`}>{r.priority}</span>
+                  <div>
+                    <p className="text-sm font-medium">{r.action}</p>
+                    {r.reason && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{r.reason}</p>}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Unassigned leads */}
         <section className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700">
@@ -257,6 +286,7 @@ export default function DashboardPage() {
   if (statsLoading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500" /></div>;
 
   const isAdmin = user?.role === 'admin';
+  const canManage = user?.role === 'admin' || user?.role === 'viewer';
 
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6">
@@ -265,7 +295,7 @@ export default function DashboardPage() {
           <h1 className="text-xl md:text-2xl font-bold">Dashboard</h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">{format(new Date(), 'EEEE, MMMM d yyyy')}</p>
         </div>
-        {isAdmin && (
+        {canManage && (
           <div className="flex bg-gray-100 dark:bg-slate-700 rounded-xl p-1 gap-1">
             {[['my', 'Overview'], ['mgmt', 'Management']].map(([key, label]) => (
               <button key={key} onClick={() => setTab(key)}

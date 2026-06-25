@@ -10,6 +10,7 @@ import KanbanPage from './pages/Kanban';
 import LeadDetailPage from './pages/LeadDetail';
 import RecordingsPage from './pages/Recordings';
 import SettingsPage from './pages/Settings';
+import InboxPage from './pages/Inbox';
 
 const Protected = ({ children }) => {
   const { user, loading } = useAuth();
@@ -30,6 +31,7 @@ const AppRoutes = () => {
         <Route path="kanban" element={<KanbanPage />} />
         <Route path="recordings" element={<RecordingsPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="inbox" element={<InboxPage />} />
       </Route>
     </Routes>
   );

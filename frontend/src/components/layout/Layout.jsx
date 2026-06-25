@@ -1,20 +1,14 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { messagesApi } from '../../services/api';
 import {
-  LayoutDashboard, Users, Columns, Mic, Settings, LogOut, Sun, Moon, ChevronLeft, ChevronRight,
+  LayoutDashboard, Users, Columns, Mic, Settings, LogOut, Sun, Moon, ChevronLeft, ChevronRight, MessageSquare,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
-
-const navItems = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
-  { to: '/leads', icon: Users, label: 'Leads' },
-  { to: '/kanban', icon: Columns, label: 'Kanban' },
-  { to: '/recordings', icon: Mic, label: 'Files' },
-  { to: '/settings', icon: Settings, label: 'Settings' },
-];
 
 // Inline style applied only on mobile via JS — avoids needing a Tailwind plugin for safe-area
 const mobileMainStyle = {
@@ -25,8 +19,16 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const { dark, toggle } = useTheme();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const [collapsed, setCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+
+  const { data: unreadData } = useQuery({
+    queryKey: ['messages-unread'],
+    queryFn: () => messagesApi.unreadCount().then(r => r.data),
+    refetchInterval: 15000,
+  });
+  const unread = unreadData?.count || 0;
 
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 768);
@@ -36,13 +38,32 @@ export default function Layout() {
 
   useEffect(() => {
     const socket = io({ path: '/socket.io' });
+    window.__socket = socket;
     socket.emit('join', user?.id);
     socket.on('lead:assigned', ({ leadName }) => toast.success(`Lead assigned: ${leadName}`));
     socket.on('lead:created', ({ name }) => toast(`New lead: ${name}`, { icon: '👤' }));
-    return () => socket.disconnect();
+    socket.on('message:new', (msg) => {
+      qc.invalidateQueries({ queryKey: ['messages-unread'] });
+      qc.invalidateQueries({ queryKey: ['messages'] });
+      qc.invalidateQueries({ queryKey: ['messages-thread'] });
+      toast(`💬 ${msg.from?.name}: ${msg.body.slice(0, 60)}${msg.body.length > 60 ? '…' : ''}`, {
+        duration: 5000,
+        onClick: () => navigate(`/inbox?with=${msg.fromId}`),
+      });
+    });
+    return () => { socket.disconnect(); window.__socket = null; };
   }, [user?.id]);
 
   const handleLogout = () => { logout(); navigate('/login'); };
+
+  const navItems = [
+    { to: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
+    { to: '/leads', icon: Users, label: 'Leads' },
+    { to: '/kanban', icon: Columns, label: 'Kanban' },
+    { to: '/recordings', icon: Mic, label: 'Files' },
+    { to: '/inbox', icon: MessageSquare, label: 'Messages', badge: unread },
+    { to: '/settings', icon: Settings, label: 'Settings' },
+  ];
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -56,7 +77,7 @@ export default function Layout() {
         </div>
 
         <nav className="flex-1 p-2 space-y-1">
-          {navItems.map(({ to, icon: Icon, label, exact }) => (
+          {navItems.map(({ to, icon: Icon, label, exact, badge }) => (
             <NavLink key={to} to={to} end={exact}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
@@ -66,7 +87,14 @@ export default function Layout() {
                 }`
               }
             >
-              <Icon size={18} className="flex-shrink-0" />
+              <div className="relative flex-shrink-0">
+                <Icon size={18} />
+                {badge > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 rounded-full text-white text-[10px] flex items-center justify-center font-bold">
+                    {badge > 9 ? '9+' : badge}
+                  </span>
+                )}
+              </div>
               {!collapsed && label}
             </NavLink>
           ))}
@@ -103,7 +131,7 @@ export default function Layout() {
         className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 flex items-center"
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
-        {navItems.map(({ to, icon: Icon, label, exact }) => (
+        {navItems.map(({ to, icon: Icon, label, exact, badge }) => (
           <NavLink key={to} to={to} end={exact}
             className={({ isActive }) =>
               `flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-[10px] font-medium transition-colors ${
@@ -113,7 +141,14 @@ export default function Layout() {
           >
             {({ isActive }) => (
               <>
-                <Icon size={20} className={isActive ? 'text-primary-600 dark:text-primary-400' : ''} />
+                <div className="relative">
+                  <Icon size={20} className={isActive ? 'text-primary-600 dark:text-primary-400' : ''} />
+                  {badge > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 rounded-full text-white text-[10px] flex items-center justify-center font-bold">
+                      {badge > 9 ? '9+' : badge}
+                    </span>
+                  )}
+                </div>
                 {label}
               </>
             )}
