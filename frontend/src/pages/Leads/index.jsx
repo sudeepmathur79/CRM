@@ -5,11 +5,12 @@ import { leadsApi } from '../../services/api';
 import { StatusBadge, TagBadge } from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
 import LeadForm from '../../components/forms/LeadForm';
-import { Plus, Search, Sparkles, Trash2, Archive } from 'lucide-react';
+import { Plus, Search, Sparkles, Trash2, Archive, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import SmartAdd from '../../components/forms/SmartAdd';
+import api from '../../services/api';
 
 const STATUSES = ['', 'New', 'Contacted', 'Qualified', 'Proposal', 'Closed Won', 'Closed Lost'];
 
@@ -58,38 +59,48 @@ export default function LeadsPage() {
   const allSelected = leads.length > 0 && selected.length === leads.length;
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">Leads</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">{leads.length} total</p>
+    <div className="p-4 md:p-6">
+      {/* Header */}
+      <div className="mb-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold">Leads</h1>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{leads.length} total</p>
+          </div>
+          {/* Primary actions — always visible */}
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowSmartAdd(true)}
+              className="flex items-center gap-1.5 px-3 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-sm font-medium transition-colors">
+              <Sparkles size={15} /> <span className="hidden sm:inline">Smart Add</span>
+            </button>
+            <button onClick={() => setShowCreate(true)}
+              className="flex items-center gap-1.5 px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors">
+              <Plus size={15} /> <span className="hidden sm:inline">New Lead</span>
+            </button>
+          </div>
         </div>
-        {user.role === 'admin' && !showArchived && (
-          <button
-            onClick={() => { if (confirm('Archive all current leads as Demo Data and deactivate seed users? This cannot be undone.')) archiveDemoMutation.mutate(); }}
-            disabled={archiveDemoMutation.isPending}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20 disabled:opacity-50 transition-colors">
-            <Archive size={16} /> {archiveDemoMutation.isPending ? 'Archiving…' : 'Archive Demo Data'}
+
+        {/* Secondary actions row */}
+        <div className="flex flex-wrap gap-2 mt-3">
+          <button onClick={() => setShowArchived(v => !v)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${showArchived ? 'bg-amber-100 border-amber-300 text-amber-800 dark:bg-amber-900/30 dark:border-amber-700 dark:text-amber-300' : 'bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-400'}`}>
+            <Archive size={13} /> {showArchived ? 'Hide Archive' : 'View Archive'}
           </button>
-        )}
-        <button onClick={() => setShowArchived(v => !v)}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${showArchived ? 'bg-amber-100 border-amber-300 text-amber-800 dark:bg-amber-900/30 dark:border-amber-700 dark:text-amber-300' : 'bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-400 hover:border-amber-400'}`}>
-          <Archive size={16} /> {showArchived ? 'Hide Archive' : 'View Archive'}
-        </button>
-        <button onClick={() => setShowSmartAdd(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-sm font-medium transition-colors">
-          <Sparkles size={16} /> Smart Add
-        </button>
-        <button onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors">
-          <Plus size={16} /> New Lead
-        </button>
+          {user.role === 'admin' && !showArchived && (
+            <button
+              onClick={() => { if (confirm('Archive all current leads as Demo Data?')) archiveDemoMutation.mutate(); }}
+              disabled={archiveDemoMutation.isPending}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 disabled:opacity-50">
+              <Archive size={13} /> {archiveDemoMutation.isPending ? 'Archiving…' : 'Archive Demo'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-5">
-        <div className="relative flex-1 min-w-48">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+      <div className="flex gap-2 mb-4">
+        <div className="relative flex-1">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search leads..."
@@ -97,8 +108,8 @@ export default function LeadsPage() {
           />
         </div>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          className="px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
-          {STATUSES.map(s => <option key={s} value={s}>{s || 'All Statuses'}</option>)}
+          className="px-2 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 max-w-[130px]">
+          {STATUSES.map(s => <option key={s} value={s}>{s || 'All'}</option>)}
         </select>
       </div>
 
@@ -110,13 +121,12 @@ export default function LeadsPage() {
             className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-medium">
             <Trash2 size={14} /> Delete
           </button>
-          <button onClick={() => { setSelected([]); }}
-            className="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
+          <button onClick={() => setSelected([])} className="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
         </div>
       )}
 
-      {/* Table */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 overflow-hidden">
+      {/* Desktop table */}
+      <div className="hidden md:block bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
@@ -129,11 +139,11 @@ export default function LeadsPage() {
                   </th>
                 )}
                 <th className="p-4 text-left font-medium text-gray-600 dark:text-gray-400">Name</th>
-                <th className="p-4 text-left font-medium text-gray-600 dark:text-gray-400 hidden sm:table-cell">Company</th>
+                <th className="p-4 text-left font-medium text-gray-600 dark:text-gray-400">Company</th>
                 <th className="p-4 text-left font-medium text-gray-600 dark:text-gray-400">Status</th>
-                <th className="p-4 text-left font-medium text-gray-600 dark:text-gray-400 hidden md:table-cell">Assigned</th>
+                <th className="p-4 text-left font-medium text-gray-600 dark:text-gray-400 hidden lg:table-cell">Assigned</th>
                 <th className="p-4 text-left font-medium text-gray-600 dark:text-gray-400 hidden lg:table-cell">Follow-up</th>
-                <th className="p-4 text-left font-medium text-gray-600 dark:text-gray-400 hidden lg:table-cell">Tags</th>
+                <th className="p-4 text-left font-medium text-gray-600 dark:text-gray-400 hidden xl:table-cell">Tags</th>
                 <th className="p-4 w-8"></th>
               </tr>
             </thead>
@@ -152,15 +162,15 @@ export default function LeadsPage() {
                   )}
                   <td className="p-4">
                     <div className="font-medium">{lead.name}</div>
-                    <div className="text-xs text-gray-400">{lead.email}</div>
+                    <div className="text-xs text-gray-400">{lead.email || lead.phone}</div>
                   </td>
-                  <td className="p-4 text-gray-600 dark:text-gray-400 hidden sm:table-cell">{lead.company || '—'}</td>
+                  <td className="p-4 text-gray-600 dark:text-gray-400">{lead.company || '—'}</td>
                   <td className="p-4"><StatusBadge status={lead.status} /></td>
-                  <td className="p-4 text-gray-600 dark:text-gray-400 hidden md:table-cell">{lead.assignedTo?.name || '—'}</td>
+                  <td className="p-4 text-gray-600 dark:text-gray-400 hidden lg:table-cell">{lead.assignedTo?.name || '—'}</td>
                   <td className="p-4 text-gray-600 dark:text-gray-400 hidden lg:table-cell">
                     {lead.nextFollowUp ? format(new Date(lead.nextFollowUp), 'MMM d') : '—'}
                   </td>
-                  <td className="p-4 hidden lg:table-cell">
+                  <td className="p-4 hidden xl:table-cell">
                     <div className="flex flex-wrap gap-1">
                       {lead.tags?.slice(0, 2).map(t => <TagBadge key={t.id} tag={t} />)}
                     </div>
@@ -175,11 +185,41 @@ export default function LeadsPage() {
         </div>
       </div>
 
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-2">
+        {isLoading ? (
+          <div className="p-8 text-center text-gray-400">Loading...</div>
+        ) : leads.length === 0 ? (
+          <div className="p-8 text-center text-gray-400">No leads found</div>
+        ) : leads.map(lead => (
+          <div key={lead.id}
+            className="bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-slate-700 p-4 flex items-center gap-3 active:bg-gray-50 dark:active:bg-slate-700"
+            onClick={() => navigate(`/leads/${lead.id}`)}>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-medium text-sm truncate">{lead.name}</span>
+                <StatusBadge status={lead.status} />
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                {lead.company && <span>{lead.company} · </span>}
+                {lead.email || lead.phone}
+              </div>
+              {lead.nextFollowUp && (
+                <div className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                  Follow-up {format(new Date(lead.nextFollowUp), 'MMM d')}
+                </div>
+              )}
+            </div>
+            <ChevronRight size={16} className="text-gray-400 flex-shrink-0" />
+          </div>
+        ))}
+      </div>
+
       <Modal open={showCreate} onClose={() => setShowCreate(false)} title="New Lead" size="lg">
         <LeadForm onSubmit={createMutation.mutate} loading={createMutation.isPending} />
       </Modal>
 
-      <Modal open={showSmartAdd} onClose={() => setShowSmartAdd(false)} title="✨ Smart Add — AI Lead Extraction" size="lg">
+      <Modal open={showSmartAdd} onClose={() => setShowSmartAdd(false)} title="✨ Smart Add" size="lg">
         <SmartAdd onClose={() => setShowSmartAdd(false)} onSuccess={() => setShowSmartAdd(false)} />
       </Modal>
     </div>

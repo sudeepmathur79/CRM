@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import {
-  LayoutDashboard, Users, Columns, Mic, Settings, LogOut, Sun, Moon, ChevronLeft, ChevronRight, Bell
+  LayoutDashboard, Users, Columns, Mic, Settings, LogOut, Sun, Moon, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
@@ -12,7 +12,7 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
   { to: '/leads', icon: Users, label: 'Leads' },
   { to: '/kanban', icon: Columns, label: 'Kanban' },
-  { to: '/recordings', icon: Mic, label: 'Recordings' },
+  { to: '/recordings', icon: Mic, label: 'Files' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
@@ -34,8 +34,8 @@ export default function Layout() {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Sidebar */}
-      <aside className={`${collapsed ? 'w-16' : 'w-56'} flex-shrink-0 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700 flex flex-col transition-all duration-200`}>
+      {/* Sidebar — hidden on mobile, shown on md+ */}
+      <aside className={`hidden md:flex ${collapsed ? 'w-16' : 'w-56'} flex-shrink-0 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700 flex-col transition-all duration-200`}>
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
           {!collapsed && <span className="font-bold text-primary-600 dark:text-primary-400 text-lg">CRM</span>}
           <button onClick={() => setCollapsed(c => !c)} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700 ml-auto">
@@ -81,10 +81,42 @@ export default function Layout() {
         </div>
       </aside>
 
-      {/* Main */}
-      <main className="flex-1 overflow-auto bg-gray-50 dark:bg-slate-900">
+      {/* Main content — extra bottom padding on mobile for tab bar */}
+      <main className="flex-1 overflow-auto bg-gray-50 dark:bg-slate-900 pb-16 md:pb-0">
         <Outlet />
       </main>
+
+      {/* Bottom tab bar — mobile only */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 flex items-center safe-area-inset-bottom">
+        {navItems.map(({ to, icon: Icon, label, exact }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={exact}
+            className={({ isActive }) =>
+              `flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-[10px] font-medium transition-colors ${
+                isActive
+                  ? 'text-primary-600 dark:text-primary-400'
+                  : 'text-gray-500 dark:text-gray-400'
+              }`
+            }
+          >
+            {({ isActive }) => (
+              <>
+                <Icon size={20} className={isActive ? 'text-primary-600 dark:text-primary-400' : ''} />
+                {label}
+              </>
+            )}
+          </NavLink>
+        ))}
+        <button
+          onClick={toggle}
+          className="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-[10px] font-medium text-gray-500 dark:text-gray-400"
+        >
+          {dark ? <Sun size={20} /> : <Moon size={20} />}
+          {dark ? 'Light' : 'Dark'}
+        </button>
+      </nav>
     </div>
   );
 }

@@ -14,14 +14,14 @@ export default function LeadForm({ onSubmit, defaultValues = {}, loading }) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="col-span-2 sm:col-span-1">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name *</label>
           <input {...register('name', { required: 'Required' })}
             className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
           {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
         </div>
-        <div className="col-span-2 sm:col-span-1">
+        <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Company</label>
           <input {...register('company')}
             className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />

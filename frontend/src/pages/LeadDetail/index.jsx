@@ -127,18 +127,18 @@ export default function LeadDetailPage() {
   const safeFormat = (val, fmt) => { try { return val ? format(new Date(val), fmt) : '—'; } catch { return '—'; } };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      <button onClick={() => navigate('/leads')} className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mb-5">
-        <ArrowLeft size={16} /> Back to Leads
+    <div className="p-4 md:p-6 max-w-5xl mx-auto">
+      <button onClick={() => navigate('/leads')} className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mb-4">
+        <ArrowLeft size={16} /> Back
       </button>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         {/* Main info */}
-        <div className="lg:col-span-2 space-y-5">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-gray-100 dark:border-slate-700">
+        <div className="lg:col-span-2 space-y-4">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 md:p-5 border border-gray-100 dark:border-slate-700">
             <div className="flex items-start justify-between">
               <div>
-                <h1 className="text-2xl font-bold">{lead.name}</h1>
+                <h1 className="text-xl md:text-2xl font-bold">{lead.name}</h1>
                 {lead.company && <p className="text-gray-500 dark:text-gray-400">{lead.company}</p>}
                 <div className="flex flex-wrap items-center gap-3 mt-2">
                   <StatusBadge status={lead.status} />
@@ -171,7 +171,7 @@ export default function LeadDetailPage() {
           </div>
 
           {/* Notes Timeline */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-gray-100 dark:border-slate-700">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 md:p-5 border border-gray-100 dark:border-slate-700">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold flex items-center gap-2"><FileText size={16} /> Notes</h2>
             </div>
@@ -247,7 +247,7 @@ export default function LeadDetailPage() {
           </div>
 
           {/* Recordings */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-gray-100 dark:border-slate-700">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 md:p-5 border border-gray-100 dark:border-slate-700">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold">Recordings & Files</h2>
               <div className="flex gap-2">
@@ -321,9 +321,9 @@ export default function LeadDetailPage() {
         </div>
 
         {/* Activity Timeline */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-gray-100 dark:border-slate-700 h-fit">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 md:p-5 border border-gray-100 dark:border-slate-700 h-fit">
           <h2 className="font-semibold mb-4 flex items-center gap-2"><Clock size={16} /> Activity</h2>
-          <div className="space-y-3 max-h-96 overflow-y-auto scrollbar-thin">
+          <div className="space-y-3 max-h-64 md:max-h-96 overflow-y-auto scrollbar-thin">
             {lead.activities?.length === 0 && <p className="text-sm text-gray-400 text-center py-4">No activity yet</p>}
             {lead.activities?.map(act => (
               <div key={act.id} className="flex gap-3">
