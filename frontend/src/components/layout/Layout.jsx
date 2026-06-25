@@ -32,6 +32,14 @@ export default function Layout() {
   });
   const unread = unreadData?.count || 0;
 
+  const { data: voiceDrafts = [] } = useQuery({
+    queryKey: ['voice-drafts'],
+    queryFn: () => import('../services/api').then(m => m.voiceDraftsApi.list().then(r => r.data)),
+    enabled: user?.role === 'agent',
+    refetchInterval: 60000,
+  });
+  const unresolvedDrafts = voiceDrafts.length;
+
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handler);
@@ -60,6 +68,24 @@ export default function Layout() {
         onClick: () => navigate(`/inbox?with=${msg.fromId}`),
       });
     });
+    socket.on('voicedraft:reminder', (data) => {
+      qc.invalidateQueries({ queryKey: ['voice-drafts'] });
+      const title = data.escalated ? '🚨 Overdue recordings flagged' : '🎙 Unresolved recordings';
+      const body = data.escalated
+        ? `${data.agentName || 'An agent'} has ${data.count} recording(s) unresolved for 24h+`
+        : `You have ${data.count} unresolved recording(s). Tap to resolve.`;
+      if ('Notification' in window && Notification.permission === 'granted') {
+        const notif = new Notification(title, { body, icon: '/favicon.ico', tag: 'voice-drafts' });
+        notif.onclick = () => { window.focus(); navigate('/settings'); notif.close(); };
+      }
+      toast(t => (
+        <button onClick={() => { navigate('/settings'); toast.dismiss(t.id); }} className="text-left">
+          <div className="font-medium text-sm">{title}</div>
+          <div className="text-xs text-gray-500 mt-0.5">{body}</div>
+        </button>
+      ), { duration: 10000, icon: data.escalated ? '🚨' : '🎙' });
+    });
+
     socket.on('followup:due', (data) => {
       const when = data.minutesUntil <= 1 ? 'now' : `in ${data.minutesUntil} min`;
       const title = `📅 Follow-up due ${when}`;
@@ -247,10 +273,17 @@ export default function Layout() {
         >
           {({ isActive }) => (
             <>
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold overflow-hidden ring-2 ${isActive ? 'ring-primary-500' : 'ring-gray-300 dark:ring-slate-600'}`}
-                style={{ background: isActive ? '#6366f1' : '#94a3b8', color: '#fff' }}
-              >
-                {user?.avatar ? <img src={user.avatar} alt="" className="w-full h-full object-cover" /> : initials}
+              <div className="relative">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold overflow-hidden ring-2 ${isActive ? 'ring-primary-500' : 'ring-gray-300 dark:ring-slate-600'}`}
+                  style={{ background: isActive ? '#6366f1' : '#94a3b8', color: '#fff' }}
+                >
+                  {user?.avatar ? <img src={user.avatar} alt="" className="w-full h-full object-cover" /> : initials}
+                </div>
+                {unresolvedDrafts > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-amber-500 rounded-full text-white text-[10px] flex items-center justify-center font-bold">
+                    {unresolvedDrafts > 9 ? '9+' : unresolvedDrafts}
+                  </span>
+                )}
               </div>
               Profile
             </>

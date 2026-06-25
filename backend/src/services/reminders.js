@@ -56,6 +56,55 @@ function startReminderScheduler(io) {
   });
 
   console.log('📅 Follow-up reminder scheduler started (runs every 15 min)');
+
+  // Runs once a day at 9am — remind agents about unresolved voice drafts,
+  // and escalate to admins any draft older than 24h
+  cron.schedule('0 9 * * *', async () => {
+    try {
+      const now = new Date();
+      const cutoff24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+      // Find all agents who have unresolved drafts
+      const agentsWithDrafts = await prisma.voiceDraft.groupBy({
+        by: ['userId'],
+        where: { resolved: false },
+        _count: { id: true },
+        _min: { createdAt: true },
+      });
+
+      const admins = await prisma.user.findMany({
+        where: { role: 'admin', isActive: true },
+        select: { id: true },
+      });
+
+      for (const row of agentsWithDrafts) {
+        const count = row._count.id;
+        const oldestAt = row._min.createdAt;
+        const isOverdue = oldestAt < cutoff24h;
+
+        // Remind the agent
+        io.to(row.userId).emit('voicedraft:reminder', { count, escalated: false });
+        console.log(`🎙 Voice draft reminder → agent ${row.userId} (${count} unresolved)`);
+
+        // Escalate to all admins if oldest draft > 24h
+        if (isOverdue) {
+          const agent = await prisma.user.findUnique({ where: { id: row.userId }, select: { name: true } });
+          for (const admin of admins) {
+            io.to(admin.id).emit('voicedraft:reminder', {
+              count,
+              escalated: true,
+              agentName: agent?.name || 'An agent',
+            });
+          }
+          console.log(`🚨 Voice draft escalated: ${agent?.name} has ${count} drafts older than 24h`);
+        }
+      }
+    } catch (e) {
+      console.error('Voice draft reminder error:', e.message);
+    }
+  });
+
+  console.log('🎙 Voice draft reminder scheduler started (runs daily at 9am)');
 }
 
 module.exports = { startReminderScheduler };
