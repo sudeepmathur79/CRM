@@ -1,72 +1,104 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { OpenAI } = require('openai');
 
-const getModel = () => {
-  if (!process.env.GEMINI_API_KEY) return null;
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  return genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+// Auto-detect which provider is configured — priority: Groq → OpenRouter → Mistral → Gemini
+const getClient = () => {
+  if (process.env.GROQ_API_KEY) {
+    return {
+      client: new OpenAI({ apiKey: process.env.GROQ_API_KEY, baseURL: 'https://api.groq.com/openai/v1' }),
+      model: process.env.AI_MODEL || 'llama-3.3-70b-versatile',
+    };
+  }
+  if (process.env.OPENROUTER_API_KEY) {
+    return {
+      client: new OpenAI({
+        apiKey: process.env.OPENROUTER_API_KEY,
+        baseURL: 'https://openrouter.ai/api/v1',
+        defaultHeaders: { 'HTTP-Referer': 'https://crm-mjky.onrender.com', 'X-Title': 'CRM' },
+      }),
+      model: process.env.AI_MODEL || 'mistralai/mistral-7b-instruct:free',
+    };
+  }
+  if (process.env.MISTRAL_API_KEY) {
+    return {
+      client: new OpenAI({ apiKey: process.env.MISTRAL_API_KEY, baseURL: 'https://api.mistral.ai/v1' }),
+      model: process.env.AI_MODEL || 'mistral-small-latest',
+    };
+  }
+  return null;
 };
 
-const EXTRACT_PROMPT = `You are a CRM data extraction assistant. Extract lead/contact information from the following text.
+const EXTRACT_PROMPT = (today) => `You are a CRM data extraction assistant. Extract lead/contact information from the text below.
 
-Return ONLY a valid JSON object with these fields (use null for missing fields):
+Return ONLY a valid JSON object — no markdown, no explanation, just raw JSON:
 {
-  "name": "full name of the lead/prospect",
-  "company": "company or organization name",
-  "email": "email address",
-  "phone": "phone number",
+  "name": "full name of the lead/prospect (string or null)",
+  "company": "company or organization name (string or null)",
+  "email": "email address (string or null)",
+  "phone": "phone number (string or null)",
   "status": "one of: New, Contacted, Qualified, Proposal, Closed Won, Closed Lost",
   "source": "one of: Website, Referral, LinkedIn, Cold Call, Email Campaign, Event, Other, or null",
-  "notes": "key points, context, and any other relevant information (2-3 sentences max)",
-  "nextFollowUp": "follow-up date in YYYY-MM-DD format, or null",
-  "budget": "budget amount if mentioned, or null",
-  "tags": ["array", "of", "relevant", "tags"],
+  "notes": "key points and context in 2-3 sentences (string or null)",
+  "nextFollowUp": "follow-up date as YYYY-MM-DD, or null",
   "summary": "one sentence summary of the interaction"
 }
 
 Rules:
-- For status: if they seem ready to buy → "Qualified" or "Proposal", if just initial contact → "New" or "Contacted"
-- Extract dates relative to today (${new Date().toISOString().split('T')[0]})
-- If "follow up Monday/tomorrow/next week" → calculate the actual date
-- Keep notes concise but capture key business context
+- status: ready to buy → Qualified/Proposal, initial contact → New/Contacted
+- Today is ${today}. Convert relative dates: "next Monday", "this Friday", "tomorrow" → actual YYYY-MM-DD
+- Keep notes brief but capture key business context
 
-Text to analyze:
+Text:
 `;
 
 const extractLeadFromText = async (text) => {
-  const model = getModel();
-  if (!model) throw Object.assign(new Error('GEMINI_API_KEY not configured'), { status: 400 });
+  const provider = getClient();
+  if (!provider) throw Object.assign(new Error('No AI provider configured. Set GROQ_API_KEY, OPENROUTER_API_KEY, or MISTRAL_API_KEY in environment variables.'), { status: 400 });
 
-  const result = await model.generateContent(EXTRACT_PROMPT + text);
-  const response = result.response.text();
+  const today = new Date().toISOString().split('T')[0];
+  const completion = await provider.client.chat.completions.create({
+    model: provider.model,
+    messages: [
+      { role: 'system', content: 'You are a CRM assistant. Always respond with valid JSON only, no markdown formatting.' },
+      { role: 'user', content: EXTRACT_PROMPT(today) + text }
+    ],
+    temperature: 0.1,
+    max_tokens: 600,
+  });
 
-  // Strip markdown code blocks if present
-  const jsonStr = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+  const raw = completion.choices[0].message.content.trim()
+    .replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
   try {
-    return JSON.parse(jsonStr);
+    return JSON.parse(raw);
   } catch {
-    throw Object.assign(new Error('Failed to parse AI response'), { status: 500 });
+    // Try to extract JSON from response if wrapped in text
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    throw Object.assign(new Error('AI returned invalid JSON'), { status: 500 });
   }
 };
 
 const summarizeTranscript = async (transcript) => {
-  const model = getModel();
-  if (!model || !transcript) return null;
+  const provider = getClient();
+  if (!provider || !transcript) return null;
   try {
-    const result = await model.generateContent(
-      `Summarize this call/meeting transcript in 2-3 sentences, focusing on key outcomes, decisions made, and next steps:\n\n${transcript}`
-    );
-    return result.response.text();
+    const completion = await provider.client.chat.completions.create({
+      model: provider.model,
+      messages: [
+        { role: 'user', content: `Summarize this call/meeting transcript in 2-3 sentences, focusing on outcomes, decisions, and next steps:\n\n${transcript}` }
+      ],
+      temperature: 0.3,
+      max_tokens: 200,
+    });
+    return completion.choices[0].message.content.trim();
   } catch (e) {
-    console.error('Gemini summarize error:', e.message);
+    console.error('AI summarize error:', e.message);
     return null;
   }
 };
 
 const transcribeAudio = async (filePath) => {
-  // Gemini supports audio - but for now fall back to OpenAI Whisper if configured
   if (process.env.OPENAI_API_KEY && process.env.WHISPER_ENABLED === 'true') {
-    const { OpenAI } = require('openai');
     const fs = require('fs');
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const response = await openai.audio.transcriptions.create({
