@@ -1,11 +1,14 @@
 const { OpenAI } = require('openai');
 
 // Auto-detect which provider is configured — priority: Groq → OpenRouter → Mistral → Gemini
+const GROQ_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'gemma2-9b-it'];
+
 const getClient = () => {
   if (process.env.GROQ_API_KEY) {
     return {
       client: new OpenAI({ apiKey: process.env.GROQ_API_KEY, baseURL: 'https://api.groq.com/openai/v1' }),
-      model: process.env.AI_MODEL || 'llama-3.3-70b-versatile',
+      model: process.env.AI_MODEL || GROQ_MODELS[0],
+      fallbackModels: process.env.AI_MODEL ? [] : GROQ_MODELS.slice(1),
     };
   }
   if (process.env.OPENROUTER_API_KEY) {
@@ -50,13 +53,26 @@ Rules:
 Text:
 `;
 
+const callWithFallback = async (provider, params) => {
+  const models = [provider.model, ...(provider.fallbackModels || [])];
+  let lastError;
+  for (const model of models) {
+    try {
+      return await provider.client.chat.completions.create({ ...params, model });
+    } catch (e) {
+      if (e.status === 503 || e.status === 429) { lastError = e; continue; }
+      throw e;
+    }
+  }
+  throw lastError;
+};
+
 const extractLeadFromText = async (text) => {
   const provider = getClient();
   if (!provider) throw Object.assign(new Error('No AI provider configured. Set GROQ_API_KEY, OPENROUTER_API_KEY, or MISTRAL_API_KEY in environment variables.'), { status: 400 });
 
   const today = new Date().toISOString().split('T')[0];
-  const completion = await provider.client.chat.completions.create({
-    model: provider.model,
+  const completion = await callWithFallback(provider, {
     messages: [
       { role: 'system', content: 'You are a CRM assistant. Always respond with valid JSON only, no markdown formatting.' },
       { role: 'user', content: EXTRACT_PROMPT(today) + text }
@@ -83,8 +99,7 @@ const analyzeConversation = async (transcript) => {
   if (!provider || !transcript) return { summary: null, nextSteps: null };
   try {
     const today = new Date().toISOString().split('T')[0];
-    const completion = await provider.client.chat.completions.create({
-      model: provider.model,
+    const completion = await callWithFallback(provider, {
       messages: [{
         role: 'user',
         content: `Analyze this sales conversation transcript. Today is ${today}.
@@ -99,15 +114,22 @@ Transcript:
 ${transcript}`
       }],
       temperature: 0.2,
-      max_tokens: 400,
+      max_tokens: 800,
     });
     const raw = completion.choices[0].message.content.trim()
       .replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+    const normalizeNextSteps = (val) => {
+      if (!val) return null;
+      if (Array.isArray(val)) return val.map((s, i) => `${i + 1}. ${s.replace(/^\d+\.\s*/, '')}`).join('\n');
+      return String(val);
+    };
+
     try {
       const parsed = JSON.parse(raw);
       return {
         summary: parsed.summary || parsed.Summary || null,
-        nextSteps: parsed.nextSteps || parsed.next_steps || parsed.NextSteps || parsed['next steps'] || null,
+        nextSteps: normalizeNextSteps(parsed.nextSteps || parsed.next_steps || parsed.NextSteps || parsed['next steps']),
       };
     } catch {
       const match = raw.match(/\{[\s\S]*\}/);
@@ -116,12 +138,11 @@ ${transcript}`
           const parsed = JSON.parse(match[0]);
           return {
             summary: parsed.summary || parsed.Summary || null,
-            nextSteps: parsed.nextSteps || parsed.next_steps || null,
+            nextSteps: normalizeNextSteps(parsed.nextSteps || parsed.next_steps),
           };
         } catch {}
       }
-      // Last resort: use full response as summary
-      return { summary: raw.slice(0, 500), nextSteps: null };
+      return { summary: raw.slice(0, 800), nextSteps: null };
     }
   } catch (e) {
     console.error('AI analyze error:', e.message);
@@ -133,8 +154,7 @@ const summarizeTranscript = async (transcript) => {
   const provider = getClient();
   if (!provider || !transcript) return null;
   try {
-    const completion = await provider.client.chat.completions.create({
-      model: provider.model,
+    const completion = await callWithFallback(provider, {
       messages: [
         { role: 'user', content: `Summarize this call/meeting transcript in 2-3 sentences, focusing on outcomes, decisions, and next steps:\n\n${transcript}` }
       ],
