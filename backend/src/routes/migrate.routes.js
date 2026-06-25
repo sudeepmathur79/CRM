@@ -78,33 +78,36 @@ router.post('/run', async (req, res) => {
     note(`✓ ${leads.length} leads`);
 
     // ── 5. Lead ↔ Tag join table ─────────────────────────────────────────────
-    const { rows: leadTags } = await old.query('SELECT * FROM "_LeadToTag"');
-    note(`Migrating ${leadTags.length} lead-tag links...`);
-    for (const lt of leadTags) {
-      await prisma.lead.update({
-        where: { id: lt.A },
-        data: { tags: { connect: { id: lt.B } } },
-      }).catch(() => {}); // skip if lead/tag missing
-    }
-    note(`✓ ${leadTags.length} lead-tag links`);
+    try {
+      const { rows: leadTags } = await old.query('SELECT * FROM "_LeadToTag"');
+      note(`Migrating ${leadTags.length} lead-tag links...`);
+      for (const lt of leadTags) {
+        await prisma.lead.update({
+          where: { id: lt.A },
+          data: { tags: { connect: { id: lt.B } } },
+        }).catch(() => {});
+      }
+      note(`✓ ${leadTags.length} lead-tag links`);
+    } catch (e) { note(`⚠ lead-tag links skipped: ${e.message}`); }
 
     // ── 6. Recordings ────────────────────────────────────────────────────────
-    const { rows: recs } = await old.query('SELECT * FROM "Recording"');
-    note(`Migrating ${recs.length} recordings...`);
-    for (const r of recs) {
-      await prisma.recording.create({
-        data: {
-          id: r.id, leadId: r.leadId, fileName: r.fileName,
-          fileUrl: r.fileUrl, fileSize: r.fileSize, type: r.type,
-          transcript: r.transcript, summary: r.summary,
-          nextSteps: r.nextSteps, createdAt: r.createdAt,
-        },
-      });
-    }
-    note(`✓ ${recs.length} recordings`);
+    try {
+      const { rows: recs } = await old.query('SELECT * FROM "Recording"');
+      note(`Migrating ${recs.length} recordings...`);
+      for (const r of recs) {
+        await prisma.recording.create({
+          data: {
+            id: r.id, leadId: r.leadId, fileName: r.fileName,
+            fileUrl: r.fileUrl, fileSize: r.fileSize ?? 0, type: r.type ?? 'file',
+            transcript: r.transcript ?? null, summary: r.summary ?? null,
+            nextSteps: r.nextSteps ?? null, createdAt: r.createdAt,
+          },
+        }).catch(e => note(`  skip recording ${r.id}: ${e.message}`));
+      }
+      note(`✓ ${recs.length} recordings`);
+    } catch (e) { note(`⚠ recordings skipped: ${e.message}`); }
 
     // ── 7. Lead Notes ────────────────────────────────────────────────────────
-    let notesCount = 0;
     try {
       const { rows: notes } = await old.query('SELECT * FROM "LeadNote"');
       note(`Migrating ${notes.length} lead notes...`);
@@ -114,24 +117,25 @@ router.post('/run', async (req, res) => {
             id: n.id, leadId: n.leadId, userId: n.userId || null,
             content: n.content, type: n.type || 'manual', createdAt: n.createdAt,
           },
-        });
+        }).catch(e => note(`  skip note ${n.id}: ${e.message}`));
       }
-      notesCount = notes.length;
-    } catch { note('LeadNote table not found in source — skipping'); }
-    note(`✓ ${notesCount} lead notes`);
+      note(`✓ ${notes.length} lead notes`);
+    } catch (e) { note(`⚠ lead notes skipped: ${e.message}`); }
 
     // ── 8. Activities ────────────────────────────────────────────────────────
-    const { rows: acts } = await old.query('SELECT * FROM "Activity"');
-    note(`Migrating ${acts.length} activities...`);
-    for (const a of acts) {
-      await prisma.activity.create({
-        data: {
-          id: a.id, leadId: a.leadId, userId: a.userId || null,
-          action: a.action, details: a.details || {}, createdAt: a.createdAt,
-        },
-      });
-    }
-    note(`✓ ${acts.length} activities`);
+    try {
+      const { rows: acts } = await old.query('SELECT * FROM "Activity"');
+      note(`Migrating ${acts.length} activities...`);
+      for (const a of acts) {
+        await prisma.activity.create({
+          data: {
+            id: a.id, leadId: a.leadId, userId: a.userId || null,
+            action: a.action, details: a.details || {}, createdAt: a.createdAt,
+          },
+        }).catch(e => note(`  skip activity ${a.id}: ${e.message}`));
+      }
+      note(`✓ ${acts.length} activities`);
+    } catch (e) { note(`⚠ activities skipped: ${e.message}`); }
 
     await old.end();
     note('Migration complete ✓');
