@@ -37,6 +37,22 @@ router.delete('/:id', requireRole('admin', 'agent'), async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Admin-only: archive all active leads as demo data
+router.post('/admin/archive-demo', requireRole('admin'), async (req, res, next) => {
+  try {
+    const { count } = await prisma.lead.updateMany({
+      where: { archived: false },
+      data: { archived: true, archiveLabel: 'Demo Data', archivedAt: new Date() },
+    });
+    const seedEmails = ['alice@crm.com','bob@crm.com','carol@crm.com','dave@crm.com','eve@crm.com','frank@crm.com','grace@crm.com','henry@crm.com','viewer@crm.com'];
+    const { count: usersDeactivated } = await prisma.user.updateMany({
+      where: { email: { in: seedEmails } },
+      data: { isActive: false },
+    });
+    res.json({ archivedLeads: count, deactivatedUsers: usersDeactivated });
+  } catch (e) { next(e); }
+});
+
 router.post('/bulk', requireRole('admin'), async (req, res, next) => {
   try {
     const { ids, action, data } = req.body;

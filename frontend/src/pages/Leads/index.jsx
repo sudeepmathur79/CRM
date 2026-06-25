@@ -40,6 +40,15 @@ export default function LeadsPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['leads'] }); toast.success('Lead deleted'); },
   });
 
+  const archiveDemoMutation = useMutation({
+    mutationFn: () => api.post('/leads/admin/archive-demo'),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['leads'] });
+      toast.success(`Archived ${res.data.archivedLeads} demo leads & deactivated ${res.data.deactivatedUsers} seed users`);
+    },
+    onError: (e) => toast.error(e.response?.data?.error || 'Failed'),
+  });
+
   const bulkMutation = useMutation({
     mutationFn: (data) => leadsApi.bulk(data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['leads'] }); setSelected([]); toast.success('Done'); },
@@ -55,6 +64,14 @@ export default function LeadsPage() {
           <h1 className="text-2xl font-bold">Leads</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">{leads.length} total</p>
         </div>
+        {user.role === 'admin' && !showArchived && (
+          <button
+            onClick={() => { if (confirm('Archive all current leads as Demo Data and deactivate seed users? This cannot be undone.')) archiveDemoMutation.mutate(); }}
+            disabled={archiveDemoMutation.isPending}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20 disabled:opacity-50 transition-colors">
+            <Archive size={16} /> {archiveDemoMutation.isPending ? 'Archiving…' : 'Archive Demo Data'}
+          </button>
+        )}
         <button onClick={() => setShowArchived(v => !v)}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${showArchived ? 'bg-amber-100 border-amber-300 text-amber-800 dark:bg-amber-900/30 dark:border-amber-700 dark:text-amber-300' : 'bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-400 hover:border-amber-400'}`}>
           <Archive size={16} /> {showArchived ? 'Hide Archive' : 'View Archive'}
