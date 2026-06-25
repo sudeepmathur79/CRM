@@ -6,6 +6,7 @@ import { authApi } from '../services/api';
 import { GoogleLogin } from '@react-oauth/google';
 import toast from 'react-hot-toast';
 import { Shield, ArrowLeft } from 'lucide-react';
+import { useAppConfig } from '../App';
 
 // ── 2FA code entry step ───────────────────────────────────────────────────────
 function TwoFactorStep({ tempToken, onBack, onSuccess }) {
@@ -72,6 +73,7 @@ function TwoFactorStep({ tempToken, onBack, onSuccess }) {
 // ── Main login form ───────────────────────────────────────────────────────────
 function LoginForm({ onTwoFactor }) {
   const { login, googleLogin } = useAuth();
+  const { googleClientId } = useAppConfig();
   const navigate = useNavigate();
   const { register, handleSubmit, formState: { errors } } = useForm();
   const [loading, setLoading] = useState(false);
@@ -109,23 +111,27 @@ function LoginForm({ onTwoFactor }) {
 
   return (
     <div className="space-y-5">
-      {/* Google Sign-In — only rendered when GoogleOAuthProvider is mounted (clientId exists) */}
-      <div className="flex justify-center">
-        <GoogleLogin
-          onSuccess={handleGoogleSuccess}
-          onError={() => toast.error('Google sign-in failed')}
-          theme="outline"
-          size="large"
-          width="360"
-          text="signin_with"
-          shape="rectangular"
-        />
-      </div>
-      <div className="flex items-center gap-3">
-        <div className="flex-1 h-px bg-gray-200 dark:bg-slate-600" />
-        <span className="text-xs text-gray-400">or sign in with password</span>
-        <div className="flex-1 h-px bg-gray-200 dark:bg-slate-600" />
-      </div>
+      {/* Google Sign-In — only shown when clientId available */}
+      {googleClientId && (
+        <>
+          <div className="flex justify-center">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={() => toast.error('Google sign-in failed')}
+              theme="outline"
+              size="large"
+              width="360"
+              text="signin_with"
+              shape="rectangular"
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-gray-200 dark:bg-slate-600" />
+            <span className="text-xs text-gray-400">or sign in with password</span>
+            <div className="flex-1 h-px bg-gray-200 dark:bg-slate-600" />
+          </div>
+        </>
+      )}
 
       {/* Password form */}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

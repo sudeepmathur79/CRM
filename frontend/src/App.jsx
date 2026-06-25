@@ -12,8 +12,11 @@ import LeadDetailPage from './pages/LeadDetail';
 import RecordingsPage from './pages/Recordings';
 import SettingsPage from './pages/Settings';
 import InboxPage from './pages/Inbox';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, createContext, useContext } from 'react';
 import { configApi } from './services/api';
+
+export const AppConfigContext = createContext({ googleClientId: null });
+export const useAppConfig = () => useContext(AppConfigContext);
 
 const Protected = ({ children }) => {
   const { user, loading } = useAuth();
@@ -46,26 +49,32 @@ export default function App() {
 
   useEffect(() => {
     configApi.get()
-      .then(r => setGoogleClientId(r.data.googleClientId))
+      .then(r => setGoogleClientId(r.data.googleClientId || null))
       .catch(() => {})
       .finally(() => setConfigLoaded(true));
   }, []);
 
-  // Wait for config so GoogleOAuthProvider is only mounted once we know the ID
   if (!configLoaded) return (
     <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-slate-900">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500" />
     </div>
   );
 
-  const inner = (
-    <ThemeProvider>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
-    </ThemeProvider>
+  const tree = (
+    <AppConfigContext.Provider value={{ googleClientId }}>
+      <ThemeProvider>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </ThemeProvider>
+    </AppConfigContext.Provider>
   );
 
-  if (!googleClientId) return inner;
-  return <GoogleOAuthProvider clientId={googleClientId}>{inner}</GoogleOAuthProvider>;
+  // Only wrap with GoogleOAuthProvider once we have a real clientId
+  if (!googleClientId) return tree;
+  return (
+    <GoogleOAuthProvider clientId={googleClientId} onScriptLoadError={() => console.warn('Google script failed to load')}>
+      {tree}
+    </GoogleOAuthProvider>
+  );
 }
