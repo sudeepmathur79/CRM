@@ -16,6 +16,7 @@ const dashboardRoutes = require('./routes/dashboard.routes');
 const tagRoutes = require('./routes/tag.routes');
 const aiRoutes = require('./routes/ai.routes');
 const csvRoutes = require('./routes/csv.routes');
+const migrateRoutes = require('./routes/migrate.routes');
 
 const { startAgents } = require('./services/agents');
 
@@ -50,6 +51,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/tags', tagRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/csv', csvRoutes);
+app.use('/api/migrate', migrateRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date() }));
 
