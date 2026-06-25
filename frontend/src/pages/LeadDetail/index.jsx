@@ -8,6 +8,7 @@ import LeadForm from '../../components/forms/LeadForm';
 import { format } from 'date-fns';
 import { ArrowLeft, Edit, Mic, Upload, Play, Pause, Trash2, FileText, Clock, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import toast from 'react-hot-toast';
+import MentionTextarea, { MentionText } from '../../components/ui/MentionTextarea';
 
 const ACTION_LABELS = {
   created: '✨ Lead created', updated: '✏️ Updated', status_changed: '🔄 Status changed',
@@ -178,10 +179,10 @@ export default function LeadDetailPage() {
 
             {/* Add note input */}
             <div className="mb-4">
-              <textarea
+              <MentionTextarea
                 value={newNote}
-                onChange={e => setNewNote(e.target.value)}
-                placeholder="Add a note… (Shift+Enter for new line, Enter to save)"
+                onChange={setNewNote}
+                placeholder="Add a note… @ to mention someone, Enter to save"
                 rows={2}
                 onKeyDown={e => {
                   if (e.key === 'Enter' && !e.shiftKey) {
@@ -222,7 +223,7 @@ export default function LeadDetailPage() {
                           <span className="text-[10px] text-gray-400">{safeFormat(note.createdAt, 'MMM d, yyyy HH:mm')}</span>
                         </div>
                         <p className="whitespace-pre-wrap leading-relaxed text-gray-700 dark:text-gray-300">
-                          {isAI && hasMore && !isExpanded ? preview + '…' : note.content}
+                          <MentionText text={isAI && hasMore && !isExpanded ? preview + '…' : note.content} />
                         </p>
                         {isAI && hasMore && (
                           <button

@@ -3,8 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { messagesApi, usersApi } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Send, MessageSquare, ChevronLeft, User } from 'lucide-react';
+import { Send, MessageSquare, ChevronLeft } from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
+import MentionTextarea, { MentionText } from '../../components/ui/MentionTextarea';
 
 const fmtTime = (d) => {
   const date = new Date(d);
@@ -198,7 +199,7 @@ export default function InboxPage() {
                     <div className={`px-4 py-2.5 rounded-2xl text-sm ${mine
                       ? 'bg-primary-500 text-white rounded-br-sm'
                       : 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-bl-sm shadow-sm'}`}>
-                      {m.body}
+                      <MentionText text={m.body} className={mine ? '[&_.text-primary-500]:text-white [&_.text-primary-500]:underline' : ''} />
                     </div>
                     <span className="text-xs text-gray-400">{fmtTime(m.createdAt)}</span>
                   </div>
@@ -212,12 +213,12 @@ export default function InboxPage() {
           <div className="p-4 bg-white dark:bg-slate-800 border-t border-gray-100 dark:border-slate-700">
             <div className="flex items-end gap-2">
               <div className="flex-1">
-                <textarea
+                <MentionTextarea
                   rows={2}
                   value={body}
-                  onChange={e => setBody(e.target.value)}
+                  onChange={setBody}
                   onKeyDown={handleKey}
-                  placeholder="Type a message… (Enter to send)"
+                  placeholder="Type a message… @ to mention, Enter to send"
                   className="w-full resize-none rounded-xl border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>

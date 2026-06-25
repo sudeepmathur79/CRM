@@ -51,6 +51,16 @@ export default function Layout() {
         onClick: () => navigate(`/inbox?with=${msg.fromId}`),
       });
     });
+    socket.on('mention:new', (data) => {
+      const from = data.from?.name || 'Someone';
+      const context = data.lead ? ` on "${data.lead.name}"` : '';
+      const preview = (data.message?.body || data.note?.content || '').slice(0, 50);
+      toast(`🔔 ${from} mentioned you${context}: ${preview}…`, {
+        duration: 6000,
+        onClick: () => data.lead ? navigate(`/leads/${data.lead.id}`) : navigate(`/inbox?with=${data.from?.id}`),
+      });
+      qc.invalidateQueries({ queryKey: ['messages-unread'] });
+    });
     return () => { socket.disconnect(); window.__socket = null; };
   }, [user?.id]);
 

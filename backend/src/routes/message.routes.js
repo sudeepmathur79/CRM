@@ -74,9 +74,23 @@ router.post('/', async (req, res, next) => {
       include: MSG_INCLUDE,
     });
 
-    // Emit via Socket.io if available
+    // Emit to recipient
     const io = req.app.get('io');
-    if (io) io.to(`user:${toId}`).emit('message:new', msg);
+    if (io) {
+      io.to(`user:${toId}`).emit('message:new', msg);
+      // Notify @mentioned users (excluding sender and primary recipient)
+      const mentions = body.match(/@([^@\s]+(?:\s[^@\s]+)*)/g) || [];
+      if (mentions.length) {
+        const names = mentions.map(m => m.slice(1).trim());
+        const mentioned = await prisma.user.findMany({
+          where: { name: { in: names }, id: { notIn: [req.user.id, toId] } },
+          select: { id: true },
+        });
+        for (const u of mentioned) {
+          io.to(`user:${u.id}`).emit('mention:new', { message: msg, from: msg.from });
+        }
+      }
+    }
 
     res.status(201).json(msg);
   } catch (e) { next(e); }

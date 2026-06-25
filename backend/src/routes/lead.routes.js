@@ -81,6 +81,22 @@ router.post('/:id/notes', async (req, res, next) => {
     await prisma.activity.create({
       data: { leadId: req.params.id, userId: req.user.id, action: 'note_added', details: { preview: content.trim().slice(0, 80) } },
     });
+    // Notify @mentioned users
+    const io = req.app.get('io');
+    if (io) {
+      const mentions = content.match(/@([^@\n]+)/g) || [];
+      if (mentions.length) {
+        const names = mentions.map(m => m.slice(1).trim());
+        const lead = await prisma.lead.findUnique({ where: { id: req.params.id }, select: { id: true, name: true } });
+        const mentioned = await prisma.user.findMany({
+          where: { name: { in: names }, id: { not: req.user.id } },
+          select: { id: true },
+        });
+        for (const u of mentioned) {
+          io.to(`user:${u.id}`).emit('mention:new', { note, lead, from: { id: req.user.id, name: req.user.name } });
+        }
+      }
+    }
     res.status(201).json(note);
   } catch (e) { next(e); }
 });
