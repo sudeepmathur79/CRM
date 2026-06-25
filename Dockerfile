@@ -23,4 +23,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV NODE_ENV=production
 
-CMD npx prisma migrate deploy && node src/index.js
+CMD npx prisma db push --accept-data-loss && npx prisma db seed && node src/index.js
