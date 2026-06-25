@@ -30,6 +30,7 @@ model Lead {
   status       String      @default("New")
   source       String?
   notes        String?
+  value        Float?
   nextFollowUp DateTime?
   assignedToId String?
   assignedTo   User?       @relation("AssignedLeads", fields: [assignedToId], references: [id])

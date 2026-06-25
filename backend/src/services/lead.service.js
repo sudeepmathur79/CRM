@@ -57,6 +57,7 @@ const createLead = async (data, userId) => {
     data: {
       name: data.name, company: data.company, email: data.email, phone: data.phone,
       status: data.status || 'New', source: data.source, notes: data.notes,
+      value: data.value ? parseFloat(data.value) : null,
       nextFollowUp: data.nextFollowUp ? new Date(data.nextFollowUp) : null,
       assignedToId: data.assignedToId || null,
     },
@@ -78,6 +79,7 @@ const updateLead = async (id, data, userId, user) => {
       status: data.status ?? existing.status,
       source: data.source ?? existing.source,
       notes: data.notes ?? existing.notes,
+      value: data.value !== undefined ? (data.value ? parseFloat(data.value) : null) : existing.value,
       nextFollowUp: data.nextFollowUp !== undefined ? (data.nextFollowUp ? new Date(data.nextFollowUp) : null) : existing.nextFollowUp,
       assignedToId: data.assignedToId !== undefined ? data.assignedToId : existing.assignedToId,
     },

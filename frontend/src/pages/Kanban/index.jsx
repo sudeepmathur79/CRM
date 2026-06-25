@@ -26,7 +26,10 @@ const LeadCard = ({ lead, isDragging }) => {
       onClick={() => navigate(`/leads/${lead.id}`)}
       className="bg-white dark:bg-slate-700 rounded-xl p-3 shadow-sm border border-gray-100 dark:border-slate-600 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
     >
-      <div className="font-medium text-sm">{lead.name}</div>
+      <div className="flex items-start justify-between gap-1">
+        <div className="font-medium text-sm">{lead.name}</div>
+        {lead.value > 0 && <div className="text-xs font-semibold text-green-600 dark:text-green-400 flex-shrink-0">{fmtVal(lead.value)}</div>}
+      </div>
       {lead.company && <div className="text-xs text-gray-400 mt-0.5">{lead.company}</div>}
       {lead.assignedTo && <div className="text-xs text-gray-400 mt-1">→ {lead.assignedTo.name}</div>}
       {lead.nextFollowUp && (
@@ -36,11 +39,18 @@ const LeadCard = ({ lead, isDragging }) => {
   );
 };
 
-const Column = ({ status, leads }) => (
+const fmtVal = (n) => n >= 1000000 ? `$${(n/1000000).toFixed(1)}M` : n >= 1000 ? `$${(n/1000).toFixed(0)}K` : `$${n.toLocaleString()}`;
+
+const Column = ({ status, leads }) => {
+  const totalValue = leads.reduce((sum, l) => sum + (l.value || 0), 0);
+  return (
   <div className={`flex flex-col bg-gray-50 dark:bg-slate-800 rounded-2xl border-t-4 ${STATUS_COLORS[status]} min-h-64`}>
-    <div className="flex items-center justify-between px-4 py-3">
-      <span className="font-medium text-sm">{status}</span>
-      <span className="text-xs bg-gray-200 dark:bg-slate-600 px-2 py-0.5 rounded-full">{leads.length}</span>
+    <div className="px-4 py-3">
+      <div className="flex items-center justify-between">
+        <span className="font-medium text-sm">{status}</span>
+        <span className="text-xs bg-gray-200 dark:bg-slate-600 px-2 py-0.5 rounded-full">{leads.length}</span>
+      </div>
+      {totalValue > 0 && <div className="text-xs font-semibold text-green-600 dark:text-green-400 mt-1">{fmtVal(totalValue)}</div>}
     </div>
     <SortableContext items={leads.map(l => l.id)} strategy={verticalListSortingStrategy}>
       <div className="flex-1 px-3 pb-3 space-y-2 min-h-16">
@@ -49,7 +59,8 @@ const Column = ({ status, leads }) => (
       </div>
     </SortableContext>
   </div>
-);
+  );
+};
 
 export default function KanbanPage() {
   const qc = useQueryClient();

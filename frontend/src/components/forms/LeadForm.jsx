@@ -73,6 +73,11 @@ export default function LeadForm({ onSubmit, defaultValues = {}, loading }) {
           </select>
         </div>
         <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Deal Value ($)</label>
+          <input type="number" min="0" step="0.01" placeholder="0.00" {...register('value')}
+            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+        </div>
+        <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Next Follow-up</label>
           <input type="date" {...register('nextFollowUp')}
             className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />

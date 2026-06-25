@@ -11,23 +11,33 @@ router.get('/stats', async (req, res, next) => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
-    const thirtyDaysAgo = new Date(now); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const [total, byStatus, followUpsToday, newToday, overdue] = await Promise.all([
+    const [total, byStatus, followUpsToday, newToday, overdue, valueAgg] = await Promise.all([
       prisma.lead.count({ where }),
-      prisma.lead.groupBy({ by: ['status'], where, _count: { id: true } }),
+      prisma.lead.groupBy({ by: ['status'], where, _count: { id: true }, _sum: { value: true } }),
       prisma.lead.count({ where: { ...where, nextFollowUp: { gte: today, lt: tomorrow } } }),
       prisma.lead.count({ where: { ...where, createdAt: { gte: today } } }),
       prisma.lead.count({ where: { ...where, nextFollowUp: { lt: today }, status: { notIn: ['Closed Won', 'Closed Lost'] } } }),
+      prisma.lead.aggregate({ where, _sum: { value: true } }),
     ]);
 
     const statusMap = {};
-    byStatus.forEach(s => { statusMap[s.status] = s._count.id; });
+    const valueByStatus = {};
+    byStatus.forEach(s => {
+      statusMap[s.status] = s._count.id;
+      if (s._sum.value) valueByStatus[s.status] = s._sum.value;
+    });
 
     const closedWon = statusMap['Closed Won'] || 0;
     const conversionRate = total > 0 ? ((closedWon / total) * 100).toFixed(1) : 0;
+    const totalPipelineValue = valueAgg._sum.value || 0;
+    const wonValue = valueByStatus['Closed Won'] || 0;
 
-    res.json({ total, byStatus: statusMap, followUpsToday, newToday, overdue, conversionRate: Number(conversionRate) });
+    res.json({
+      total, byStatus: statusMap, followUpsToday, newToday, overdue,
+      conversionRate: Number(conversionRate),
+      totalPipelineValue, wonValue, valueByStatus,
+    });
   } catch (e) { next(e); }
 });
 
@@ -42,7 +52,6 @@ router.get('/charts', async (req, res, next) => {
       orderBy: { createdAt: 'asc' }
     });
 
-    // Group by day
     const byDay = {};
     recentLeads.forEach(l => {
       const day = l.createdAt.toISOString().split('T')[0];
@@ -51,12 +60,15 @@ router.get('/charts', async (req, res, next) => {
 
     const leadsOverTime = Object.entries(byDay).map(([date, count]) => ({ date, count }));
 
-    // Pipeline funnel
     const statuses = ['New', 'Contacted', 'Qualified', 'Proposal', 'Closed Won', 'Closed Lost'];
-    const pipeline = await Promise.all(statuses.map(async status => ({
-      status,
-      count: await prisma.lead.count({ where: { ...where, status } })
-    })));
+    const pipeline = await Promise.all(statuses.map(async status => {
+      const agg = await prisma.lead.aggregate({
+        where: { ...where, status },
+        _count: { id: true },
+        _sum: { value: true },
+      });
+      return { status, count: agg._count.id, value: agg._sum.value || 0 };
+    }));
 
     res.json({ leadsOverTime, pipeline });
   } catch (e) { next(e); }

@@ -20,6 +20,7 @@ const FIELD_MAP = {
   status:        ['status', 'lead status', 'stage'],
   source:        ['source', 'lead source', 'channel'],
   notes:         ['notes', 'note', 'description', 'comments'],
+  value:         ['value', 'deal value', 'amount', 'deal size', 'opportunity value'],
   nextFollowUp:  ['next follow up', 'nextfollowup', 'follow up date', 'follow-up date', 'followup'],
 };
 
@@ -123,6 +124,7 @@ router.post('/import', requireRole('admin', 'agent'), upload.single('file'), asy
           status: VALID_STATUSES.includes(row.status) ? row.status : 'New',
           source: row.source || null,
           notes: row.notes || null,
+          value: row.value ? parseFloat(row.value) : null,
           nextFollowUp: row.nextFollowUp ? new Date(row.nextFollowUp) : null,
           assignedToId: null,
         },
@@ -157,6 +159,7 @@ router.get('/export', async (req, res, next) => {
       Source:         l.source || '',
       'Assigned To':  l.assignedTo?.name || '',
       Tags:           l.tags.map(t => t.name).join(', '),
+      'Deal Value':   l.value != null ? l.value : '',
       Notes:          l.notes || '',
       'Next Follow Up': l.nextFollowUp ? l.nextFollowUp.toISOString().slice(0, 10) : '',
       Created:        l.createdAt.toISOString().slice(0, 10),
