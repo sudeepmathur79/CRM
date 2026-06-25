@@ -5,7 +5,7 @@ import { leadsApi, recordingsApi } from '../../services/api';
 import { StatusBadge, TagBadge } from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
 import LeadForm from '../../components/forms/LeadForm';
-import { format } from 'date-fns';
+import { format } from 'date-fns'; // kept for safeFormat helper
 import { ArrowLeft, Edit, Mic, Upload, Play, Pause, Trash2, FileText, Clock, Tag } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -103,6 +103,8 @@ export default function LeadDetailPage() {
   if (isLoading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500" /></div>;
   if (!lead) return <div className="p-6 text-gray-400">Lead not found</div>;
 
+  const safeFormat = (val, fmt) => { try { return val ? format(new Date(val), fmt) : '—'; } catch { return '—'; } };
+
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <button onClick={() => navigate('/leads')} className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mb-5">
@@ -133,10 +135,10 @@ export default function LeadDetailPage() {
               {lead.phone && <div><span className="text-gray-400">Phone</span><div className="font-medium">{lead.phone}</div></div>}
               {lead.nextFollowUp && (
                 <div><span className="text-gray-400">Follow-up</span>
-                  <div className="font-medium">{format(new Date(lead.nextFollowUp), 'MMM d, yyyy')}</div></div>
+                  <div className="font-medium">{safeFormat(lead.nextFollowUp, 'MMM d, yyyy')}</div></div>
               )}
               <div><span className="text-gray-400">Created</span>
-                <div className="font-medium">{format(new Date(lead.createdAt), 'MMM d, yyyy')}</div></div>
+                <div className="font-medium">{safeFormat(lead.createdAt, 'MMM d, yyyy')}</div></div>
             </div>
 
             {lead.tags?.length > 0 && (
@@ -181,7 +183,7 @@ export default function LeadDetailPage() {
                         <span className="text-sm font-medium truncate max-w-xs">{rec.fileName}</span>
                         <span className="text-xs bg-gray-200 dark:bg-slate-600 px-1.5 py-0.5 rounded">{rec.type}</span>
                       </div>
-                      <p className="text-xs text-gray-400 mt-0.5">{format(new Date(rec.createdAt), 'MMM d, yyyy HH:mm')}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{safeFormat(rec.createdAt, 'MMM d, yyyy HH:mm')}</p>
                       <AudioPlayer recording={rec} />
                       {rec.transcript && (
                         <details className="mt-2">
@@ -226,7 +228,7 @@ export default function LeadDetailPage() {
                 <div>
                   <p className="text-sm">{ACTION_LABELS[act.action] || act.action}</p>
                   {act.details?.from && <p className="text-xs text-gray-400">{act.details.from} → {act.details.to}</p>}
-                  <p className="text-xs text-gray-400">{act.user?.name} · {format(new Date(act.createdAt), 'MMM d, HH:mm')}</p>
+                  <p className="text-xs text-gray-400">{act.user?.name} · {safeFormat(act.createdAt, 'MMM d, HH:mm')}</p>
                 </div>
               </div>
             ))}
