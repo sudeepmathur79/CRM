@@ -18,6 +18,7 @@ model User {
   googleId         String?    @unique
   twoFactorSecret  String?
   twoFactorEnabled Boolean    @default(false)
+  avatar           String?
   leads        Lead[]     @relation("AssignedLeads")
   createdLeads Lead[]     @relation("CreatedLeads")
   activities   Activity[]

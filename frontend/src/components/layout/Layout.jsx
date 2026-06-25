@@ -95,7 +95,7 @@ export default function Layout() {
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
-  const navItems = [
+  const desktopNavItems = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
     { to: '/leads', icon: Users, label: 'Leads' },
     { to: '/kanban', icon: Columns, label: 'Kanban' },
@@ -103,6 +103,14 @@ export default function Layout() {
     { to: '/inbox', icon: MessageSquare, label: 'Messages', badge: unread },
     { to: '/settings', icon: Settings, label: 'Settings' },
   ];
+
+  const mobileNavItems = [
+    { to: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
+    { to: '/leads', icon: Users, label: 'Leads' },
+    { to: '/inbox', icon: MessageSquare, label: 'Messages', badge: unread },
+  ];
+
+  const initials = user?.name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?';
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -116,7 +124,7 @@ export default function Layout() {
         </div>
 
         <nav className="flex-1 p-2 space-y-1">
-          {navItems.map(({ to, icon: Icon, label, exact, badge }) => (
+          {desktopNavItems.map(({ to, icon: Icon, label, exact, badge }) => (
             <NavLink key={to} to={to} end={exact}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
@@ -173,7 +181,7 @@ export default function Layout() {
         className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 flex items-center"
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
-        {navItems.map(({ to, icon: Icon, label, exact, badge }) => (
+        {mobileNavItems.map(({ to, icon: Icon, label, exact, badge }) => (
           <NavLink key={to} to={to} end={exact}
             className={({ isActive }) =>
               `flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-[10px] font-medium transition-colors ${
@@ -196,13 +204,25 @@ export default function Layout() {
             )}
           </NavLink>
         ))}
-        <button
-          onClick={toggle}
-          className="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-[10px] font-medium text-gray-500 dark:text-gray-400"
+        {/* Profile / Settings */}
+        <NavLink to="/settings"
+          className={({ isActive }) =>
+            `flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-[10px] font-medium transition-colors ${
+              isActive ? 'text-primary-600 dark:text-primary-400' : 'text-gray-500 dark:text-gray-400'
+            }`
+          }
         >
-          {dark ? <Sun size={20} /> : <Moon size={20} />}
-          {dark ? 'Light' : 'Dark'}
-        </button>
+          {({ isActive }) => (
+            <>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold overflow-hidden ring-2 ${isActive ? 'ring-primary-500' : 'ring-gray-300 dark:ring-slate-600'}`}
+                style={{ background: isActive ? '#6366f1' : '#94a3b8', color: '#fff' }}
+              >
+                {user?.avatar ? <img src={user.avatar} alt="" className="w-full h-full object-cover" /> : initials}
+              </div>
+              Profile
+            </>
+          )}
+        </NavLink>
       </nav>
     </div>
   );

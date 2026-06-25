@@ -78,8 +78,8 @@ router.post('/refresh', async (req, res, next) => {
 });
 
 router.get('/me', authenticate, (req, res) => {
-  const { id, email, name, role, twoFactorEnabled } = req.user;
-  res.json({ id, email, name, role, twoFactorEnabled });
+  const { id, email, name, role, twoFactorEnabled, avatar } = req.user;
+  res.json({ id, email, name, role, twoFactorEnabled, avatar });
 });
 
 module.exports = router;

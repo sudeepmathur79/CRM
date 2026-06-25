@@ -6,7 +6,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import Modal from '../../components/ui/Modal';
-import { Plus, Edit, UserX, UserCheck, LogOut, Sun, Moon, User, Shield, Smartphone, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Edit, UserX, UserCheck, LogOut, Sun, Moon, User, Shield, Smartphone, CheckCircle, XCircle, Camera } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { authApi } from '../../services/api';
 
@@ -69,6 +69,17 @@ const ProfileSection = () => {
     defaultValues: { name: user?.name || '', email: user?.email || '', password: '', confirmPassword: '' },
   });
 
+  const initials = user?.name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?';
+
+  const avatarMutation = useMutation({
+    mutationFn: (file) => {
+      const fd = new FormData(); fd.append('avatar', file);
+      return usersApi.uploadAvatar(fd);
+    },
+    onSuccess: () => { refreshUser(); toast.success('Photo updated'); },
+    onError: () => toast.error('Upload failed'),
+  });
+
   const updateMutation = useMutation({
     mutationFn: (data) => {
       const payload = { name: data.name, email: data.email };
@@ -85,6 +96,28 @@ const ProfileSection = () => {
 
   return (
     <form onSubmit={handleSubmit(updateMutation.mutate)} className="space-y-4">
+      {/* Avatar */}
+      <div className="flex items-center gap-4">
+        <div className="relative w-16 h-16 rounded-full overflow-hidden bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-600 dark:text-primary-400 font-bold text-xl flex-shrink-0">
+          {user?.avatar
+            ? <img src={user.avatar} alt="" className="w-full h-full object-cover" />
+            : initials}
+          <label className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 hover:opacity-100 cursor-pointer transition-opacity rounded-full">
+            <Camera size={18} className="text-white" />
+            <input type="file" accept="image/*" className="hidden"
+              onChange={e => e.target.files[0] && avatarMutation.mutate(e.target.files[0])} />
+          </label>
+        </div>
+        <div>
+          <div className="font-medium text-sm">{user?.name}</div>
+          <div className="text-xs text-gray-400 capitalize">{user?.role}</div>
+          <label className="text-xs text-primary-600 dark:text-primary-400 cursor-pointer hover:underline mt-0.5 block">
+            {avatarMutation.isPending ? 'Uploading…' : 'Change photo'}
+            <input type="file" accept="image/*" className="hidden"
+              onChange={e => e.target.files[0] && avatarMutation.mutate(e.target.files[0])} />
+          </label>
+        </div>
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>

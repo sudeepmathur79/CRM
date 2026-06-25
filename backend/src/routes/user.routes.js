@@ -1,8 +1,19 @@
 const router = require('express').Router();
 const bcrypt = require('bcryptjs');
+const multer = require('multer');
+const path = require('path');
 const { PrismaClient } = require('@prisma/client');
 const { authenticate, requireRole } = require('../middleware/auth.middleware');
 const prisma = new PrismaClient();
+
+const avatarUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, path.join(__dirname, '../../uploads')),
+    filename: (req, file, cb) => cb(null, `avatar-${req.user.id}-${Date.now()}${path.extname(file.originalname)}`),
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => cb(null, file.mimetype.startsWith('image/')),
+});
 
 router.use(authenticate);
 
@@ -48,6 +59,19 @@ router.delete('/:id', requireRole('admin'), async (req, res, next) => {
   try {
     await prisma.user.update({ where: { id: req.params.id }, data: { isActive: false } });
     res.json({ success: true });
+  } catch (e) { next(e); }
+});
+
+router.post('/me/avatar', avatarUpload.single('avatar'), async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
+    const avatarUrl = `/uploads/${req.file.filename}`;
+    const user = await prisma.user.update({
+      where: { id: req.user.id },
+      data: { avatar: avatarUrl },
+      select: { id: true, email: true, name: true, role: true, avatar: true },
+    });
+    res.json(user);
   } catch (e) { next(e); }
 });
 
