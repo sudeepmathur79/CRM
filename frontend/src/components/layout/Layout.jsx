@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { messagesApi } from '../../services/api';
+import { messagesApi, voiceDraftsApi } from '../../services/api';
 import {
   LayoutDashboard, Users, Columns, Mic, Settings, LogOut, Sun, Moon, ChevronLeft, ChevronRight, MessageSquare,
 } from 'lucide-react';
@@ -34,7 +34,7 @@ export default function Layout() {
 
   const { data: voiceDrafts = [] } = useQuery({
     queryKey: ['voice-drafts'],
-    queryFn: () => import('../services/api').then(m => m.voiceDraftsApi.list().then(r => r.data)),
+    queryFn: () => voiceDraftsApi.list().then(r => r.data),
     enabled: user?.role === 'agent',
     refetchInterval: 60000,
   });
