@@ -15,8 +15,8 @@ Status: `[ ]` = todo · `[~]` = in progress · `[x]` = done
 - [x] **Duplicate detection on import** — matches on email or phone, skips with count in report.
 
 ### Pipeline & Dashboard
-- [ ] **Pipeline $ value** — replace "count by stage" with total deal value per stage. Requires a `value` field on leads.
-- [ ] **Deal value field on Lead** — optional numeric field (currency). Used in pipeline value, forecasting, and won/lost reporting.
+- [x] **Pipeline $ value** — total deal value per stage on dashboard and Kanban columns.
+- [x] **Deal value field on Lead** — optional numeric field, shown on Kanban cards, included in CSV.
 - [ ] **Dashboard: conversion rate funnel** — visual drop-off from New → Contacted → Qualified → Proposal → Won.
 - [ ] **Dashboard: agent performance panel** — leads owned, closed this month, follow-ups overdue, conversion rate per agent (admin-only).
 - [ ] **Dashboard: stale leads alert** — leads with no activity in N days (configurable, default 14).
