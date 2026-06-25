@@ -16,11 +16,23 @@ const navItems = [
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
+// Inline style applied only on mobile via JS — avoids needing a Tailwind plugin for safe-area
+const mobileMainStyle = {
+  paddingBottom: 'calc(56px + env(safe-area-inset-bottom, 0px))',
+};
+
 export default function Layout() {
   const { user, logout } = useAuth();
   const { dark, toggle } = useTheme();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
 
   useEffect(() => {
     const socket = io({ path: '/socket.io' });
@@ -34,7 +46,7 @@ export default function Layout() {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Sidebar — hidden on mobile, shown on md+ */}
+      {/* Sidebar — hidden on mobile */}
       <aside className={`hidden md:flex ${collapsed ? 'w-16' : 'w-56'} flex-shrink-0 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700 flex-col transition-all duration-200`}>
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
           {!collapsed && <span className="font-bold text-primary-600 dark:text-primary-400 text-lg">CRM</span>}
@@ -45,10 +57,7 @@ export default function Layout() {
 
         <nav className="flex-1 p-2 space-y-1">
           {navItems.map(({ to, icon: Icon, label, exact }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={exact}
+            <NavLink key={to} to={to} end={exact}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   isActive
@@ -81,26 +90,24 @@ export default function Layout() {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-auto bg-gray-50 dark:bg-slate-900" style={{ paddingBottom: 'calc(56px + env(safe-area-inset-bottom, 0px))' }}>
-        <style>{`@media (min-width: 768px) { main { padding-bottom: 0 !important; } }`}</style>
-        <Outlet />
-      </main>
+      {/* Main content */}
+      <main
+        className="flex-1 overflow-auto bg-gray-50 dark:bg-slate-900"
+        style={isMobile ? mobileMainStyle : undefined}
+      >
         <Outlet />
       </main>
 
       {/* Bottom tab bar — mobile only */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 flex items-center"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <nav
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 flex items-center"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      >
         {navItems.map(({ to, icon: Icon, label, exact }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={exact}
+          <NavLink key={to} to={to} end={exact}
             className={({ isActive }) =>
               `flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-[10px] font-medium transition-colors ${
-                isActive
-                  ? 'text-primary-600 dark:text-primary-400'
-                  : 'text-gray-500 dark:text-gray-400'
+                isActive ? 'text-primary-600 dark:text-primary-400' : 'text-gray-500 dark:text-gray-400'
               }`
             }
           >
