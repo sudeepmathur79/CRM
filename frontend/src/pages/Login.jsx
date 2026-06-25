@@ -37,6 +37,18 @@ export default function LoginPage() {
           <h1 className="text-3xl font-bold text-primary-600 dark:text-primary-400">CRM</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-2">Sign in to your account</p>
         </div>
+        {/* Demo credentials panel */}
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-2xl px-5 py-4 mb-4">
+          <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-2 uppercase tracking-wide">Demo access</p>
+          <div className="space-y-1 text-xs text-blue-800 dark:text-blue-200">
+            <div className="flex justify-between"><span>Admin (full access)</span><span className="font-mono">admin@demo.com</span></div>
+            <div className="flex justify-between"><span>Agent — James Miller</span><span className="font-mono">james@demo.com</span></div>
+            <div className="flex justify-between"><span>Agent — Priya Patel</span><span className="font-mono">priya@demo.com</span></div>
+            <div className="flex justify-between"><span>Viewer (read-only)</span><span className="font-mono">viewer@demo.com</span></div>
+          </div>
+          <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">Password for all accounts: <span className="font-mono font-semibold">demo1234</span></p>
+        </div>
+
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-8">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             <div>

@@ -6,6 +6,7 @@ import { messagesApi } from '../../services/api';
 import {
   LayoutDashboard, Users, Columns, Mic, Settings, LogOut, Sun, Moon, ChevronLeft, ChevronRight, MessageSquare,
 } from 'lucide-react';
+import GuidedTour from '../GuidedTour';
 import { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
@@ -134,6 +135,7 @@ export default function Layout() {
         style={isMobile ? mobileMainStyle : undefined}
       >
         <Outlet />
+        <GuidedTour />
       </main>
 
       {/* Bottom tab bar — mobile only */}

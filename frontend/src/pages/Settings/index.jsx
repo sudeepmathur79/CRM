@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import Modal from '../../components/ui/Modal';
 import { Plus, Edit, UserX, UserCheck, LogOut, Sun, Moon, User, Shield } from 'lucide-react';
+import { TourLauncher } from '../../components/GuidedTour';
 import toast from 'react-hot-toast';
 
 const ROLES = ['admin', 'agent', 'viewer'];
@@ -188,6 +189,7 @@ export default function SettingsPage() {
           <span>{dark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}</span>
           <span className="ml-auto text-xs text-gray-400">{dark ? 'Light' : 'Dark'}</span>
         </button>
+        <TourLauncher />
       </section>
 
       {/* Logout — always visible, especially useful on mobile */}

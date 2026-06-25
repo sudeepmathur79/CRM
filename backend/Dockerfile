@@ -15,4 +15,4 @@ COPY src ./src
 COPY --from=frontend-builder /app/frontend/dist ../frontend/dist
 RUN mkdir -p uploads
 EXPOSE 5000
-CMD npx prisma db push --accept-data-loss --skip-generate && node src/index.js
+CMD npx prisma db push --accept-data-loss --skip-generate && npx prisma db seed && node src/index.js
