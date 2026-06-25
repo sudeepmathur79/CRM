@@ -222,17 +222,20 @@ export default function LeadsPage() {
             className="bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-slate-700 p-4 flex items-center gap-3 active:bg-gray-50 dark:active:bg-slate-700"
             onClick={() => navigate(`/leads/${lead.id}`)}>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="font-medium text-sm truncate">{lead.name}</span>
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <span className="font-medium text-sm">{lead.name}</span>
                 <StatusBadge status={lead.status} />
+                {lead.value > 0 && <span className="text-xs font-semibold text-green-600 dark:text-green-400">{lead.value >= 1000000 ? `$${(lead.value/1000000).toFixed(1)}M` : lead.value >= 1000 ? `$${(lead.value/1000).toFixed(0)}K` : `$${lead.value}`}</span>}
               </div>
               <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
                 {lead.company && <span>{lead.company} · </span>}
+                {lead.assignedTo ? <span>{lead.assignedTo.name} · </span> : null}
                 {lead.email || lead.phone}
               </div>
               {lead.nextFollowUp && (
-                <div className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                  Follow-up {format(new Date(lead.nextFollowUp), 'MMM d')}
+                <div className={`text-xs mt-1 ${new Date(lead.nextFollowUp) < new Date() && !['Closed Won','Closed Lost'].includes(lead.status) ? 'text-red-500 dark:text-red-400 font-medium' : 'text-amber-600 dark:text-amber-400'}`}>
+                  {new Date(lead.nextFollowUp) < new Date() && !['Closed Won','Closed Lost'].includes(lead.status) ? '⚠ Overdue · ' : '📅 '}
+                  {format(new Date(lead.nextFollowUp), 'MMM d')}
                 </div>
               )}
             </div>

@@ -4,7 +4,7 @@ import { dashboardApi } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
-import { Users, TrendingUp, Clock, AlertCircle, DollarSign, Trophy, UserCheck, AlertTriangle, Inbox, Sparkles, RefreshCw } from 'lucide-react';
+import { Users, TrendingUp, Clock, AlertCircle, DollarSign, Trophy, UserCheck, AlertTriangle, Inbox, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 
@@ -36,7 +36,7 @@ function MyDashboard({ stats, charts }) {
   const hasValue = (stats?.totalPipelineValue || 0) > 0;
   return (
     <div className="space-y-4 md:space-y-6">
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 md:gap-4">
         <StatCard icon={Users} label="Total Leads" value={stats?.total || 0} color="bg-primary-500" />
         <StatCard icon={TrendingUp} label="Conversion" value={`${stats?.conversionRate || 0}%`} color="bg-green-500" sub="Closed Won" />
         <StatCard icon={Clock} label="Follow-ups Today" value={stats?.followUpsToday || 0} color="bg-yellow-500" />
@@ -186,33 +186,41 @@ function ManagementView() {
       </section>
 
       {/* AI Recommendations */}
-      {data?.recommendations?.length > 0 && (
-        <section className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700">
-          <div className="flex items-center gap-2 p-4 border-b border-gray-100 dark:border-slate-700">
-            <Sparkles size={16} className="text-violet-500" />
-            <h2 className="font-semibold text-sm">AI Recommendations</h2>
-          </div>
+      <section className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700">
+        <div className="flex items-center gap-2 p-4 border-b border-gray-100 dark:border-slate-700">
+          <Sparkles size={16} className="text-violet-500" />
+          <h2 className="font-semibold text-sm">AI Recommendations</h2>
+          <span className="text-xs text-gray-400 ml-1">— powered by live data</span>
+        </div>
+        {!data?.recommendations ? (
+          <div className="p-6 text-center text-sm text-gray-400">Loading recommendations…</div>
+        ) : data.recommendations.length === 0 ? (
+          <div className="p-6 text-center text-sm text-gray-400">No recommendations — team is on track ✓</div>
+        ) : (
           <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-            {data.recommendations.map((r, i) => (
-              <div key={i} className={`rounded-xl p-3 border-l-4 ${
-                r.priority === 'high' ? 'bg-red-50 dark:bg-red-900/10 border-red-400' :
-                r.priority === 'medium' ? 'bg-amber-50 dark:bg-amber-900/10 border-amber-400' :
-                'bg-blue-50 dark:bg-blue-900/10 border-blue-400'
-              }`}>
-                <div className="flex items-start gap-2">
-                  <span className={`text-xs font-bold uppercase mt-0.5 flex-shrink-0 ${
-                    r.priority === 'high' ? 'text-red-600' : r.priority === 'medium' ? 'text-amber-600' : 'text-blue-600'
-                  }`}>{r.priority}</span>
-                  <div>
-                    <p className="text-sm font-medium">{r.action}</p>
-                    {r.reason && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{r.reason}</p>}
+            {data.recommendations.map((r, i) => {
+              const CATEGORY_LABEL = { pipeline: 'Pipeline', workload: 'Workload', followup: 'Follow-up', conversion: 'Conversion', risk: 'Risk' };
+              const priorityStyles = {
+                high: { border: 'border-red-400', bg: 'bg-red-50 dark:bg-red-900/10', text: 'text-red-600', badge: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
+                medium: { border: 'border-amber-400', bg: 'bg-amber-50 dark:bg-amber-900/10', text: 'text-amber-600', badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+                low: { border: 'border-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/10', text: 'text-blue-600', badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+                info: { border: 'border-gray-300', bg: 'bg-gray-50 dark:bg-slate-700/30', text: 'text-gray-500', badge: 'bg-gray-100 text-gray-600' },
+              };
+              const s = priorityStyles[r.priority] || priorityStyles.info;
+              return (
+                <div key={i} className={`rounded-xl p-3 border-l-4 ${s.border} ${s.bg}`}>
+                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                    <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${s.badge}`}>{r.priority}</span>
+                    {r.category && <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">{CATEGORY_LABEL[r.category] || r.category}</span>}
                   </div>
+                  <p className="text-sm font-medium leading-snug">{r.action}</p>
+                  {r.reason && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">{r.reason}</p>}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
-        </section>
-      )}
+        )}
+      </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Unassigned leads */}
@@ -290,13 +298,13 @@ export default function DashboardPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl md:text-2xl font-bold">Dashboard</h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">{format(new Date(), 'EEEE, MMMM d yyyy')}</p>
+          <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">{format(new Date(), 'EEEE, MMMM d yyyy')}</p>
         </div>
         {canManage && (
-          <div className="flex bg-gray-100 dark:bg-slate-700 rounded-xl p-1 gap-1">
+          <div className="flex bg-gray-100 dark:bg-slate-700 rounded-xl p-1 gap-1 self-start sm:self-auto">
             {[['my', 'Overview'], ['mgmt', 'Management']].map(([key, label]) => (
               <button key={key} onClick={() => setTab(key)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${tab === key ? 'bg-white dark:bg-slate-600 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
@@ -308,7 +316,7 @@ export default function DashboardPage() {
       </div>
 
       {tab === 'my' && <MyDashboard stats={stats} charts={charts} />}
-      {tab === 'mgmt' && isAdmin && <ManagementView />}
+      {tab === 'mgmt' && canManage && <ManagementView />}
     </div>
   );
 }

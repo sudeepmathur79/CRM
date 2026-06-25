@@ -95,6 +95,14 @@ Status: `[ ]` = todo · `[~]` = in progress · `[x]` = done
 
 ## 🔵 P5 — Infrastructure & Scale (Backlog until traction)
 
+### Team Hierarchies & Management Tiers
+- [ ] **Team model** — `Team` entity with name, manager (User), members (User[]). Leads can be assigned to a team rather than an individual.
+- [ ] **Team manager role** — mid-tier role between agent and admin. Can see and manage their team's leads, run team-scoped management view, but can't edit users or global settings.
+- [ ] **Management hierarchy** — support multi-level org: e.g. Regional Manager → Team Manager → Agent. Each level sees only their sub-tree's data.
+- [ ] **Team-scoped dashboard** — Management view filtered to a single team. Team managers see their team; admins can switch between teams.
+- [ ] **Assign leads to teams** — bulk assign a lead to a team; auto-routes to the team's least-loaded agent or round-robins.
+- [ ] **Team leaderboard** — cross-team comparison view for admins/directors: conversion rate, pipeline, overdue % per team.
+
 ### Multi-tenancy
 - [ ] **Tenant model design** — decide: shared DB with `tenantId` row-level isolation vs. separate DB per tenant. Recommendation: `tenantId` on all models first, separate DB later when needed.
 - [ ] **Tenant provisioner script** — CLI script to create a new tenant (DB row, admin user, branding defaults).

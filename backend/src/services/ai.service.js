@@ -187,27 +187,58 @@ const transcribeAudio = async (filePath) => {
 
 const recommendManagementActions = async ({ agentStats, unassigned, staleLeads }) => {
   const provider = getClient();
-  if (!provider) return [{ priority: 'info', action: 'Configure an AI provider (GROQ_API_KEY) to enable AI recommendations.' }];
+  if (!provider) return [{ priority: 'info', action: 'Configure an AI provider (GROQ_API_KEY) to enable AI recommendations.', reason: null }];
 
-  const summary = `
-You are a sales manager AI assistant. Based on this CRM snapshot, provide 4-6 specific, actionable recommendations.
+  const totalLeads = agentStats.reduce((s, a) => s + a.total, 0);
+  const totalOverdue = agentStats.reduce((s, a) => s + a.overdue, 0);
+  const totalPipeline = agentStats.reduce((s, a) => s + a.pipelineValue, 0);
+  const stalePipelineValue = staleLeads.reduce((s, l) => s + (l.value || 0), 0);
+  const unassignedValue = unassigned.reduce((s, l) => s + (l.value || 0), 0);
 
-TEAM SNAPSHOT:
-${agentStats.map(a => `- ${a.name} (${a.role}): ${a.total} leads, ${a.won} won, ${a.conversionRate}% conversion, ${a.overdue} overdue follow-ups, pipeline $${a.pipelineValue}`).join('\n')}
+  const agentLines = agentStats.map(a => {
+    const overdueRate = a.total > 0 ? ((a.overdue / a.total) * 100).toFixed(0) : 0;
+    const staleOwned = staleLeads.filter(l => l.assignedTo?.name === a.name).length;
+    return `  • ${a.name} (${a.role}): ${a.total} leads total, ${a.won} won, ${a.conversionRate}% conversion rate, ${a.overdue} overdue (${overdueRate}% of portfolio), ${a.newThisMonth} new this month, pipeline $${a.pipelineValue.toLocaleString()}, stale leads owned: ${staleOwned}`;
+  }).join('\n');
 
-UNASSIGNED LEADS: ${unassigned.length}
-${unassigned.slice(0, 5).map(l => `- ${l.name}${l.company ? ` (${l.company})` : ''}${l.value ? `, $${l.value}` : ''}`).join('\n')}
+  const staleSample = staleLeads.slice(0, 8).map(l =>
+    `  • ${l.name}${l.company ? ` (${l.company})` : ''}, status: ${l.status}, owner: ${l.assignedTo?.name || 'unassigned'}${l.value ? `, value: $${l.value.toLocaleString()}` : ''}`
+  ).join('\n');
 
-STALE LEADS (14+ days no activity): ${staleLeads.length}
-${staleLeads.slice(0, 5).map(l => `- ${l.name}, owned by ${l.assignedTo?.name || 'unassigned'}, status: ${l.status}${l.value ? `, $${l.value}` : ''}`).join('\n')}
+  const unassignedSample = unassigned.slice(0, 8).map(l =>
+    `  • ${l.name}${l.company ? ` (${l.company})` : ''}, status: ${l.status}${l.value ? `, value: $${l.value.toLocaleString()}` : ''}, created: ${new Date(l.createdAt).toLocaleDateString()}`
+  ).join('\n');
 
-Return a JSON array of recommendations. Each item: { "priority": "high|medium|low", "action": "specific action text", "reason": "brief why" }
-Return ONLY the JSON array, no other text.`;
+  const prompt = `You are an experienced sales operations manager reviewing a CRM snapshot. Provide 5-7 specific, actionable recommendations tailored to the actual data. Be concrete — mention agent names, lead names, and dollar amounts where relevant. Avoid generic advice.
+
+=== PORTFOLIO OVERVIEW ===
+Total leads in system: ${totalLeads}
+Total overdue follow-ups: ${totalOverdue}
+Combined pipeline value: $${totalPipeline.toLocaleString()}
+Unassigned leads: ${unassigned.length}${unassignedValue > 0 ? ` (value at risk: $${unassignedValue.toLocaleString()})` : ''}
+Stale leads (14+ days no activity, not closed): ${staleLeads.length}${stalePipelineValue > 0 ? ` ($${stalePipelineValue.toLocaleString()} pipeline at risk)` : ''}
+
+=== TEAM BREAKDOWN ===
+${agentLines || '  (no agents yet)'}
+
+=== STALE LEADS ===
+${staleSample || '  (none)'}
+
+=== UNASSIGNED LEADS ===
+${unassignedSample || '  (none)'}
+
+=== INSTRUCTIONS ===
+Analyse: workload balance, pipeline health, conversion gaps, at-risk value, follow-up discipline, and velocity.
+For each recommendation include who should act and what specifically to do.
+Prioritise by revenue impact.
+
+Return a JSON array only. Each element: { "priority": "high|medium|low", "category": "pipeline|workload|followup|conversion|risk", "action": "specific action (1-2 sentences, name names)", "reason": "data-driven reason (1 sentence)" }
+No markdown, no wrapper object — just the raw JSON array.`;
 
   const completion = await callWithFallback(provider, {
-    messages: [{ role: 'user', content: summary }],
-    temperature: 0.4,
-    max_tokens: 600,
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0.3,
+    max_tokens: 900,
     response_format: { type: 'json_object' },
   });
 
@@ -215,9 +246,9 @@ Return ONLY the JSON array, no other text.`;
   try {
     const parsed = JSON.parse(raw);
     const arr = Array.isArray(parsed) ? parsed : parsed.recommendations || parsed.actions || Object.values(parsed)[0] || [];
-    return arr.slice(0, 6);
+    return arr.slice(0, 7);
   } catch {
-    return [{ priority: 'info', action: 'AI recommendations unavailable — could not parse response.' }];
+    return [{ priority: 'info', action: 'AI recommendations unavailable — could not parse response.', reason: null }];
   }
 };
 

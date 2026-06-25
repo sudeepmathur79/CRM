@@ -174,14 +174,27 @@ export default function LeadDetailPage() {
               </button>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-              {lead.email && <div><span className="text-gray-400">Email</span><div className="font-medium">{lead.email}</div></div>}
-              {lead.phone && <div><span className="text-gray-400">Phone</span><div className="font-medium">{lead.phone}</div></div>}
-              {lead.nextFollowUp && (
-                <div><span className="text-gray-400">Follow-up</span>
-                  <div className="font-medium">{safeFormat(lead.nextFollowUp, 'MMM d, yyyy')}</div></div>
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+              {lead.email && (
+                <div><span className="text-xs text-gray-400 uppercase tracking-wide">Email</span>
+                  <div className="font-medium break-all">{lead.email}</div></div>
               )}
-              <div><span className="text-gray-400">Created</span>
+              {lead.phone && (
+                <div><span className="text-xs text-gray-400 uppercase tracking-wide">Phone</span>
+                  <div className="font-medium">{lead.phone}</div></div>
+              )}
+              {lead.value > 0 && (
+                <div><span className="text-xs text-gray-400 uppercase tracking-wide">Deal Value</span>
+                  <div className="font-semibold text-green-600 dark:text-green-400">{lead.value >= 1000000 ? `$${(lead.value/1000000).toFixed(2)}M` : lead.value >= 1000 ? `$${(lead.value/1000).toFixed(1)}K` : `$${lead.value.toLocaleString()}`}</div></div>
+              )}
+              {lead.nextFollowUp && (
+                <div><span className="text-xs text-gray-400 uppercase tracking-wide">Follow-up</span>
+                  <div className={`font-medium ${new Date(lead.nextFollowUp) < new Date() && !['Closed Won','Closed Lost'].includes(lead.status) ? 'text-red-500' : ''}`}>
+                    {new Date(lead.nextFollowUp) < new Date() && !['Closed Won','Closed Lost'].includes(lead.status) ? '⚠ ' : ''}{safeFormat(lead.nextFollowUp, 'MMM d, yyyy')}
+                  </div>
+                </div>
+              )}
+              <div><span className="text-xs text-gray-400 uppercase tracking-wide">Created</span>
                 <div className="font-medium">{safeFormat(lead.createdAt, 'MMM d, yyyy')}</div></div>
             </div>
 

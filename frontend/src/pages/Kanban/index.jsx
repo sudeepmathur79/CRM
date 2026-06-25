@@ -111,7 +111,7 @@ export default function KanbanPage() {
         onDragEnd={handleDragEnd}>
         <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory" style={{ minHeight: '60vh' }}>
           {STATUSES.map(status => (
-            <div key={status} className="snap-start flex-shrink-0 w-64 md:w-72">
+            <div key={status} className="snap-start flex-shrink-0 w-[280px] md:w-72">
               <Column status={status} leads={byStatus[status] || []} />
             </div>
           ))}
