@@ -20,6 +20,7 @@ const migrateRoutes = require('./routes/migrate.routes');
 const messageRoutes = require('./routes/message.routes');
 
 const { startAgents } = require('./services/agents');
+const { startReminderScheduler } = require('./services/reminders');
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -84,6 +85,7 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   startAgents(io);
+  startReminderScheduler(io);
 });
 
 module.exports = { app, io };

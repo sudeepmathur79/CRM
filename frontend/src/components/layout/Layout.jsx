@@ -36,6 +36,13 @@ export default function Layout() {
     return () => window.removeEventListener('resize', handler);
   }, []);
 
+  // Request browser notification permission once
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
   useEffect(() => {
     const socket = io({ path: '/socket.io' });
     window.__socket = socket;
@@ -51,6 +58,27 @@ export default function Layout() {
         onClick: () => navigate(`/inbox?with=${msg.fromId}`),
       });
     });
+    socket.on('followup:due', (data) => {
+      const when = data.minutesUntil <= 1 ? 'now' : `in ${data.minutesUntil} min`;
+      const title = `📅 Follow-up due ${when}`;
+      const body = `${data.leadName}${data.company ? ` · ${data.company}` : ''}`;
+
+      // Browser notification (works even if tab is in background)
+      if ('Notification' in window && Notification.permission === 'granted') {
+        const notif = new Notification(title, { body, icon: '/favicon.ico', tag: `followup-${data.leadId}` });
+        notif.onclick = () => { window.focus(); navigate(`/leads/${data.leadId}`); notif.close(); };
+      }
+
+      // In-app toast
+      toast(t => (
+        <button onClick={() => { navigate(`/leads/${data.leadId}`); toast.dismiss(t.id); }}
+          className="text-left">
+          <div className="font-medium text-sm">{title}</div>
+          <div className="text-xs text-gray-500 mt-0.5">{body}</div>
+        </button>
+      ), { duration: 10000, icon: '📅' });
+    });
+
     socket.on('mention:new', (data) => {
       const from = data.from?.name || 'Someone';
       const context = data.lead ? ` on "${data.lead.name}"` : '';

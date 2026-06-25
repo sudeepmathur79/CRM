@@ -37,7 +37,8 @@ model Lead {
   source       String?
   notes        String?
   value        Float?
-  nextFollowUp DateTime?
+  nextFollowUp    DateTime?
+  reminderSentAt  DateTime?
   assignedToId String?
   assignedTo   User?       @relation("AssignedLeads", fields: [assignedToId], references: [id])
   createdById  String?
