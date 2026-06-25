@@ -6,9 +6,10 @@ import { StatusBadge, TagBadge } from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
 import LeadForm from '../../components/forms/LeadForm';
 import { format } from 'date-fns';
-import { ArrowLeft, Edit, Mic, Upload, Play, Pause, Trash2, FileText, Clock, Plus, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Edit, Mic, Upload, Play, Pause, Trash2, FileText, Clock, Plus, ChevronDown, ChevronUp, MessageSquare } from 'lucide-react';
 import toast from 'react-hot-toast';
 import MentionTextarea, { MentionText } from '../../components/ui/MentionTextarea';
+import { useAuth } from '../../contexts/AuthContext';
 
 const ACTION_LABELS = {
   created: '✨ Lead created', updated: '✏️ Updated', status_changed: '🔄 Status changed',
@@ -36,10 +37,32 @@ const AudioPlayer = ({ recording }) => {
   );
 };
 
+const ROLE_COLOR = { admin: 'bg-violet-500', viewer: 'bg-blue-500', agent: 'bg-emerald-500' };
+const avatar = (name) => name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
+
+const PersonChip = ({ label, person, isSelf, onMessage }) => (
+  <div className="flex items-center gap-2 bg-gray-50 dark:bg-slate-700/50 rounded-xl px-3 py-2 min-w-0">
+    <div className={`w-8 h-8 rounded-full ${ROLE_COLOR[person.role] || 'bg-gray-400'} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>
+      {avatar(person.name)}
+    </div>
+    <div className="min-w-0">
+      <div className="text-[10px] text-gray-400 uppercase tracking-wide">{label}</div>
+      <div className="text-sm font-medium truncate">{person.name}{isSelf ? ' (you)' : ''}</div>
+    </div>
+    {!isSelf && (
+      <button onClick={onMessage} title={`Message ${person.name}`}
+        className="ml-1 p-1.5 rounded-lg text-gray-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 flex-shrink-0 transition-colors">
+        <MessageSquare size={15} />
+      </button>
+    )}
+  </div>
+);
+
 export default function LeadDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const { user: currentUser } = useAuth();
   const [showEdit, setShowEdit] = useState(false);
   const [recording, setRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState(null);
@@ -144,7 +167,6 @@ export default function LeadDetailPage() {
                 <div className="flex flex-wrap items-center gap-3 mt-2">
                   <StatusBadge status={lead.status} />
                   {lead.source && <span className="text-xs text-gray-400">📍 {lead.source}</span>}
-                  {lead.assignedTo && <span className="text-xs text-gray-400">👤 {lead.assignedTo.name}</span>}
                 </div>
               </div>
               <button onClick={() => setShowEdit(true)} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700">
@@ -166,6 +188,28 @@ export default function LeadDetailPage() {
             {lead.tags?.length > 0 && (
               <div className="mt-4 flex flex-wrap gap-1">
                 {lead.tags.map(t => <TagBadge key={t.id} tag={t} />)}
+              </div>
+            )}
+
+            {/* People: assigned + creator */}
+            {(lead.assignedTo || lead.createdBy) && (
+              <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 flex flex-wrap gap-3">
+                {lead.assignedTo && (
+                  <PersonChip
+                    label="Assigned to"
+                    person={lead.assignedTo}
+                    isSelf={lead.assignedTo.id === currentUser?.id}
+                    onMessage={() => navigate(`/inbox?with=${lead.assignedTo.id}`)}
+                  />
+                )}
+                {lead.createdBy && lead.createdBy.id !== lead.assignedTo?.id && (
+                  <PersonChip
+                    label="Created by"
+                    person={lead.createdBy}
+                    isSelf={lead.createdBy.id === currentUser?.id}
+                    onMessage={() => navigate(`/inbox?with=${lead.createdBy.id}`)}
+                  />
+                )}
               </div>
             )}
 

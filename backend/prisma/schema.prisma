@@ -15,8 +15,9 @@ model User {
   name       String
   role       String     @default("agent") // "admin", "agent", "viewer"
   isActive   Boolean    @default(true)
-  leads      Lead[]     @relation("AssignedLeads")
-  activities Activity[]
+  leads        Lead[]     @relation("AssignedLeads")
+  createdLeads Lead[]     @relation("CreatedLeads")
+  activities   Activity[]
   sentMessages     Message[] @relation("SentMessages")
   receivedMessages Message[] @relation("ReceivedMessages")
   createdAt  DateTime   @default(now())
@@ -36,6 +37,8 @@ model Lead {
   nextFollowUp DateTime?
   assignedToId String?
   assignedTo   User?       @relation("AssignedLeads", fields: [assignedToId], references: [id])
+  createdById  String?
+  createdBy    User?       @relation("CreatedLeads", fields: [createdById], references: [id])
   recordings   Recording[]
   activities   Activity[]
   leadNotes    LeadNote[]

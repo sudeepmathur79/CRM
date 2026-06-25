@@ -34,6 +34,7 @@ const getLead = async (id, user) => {
     where: { id },
     include: {
       assignedTo: { select: { id: true, name: true, email: true } },
+      createdBy: { select: { id: true, name: true, email: true } },
       tags: true,
       recordings: { orderBy: { createdAt: 'desc' } },
       leadNotes: { orderBy: { createdAt: 'desc' } },
@@ -60,8 +61,9 @@ const createLead = async (data, userId) => {
       value: data.value ? parseFloat(data.value) : null,
       nextFollowUp: data.nextFollowUp ? new Date(data.nextFollowUp) : null,
       assignedToId: data.assignedToId || null,
+      createdById: userId,
     },
-    include: { assignedTo: { select: { id: true, name: true } }, tags: true }
+    include: { assignedTo: { select: { id: true, name: true } }, createdBy: { select: { id: true, name: true } }, tags: true }
   });
   await logActivity(lead.id, userId, 'created', { name: lead.name });
   return lead;
