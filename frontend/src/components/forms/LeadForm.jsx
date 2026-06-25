@@ -31,7 +31,7 @@ export default function LeadForm({ onSubmit, defaultValues = {}, loading }) {
             Email {!phone && <span className="text-red-400">*</span>}
           </label>
           <input type="email" {...register('email', {
-            validate: (val, formValues) => val || formValues.phone || 'Email or phone is required'
+            validate: (val, formValues) => !!(val || formValues.phone) || 'Email or phone is required'
           })}
             className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
           {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
@@ -41,7 +41,7 @@ export default function LeadForm({ onSubmit, defaultValues = {}, loading }) {
             Phone {!email && <span className="text-red-400">*</span>}
           </label>
           <input {...register('phone', {
-            validate: (val, formValues) => val || formValues.email || 'Email or phone is required'
+            validate: (val, formValues) => !!(val || formValues.email) || 'Email or phone is required'
           })}
             className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
           {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
