@@ -81,13 +81,16 @@ export default function Layout() {
         </div>
       </aside>
 
-      {/* Main content — extra bottom padding on mobile for tab bar */}
-      <main className="flex-1 overflow-auto bg-gray-50 dark:bg-slate-900 pb-16 md:pb-0">
+      <main className="flex-1 overflow-auto bg-gray-50 dark:bg-slate-900" style={{ paddingBottom: 'calc(56px + env(safe-area-inset-bottom, 0px))' }}>
+        <style>{`@media (min-width: 768px) { main { padding-bottom: 0 !important; } }`}</style>
+        <Outlet />
+      </main>
         <Outlet />
       </main>
 
       {/* Bottom tab bar — mobile only */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 flex items-center safe-area-inset-bottom">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 flex items-center"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {navItems.map(({ to, icon: Icon, label, exact }) => (
           <NavLink
             key={to}
