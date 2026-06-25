@@ -95,7 +95,7 @@ export default function VoiceCapture() {
       {/* Floating mic button */}
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-20 right-4 z-50 w-14 h-14 rounded-full bg-primary-600 hover:bg-primary-700 active:scale-95 shadow-lg shadow-primary-500/40 flex items-center justify-center text-white transition-all"
+        className="md:hidden fixed bottom-20 right-4 z-50 w-14 h-14 rounded-full bg-primary-600 hover:bg-primary-700 active:scale-95 shadow-lg shadow-primary-500/40 flex items-center justify-center text-white transition-all"
         aria-label="Record conversation"
       >
         <Mic size={24} />
