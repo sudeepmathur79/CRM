@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { messagesApi, usersApi, leadsApi } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Send, MessageSquare, ChevronLeft, X, ExternalLink, CornerDownRight } from 'lucide-react';
+import { Send, MessageSquare, ChevronLeft, X, ExternalLink, CornerDownRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
 import MentionTextarea, { MentionText } from '../../components/ui/MentionTextarea';
 
@@ -18,87 +18,105 @@ const avatar = (name) => name?.split(' ').map(w => w[0]).join('').toUpperCase().
 const ROLE_COLOR = { admin: 'bg-violet-500', viewer: 'bg-blue-500', agent: 'bg-emerald-500' };
 
 /**
- * Group a flat message array into segments.
- * Each segment is either { type:'plain', messages:[] } or { type:'thread', leadId, lead, messages:[] }.
- * Consecutive messages sharing the same leadId are merged into one thread segment.
+ * Split thread into:
+ *   general: messages with no leadId, in order
+ *   deals: Map<leadId, { lead, messages[], lastAt }>
  */
-function buildSegments(messages) {
-  const segments = [];
+function partitionThread(messages) {
+  const general = [];
+  const dealsMap = new Map();
+
   for (const m of messages) {
-    const key = m.leadId || null;
-    const last = segments[segments.length - 1];
-    if (last && last.leadId === key) {
-      last.messages.push(m);
-      if (m.lead && !last.lead) last.lead = m.lead;
+    if (!m.leadId) {
+      general.push(m);
     } else {
-      segments.push({ leadId: key, lead: m.lead || null, messages: [m] });
+      if (!dealsMap.has(m.leadId)) {
+        dealsMap.set(m.leadId, { leadId: m.leadId, lead: m.lead || null, messages: [], lastAt: m.createdAt });
+      }
+      const entry = dealsMap.get(m.leadId);
+      entry.messages.push(m);
+      entry.lastAt = m.createdAt;
+      if (m.lead && !entry.lead) entry.lead = m.lead;
     }
   }
-  return segments;
+
+  // Sort deal threads by most recent message
+  const deals = [...dealsMap.values()].sort((a, b) => new Date(b.lastAt) - new Date(a.lastAt));
+  return { general, deals };
 }
 
-function MessageBubble({ m, mine, onReplyInThread }) {
+function MessageBubble({ m, mine }) {
   return (
-    <div className={`flex ${mine ? 'justify-end' : 'justify-start'} group`}>
-      <div className={`max-w-xs md:max-w-md lg:max-w-lg flex flex-col gap-1 ${mine ? 'items-end' : 'items-start'}`}>
+    <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+      <div className={`max-w-[80%] md:max-w-md flex flex-col gap-1 ${mine ? 'items-end' : 'items-start'}`}>
         <div className={`px-4 py-2.5 rounded-2xl text-sm ${mine
           ? 'bg-primary-500 text-white rounded-br-sm'
           : 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-bl-sm shadow-sm'}`}>
           <MentionText text={m.body} className={mine ? '[&_.text-primary-500]:text-white [&_.text-primary-500]:underline' : ''} />
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-400">{fmtTime(m.createdAt)}</span>
-          {onReplyInThread && (
-            <button onClick={onReplyInThread}
-              className="flex items-center gap-1 text-[10px] text-gray-300 dark:text-slate-600 hover:text-primary-500 dark:hover:text-primary-400 active:text-primary-500 md:opacity-0 md:group-hover:opacity-100 transition-all">
-              <CornerDownRight size={11} /> Reply
-            </button>
-          )}
-        </div>
+        <span className="text-xs text-gray-400">{fmtTime(m.createdAt)}</span>
       </div>
     </div>
   );
 }
 
-function ThreadSegment({ segment, userId, onReplyInThread, navigate }) {
-  if (!segment.leadId) {
-    return (
-      <div className="space-y-3">
-        {segment.messages.map(m => (
-          <MessageBubble key={m.id} m={m} mine={m.fromId === userId} />
-        ))}
-      </div>
-    );
-  }
+function DealThread({ deal, userId, isOpen, onToggle, onReply, navigate }) {
+  const unread = deal.messages.filter(m => !m.read && m.toId === userId).length;
 
-  const lead = segment.lead;
   return (
-    <div className="rounded-2xl border border-primary-100 dark:border-primary-900/40 overflow-hidden">
-      {/* Thread header */}
-      <div className="flex items-center gap-2 px-4 py-2 bg-primary-50 dark:bg-primary-900/20 border-b border-primary-100 dark:border-primary-900/40">
-        <div className="w-1.5 h-1.5 rounded-full bg-primary-400 flex-shrink-0" />
-        <span className="text-xs font-medium text-primary-600 dark:text-primary-400">Deal thread</span>
-        {lead ? (
-          <button onClick={() => navigate(`/leads/${lead.id}`)}
-            className="flex items-center gap-1 text-xs font-semibold text-primary-700 dark:text-primary-300 hover:underline ml-1">
-            {lead.name}{lead.company ? ` · ${lead.company}` : ''}
-            <ExternalLink size={11} className="opacity-60" />
-          </button>
-        ) : (
-          <span className="text-xs text-primary-400 ml-1">Lead</span>
-        )}
-        <button onClick={() => onReplyInThread(segment.leadId)}
-          className="ml-auto text-[10px] text-primary-500 hover:text-primary-700 dark:hover:text-primary-300 flex items-center gap-1 font-medium">
-          <CornerDownRight size={11} /> Reply
-        </button>
-      </div>
+    <div className={`rounded-2xl border overflow-hidden transition-colors ${isOpen
+      ? 'border-primary-200 dark:border-primary-800'
+      : 'border-gray-200 dark:border-slate-700'}`}>
 
-      {/* Messages inside the thread */}
-      <div className="px-4 py-3 space-y-3 bg-white/60 dark:bg-slate-800/60">
-        {segment.messages.map(m => (
-          <MessageBubble key={m.id} m={m} mine={m.fromId === userId} />
-        ))}
-      </div>
+      {/* Collapsible header */}
+      <button onClick={onToggle}
+        className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${isOpen
+          ? 'bg-primary-50 dark:bg-primary-900/20'
+          : 'bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/50'}`}>
+        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isOpen ? 'bg-primary-400' : 'bg-gray-300 dark:bg-slate-600'}`} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`text-sm font-semibold truncate ${isOpen ? 'text-primary-700 dark:text-primary-300' : 'text-gray-800 dark:text-gray-200'}`}>
+              {deal.lead?.name || 'Lead'}
+            </span>
+            {deal.lead?.company && (
+              <span className="text-xs text-gray-400 truncate">{deal.lead.company}</span>
+            )}
+            {unread > 0 && (
+              <span className="text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full">{unread} new</span>
+            )}
+          </div>
+          <div className="text-xs text-gray-400 mt-0.5">
+            {deal.messages.length} message{deal.messages.length !== 1 ? 's' : ''} · last {fmtTime(deal.lastAt)}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {deal.lead && (
+            <button onClick={e => { e.stopPropagation(); navigate(`/leads/${deal.lead.id}`); }}
+              title="Open lead" className="p-1 text-gray-400 hover:text-primary-500 transition-colors">
+              <ExternalLink size={14} />
+            </button>
+          )}
+          {isOpen ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+        </div>
+      </button>
+
+      {/* Messages — shown when open */}
+      {isOpen && (
+        <div className="bg-gray-50 dark:bg-slate-900/40 border-t border-primary-100 dark:border-primary-900/30">
+          <div className="px-4 py-3 space-y-3">
+            {deal.messages.map(m => (
+              <MessageBubble key={m.id} m={m} mine={m.fromId === userId} />
+            ))}
+          </div>
+          <div className="px-4 py-2 border-t border-primary-100 dark:border-primary-900/30">
+            <button onClick={onReply}
+              className="flex items-center gap-1.5 text-xs font-medium text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200 transition-colors py-1">
+              <CornerDownRight size={13} /> Reply in this thread
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -111,11 +129,15 @@ export default function InboxPage() {
   const leadIdParam = searchParams.get('lead');
   const [body, setBody] = useState('');
   const [leadRef, setLeadRef] = useState(leadIdParam || '');
+  // Track which deal threads are open: Set of leadIds
+  const [openThreads, setOpenThreads] = useState(() => new Set(leadIdParam ? [leadIdParam] : []));
   const bottomRef = useRef(null);
   const navigate = useNavigate();
 
-  // Sync leadRef when URL changes (e.g. arriving from a lead detail page)
-  useEffect(() => { setLeadRef(leadIdParam || ''); }, [leadIdParam]);
+  useEffect(() => {
+    setLeadRef(leadIdParam || '');
+    if (leadIdParam) setOpenThreads(s => new Set([...s, leadIdParam]));
+  }, [leadIdParam]);
 
   const { data: conversations = [] } = useQuery({
     queryKey: ['messages'],
@@ -128,6 +150,11 @@ export default function InboxPage() {
     queryFn: () => messagesApi.thread(activeUserId).then(r => r.data),
     enabled: !!activeUserId,
     refetchInterval: 5000,
+    // Auto-open threads with unread messages
+    onSuccess: (data) => {
+      const unreadLeads = data.filter(m => !m.read && m.toId === user.id && m.leadId).map(m => m.leadId);
+      if (unreadLeads.length) setOpenThreads(s => new Set([...s, ...unreadLeads]));
+    },
   });
 
   const { data: users = [] } = useQuery({
@@ -144,9 +171,8 @@ export default function InboxPage() {
 
   const sendMutation = useMutation({
     mutationFn: (data) => messagesApi.send(data),
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       setBody('');
-      // Keep the leadRef active so the thread continues; user can X to exit
       qc.invalidateQueries({ queryKey: ['messages'] });
       qc.invalidateQueries({ queryKey: ['messages-thread', activeUserId] });
       qc.invalidateQueries({ queryKey: ['messages-unread'] });
@@ -157,14 +183,15 @@ export default function InboxPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [thread]);
 
-  // Real-time via Socket.io
   useEffect(() => {
     const socket = window.__socket;
     if (!socket) return;
-    const handler = () => {
+    const handler = (msg) => {
       qc.invalidateQueries({ queryKey: ['messages'] });
       qc.invalidateQueries({ queryKey: ['messages-thread'] });
       qc.invalidateQueries({ queryKey: ['messages-unread'] });
+      // Auto-open the thread if a new message arrives for a deal
+      if (msg.leadId) setOpenThreads(s => new Set([...s, msg.leadId]));
     };
     socket.on('message:new', handler);
     return () => socket.off('message:new', handler);
@@ -174,7 +201,7 @@ export default function InboxPage() {
   const activeUser = activeConv?.user || users.find(u => u.id === activeUserId);
   const messageable = users.filter(u => u.id !== user.id && u.isActive !== false);
 
-  const segments = buildSegments(thread);
+  const { general, deals } = partitionThread(thread);
 
   const handleSend = () => {
     if (!body.trim() || !activeUserId) return;
@@ -187,13 +214,21 @@ export default function InboxPage() {
 
   const handleReplyInThread = (leadId) => {
     setLeadRef(leadId);
-    // Update URL so context is bookmarkable
+    setOpenThreads(s => new Set([...s, leadId]));
     setSearchParams(p => { p.set('lead', leadId); return p; });
   };
 
   const clearLeadRef = () => {
     setLeadRef('');
     setSearchParams(p => { p.delete('lead'); return p; });
+  };
+
+  const toggleThread = (leadId) => {
+    setOpenThreads(s => {
+      const next = new Set(s);
+      next.has(leadId) ? next.delete(leadId) : next.add(leadId);
+      return next;
+    });
   };
 
   return (
@@ -286,7 +321,7 @@ export default function InboxPage() {
             )}
           </div>
 
-          {/* Messages — segmented */}
+          {/* Messages */}
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
             {thread.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-gray-400">
@@ -294,15 +329,40 @@ export default function InboxPage() {
                 <p className="text-sm">Start the conversation</p>
               </div>
             )}
-            {segments.map((seg, i) => (
-              <ThreadSegment
-                key={i}
-                segment={seg}
-                userId={user.id}
-                onReplyInThread={handleReplyInThread}
-                navigate={navigate}
-              />
-            ))}
+
+            {/* General messages */}
+            {general.length > 0 && (
+              <div className="space-y-3">
+                {general.map(m => (
+                  <MessageBubble key={m.id} m={m} mine={m.fromId === user.id} />
+                ))}
+              </div>
+            )}
+
+            {/* Deal threads — one card per lead, collapsed/expanded */}
+            {deals.length > 0 && (
+              <div className="space-y-2">
+                {general.length > 0 && (
+                  <div className="flex items-center gap-2 py-1">
+                    <div className="flex-1 h-px bg-gray-200 dark:bg-slate-700" />
+                    <span className="text-xs text-gray-400 px-2">Deal threads</span>
+                    <div className="flex-1 h-px bg-gray-200 dark:bg-slate-700" />
+                  </div>
+                )}
+                {deals.map(deal => (
+                  <DealThread
+                    key={deal.leadId}
+                    deal={deal}
+                    userId={user.id}
+                    isOpen={openThreads.has(deal.leadId)}
+                    onToggle={() => toggleThread(deal.leadId)}
+                    onReply={() => handleReplyInThread(deal.leadId)}
+                    navigate={navigate}
+                  />
+                ))}
+              </div>
+            )}
+
             <div ref={bottomRef} />
           </div>
 
