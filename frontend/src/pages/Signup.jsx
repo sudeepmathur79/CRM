@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { authApi } from '../services/api';
 import { Zap, CheckCircle2, Mail } from 'lucide-react';
 import { Turnstile } from '@marsidev/react-turnstile';
+import posthog from 'posthog-js';
 
 const getSiteKey = () => window.__APP_CONFIG__?.turnstileSiteKey || import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
 
@@ -91,6 +92,8 @@ export default function Signup() {
     setLoading(true);
     try {
       const { data } = await authApi.signup({ ...form, captchaToken: token });
+      posthog.capture('signed_up', { orgName: form.orgName });
+      posthog.identify(form.email, { name: form.name, orgName: form.orgName });
       if (data.requiresVerification) {
         setVerificationEmail(data.email);
       }

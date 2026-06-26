@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { leadsApi, voiceDraftsApi, aiApi } from '../services/api';
 import { Mic, MicOff, X, Check, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
+import posthog from 'posthog-js';
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -190,6 +191,7 @@ export default function VoiceCapture() {
         qc.invalidateQueries({ queryKey: ['voice-drafts'] });
         toast.success('Saved to your unresolved recordings');
       }
+      posthog.capture('voice_capture_saved', { saveMode, synced: syncData?.synced ?? [] });
       handleClose();
     } catch (e) {
       toast.error('Save failed');
