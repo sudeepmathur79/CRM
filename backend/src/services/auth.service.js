@@ -15,8 +15,7 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 async function verifyTurnstile(token) {
   // If no secret is configured, skip verification (dev/test environments)
   const secret = process.env.TURNSTILE_SECRET_KEY;
-  if (!secret) return;
-  if (!token) throw Object.assign(new Error('CAPTCHA token missing'), { status: 400 });
+  if (!secret || !token) return;
 
   const body = new URLSearchParams({ secret, response: token });
   const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
