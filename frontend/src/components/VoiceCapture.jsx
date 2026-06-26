@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { leadsApi, voiceDraftsApi } from '../services/api';
-import { Mic, MicOff, X, Check, Search, ChevronDown } from 'lucide-react';
+import { Mic, MicOff, X, Check, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -12,17 +12,33 @@ const SAVE_MODES = [
   { id: 'none', label: 'Save for later' },
 ];
 
+const MAX_ERROR_RETRIES = 3;
+
+function formatElapsed(secs) {
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${m}m ${String(s).padStart(2, '0')}s`;
+}
+
 export default function VoiceCapture() {
   const [open, setOpen] = useState(false);
   const [recording, setRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [interim, setInterim] = useState('');
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [saveMode, setSaveMode] = useState('existing');
   const [leadQuery, setLeadQuery] = useState('');
   const [selectedLead, setSelectedLead] = useState(null);
   const [newLeadName, setNewLeadName] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Refs for recognition session management
   const recognitionRef = useRef(null);
+  const accumulatedRef = useRef('');       // text confirmed across all completed sessions
+  const shouldRestartRef = useRef(false);  // false = user stopped; true = auto-restart on end
+  const restartCountRef = useRef(0);       // error retry counter
+  const timerRef = useRef(null);
+
   const qc = useQueryClient();
 
   const { data: leadsData } = useQuery({
@@ -32,29 +48,111 @@ export default function VoiceCapture() {
   });
   const leads = Array.isArray(leadsData) ? leadsData : (leadsData?.leads || []);
 
-  const startRecording = () => {
-    if (!SpeechRecognition) { toast.error('Speech recognition not supported in this browser'); return; }
+  // startRecognition is called on each session start (including auto-restarts).
+  // It must be defined with useCallback so stopRecording can safely call the ref version.
+  const startRecognition = useCallback(() => {
+    if (!SpeechRecognition) {
+      toast.error('Speech recognition not supported in this browser');
+      return;
+    }
+
     const rec = new SpeechRecognition();
     rec.continuous = true;
     rec.interimResults = true;
     rec.lang = 'en-US';
+
+    // Track final text accumulated within this single recognition session
+    let sessionFinal = '';
+
     rec.onresult = (e) => {
-      let final = '', interimText = '';
+      let newFinal = '';
+      let interimText = '';
       for (let i = 0; i < e.results.length; i++) {
-        if (e.results[i].isFinal) final += e.results[i][0].transcript + ' ';
-        else interimText += e.results[i][0].transcript;
+        if (e.results[i].isFinal) {
+          newFinal += e.results[i][0].transcript + ' ';
+        } else {
+          interimText += e.results[i][0].transcript;
+        }
       }
-      setTranscript(final);
+      sessionFinal = newFinal;
+      // Display = all previous sessions + this session's finals + live interim
+      setTranscript(accumulatedRef.current + sessionFinal);
       setInterim(interimText);
     };
-    rec.onerror = (e) => { if (e.error !== 'aborted') toast.error(`Mic error: ${e.error}`); setRecording(false); };
-    rec.onend = () => setRecording(false);
+
+    rec.onerror = (e) => {
+      if (e.error === 'no-speech') {
+        // Transient — onend will fire and we auto-restart; nothing to show user
+        return;
+      }
+      if (e.error === 'not-allowed' || e.error === 'service-not-available') {
+        shouldRestartRef.current = false;
+        toast.error('Microphone access denied. Please allow microphone access and try again.');
+        return;
+      }
+      // Other errors: count retries; stop after MAX_ERROR_RETRIES
+      restartCountRef.current += 1;
+      if (restartCountRef.current >= MAX_ERROR_RETRIES) {
+        shouldRestartRef.current = false;
+        toast.error('Recording stopped after repeated errors.');
+      }
+    };
+
+    rec.onend = () => {
+      // Commit this session's finals into the accumulator before any restart
+      if (sessionFinal) {
+        accumulatedRef.current += sessionFinal;
+      }
+      setInterim('');
+
+      if (shouldRestartRef.current) {
+        // 300 ms delay prevents tight loop on iOS when the browser fires onend immediately
+        setTimeout(() => {
+          if (shouldRestartRef.current) {
+            startRecognition();
+          }
+        }, 300);
+      } else {
+        setRecording(false);
+      }
+    };
+
     recognitionRef.current = rec;
     rec.start();
     setRecording(true);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const startRecording = () => {
+    if (!SpeechRecognition) {
+      toast.error('Speech recognition not supported in this browser');
+      return;
+    }
+    // Reset state for a fresh capture session
+    accumulatedRef.current = '';
+    shouldRestartRef.current = true;
+    restartCountRef.current = 0;
+    setElapsedSeconds(0);
+    setTranscript('');
+    setInterim('');
+    startRecognition();
   };
 
-  const stopRecording = () => { recognitionRef.current?.stop(); setRecording(false); setInterim(''); };
+  const stopRecording = () => {
+    shouldRestartRef.current = false;
+    recognitionRef.current?.stop();
+    setRecording(false);
+    setInterim('');
+  };
+
+  // Elapsed-time counter — ticks every second while recording, resets when recording stops
+  useEffect(() => {
+    if (recording) {
+      timerRef.current = setInterval(() => setElapsedSeconds(s => s + 1), 1000);
+    } else {
+      clearInterval(timerRef.current);
+    }
+    return () => clearInterval(timerRef.current);
+  }, [recording]);
 
   const handleSave = async () => {
     const full = (transcript + interim).trim();
@@ -89,10 +187,12 @@ export default function VoiceCapture() {
     setOpen(false);
     setTranscript('');
     setInterim('');
+    setElapsedSeconds(0);
     setLeadQuery('');
     setSelectedLead(null);
     setNewLeadName('');
     setSaveMode('existing');
+    accumulatedRef.current = '';
   };
 
   useEffect(() => {
@@ -123,7 +223,13 @@ export default function VoiceCapture() {
               >
                 {recording ? <MicOff size={32} /> : <Mic size={32} />}
               </button>
-              <p className="text-sm text-slate-400">{recording ? 'Recording… tap to stop' : 'Tap to start'}</p>
+              {recording ? (
+                <p className="text-sm text-red-400 font-medium">
+                  Recording · {formatElapsed(elapsedSeconds)}
+                </p>
+              ) : (
+                <p className="text-sm text-slate-400">Tap to start</p>
+              )}
             </div>
 
             {/* Transcript */}
