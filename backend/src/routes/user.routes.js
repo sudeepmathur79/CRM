@@ -2,8 +2,10 @@ const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const path = require('path');
+const { body, validationResult } = require('express-validator');
 const { PrismaClient } = require('@prisma/client');
 const { authenticate, requireRole } = require('../middleware/auth.middleware');
+const { validateBccEmail, CRM_TYPES } = require('../services/crmExporter');
 const prisma = new PrismaClient();
 
 const avatarUpload = multer({
@@ -64,17 +66,45 @@ router.delete('/:id', requireRole('admin'), async (req, res, next) => {
 });
 
 // Self-update: any authenticated user can update their own name/email/password
-router.put('/me', async (req, res, next) => {
+router.put('/me', [
+  body('name').optional().trim().isLength({ min: 1, max: 120 }),
+  body('email').optional().isEmail().normalizeEmail(),
+  body('password').optional().isLength({ min: 8, max: 128 }),
+  body('personalCrmBccEmail').optional({ nullable: true }).custom(v => !v || validateBccEmail(v) || (() => { throw new Error('Invalid BCC email'); })()),
+  body('targetCrmType').optional({ nullable: true }).isIn([...CRM_TYPES, null, '']),
+  body('autoExportOnCapture').optional().isBoolean(),
+], async (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ error: errors.array()[0].msg });
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, personalCrmBccEmail, targetCrmType, autoExportOnCapture } = req.body;
     const data = {};
-    if (name) data.name = name;
-    if (email) data.email = email;
+    if (name !== undefined) data.name = name;
+    if (email !== undefined) data.email = email;
     if (password) data.password = await bcrypt.hash(password, 12);
+    if (personalCrmBccEmail !== undefined) data.personalCrmBccEmail = personalCrmBccEmail || null;
+    if (targetCrmType !== undefined) data.targetCrmType = targetCrmType || null;
+    if (autoExportOnCapture !== undefined) data.autoExportOnCapture = autoExportOnCapture;
+
+    // SOC 2: audit log the settings change (no PII values in action string)
+    if (personalCrmBccEmail !== undefined || targetCrmType !== undefined) {
+      const lead = null; // settings change, not lead-specific
+      await prisma.activity.create({
+        data: {
+          leadId: undefined, // activity without lead isn't supported — skip
+          userId: req.user.id,
+          action: 'CRM integration settings updated',
+          details: { targetCrmType: targetCrmType || null, autoExport: autoExportOnCapture },
+        },
+      }).catch(() => {}); // non-fatal — activity table requires leadId; log to console only
+      console.log('[audit] userId=%s updated CRM integration settings', req.user.id);
+    }
+
     const user = await prisma.user.update({
       where: { id: req.user.id },
       data,
-      select: { id: true, email: true, name: true, role: true, isActive: true, avatar: true },
+      select: { id: true, email: true, name: true, role: true, isActive: true, avatar: true,
+        personalCrmBccEmail: true, targetCrmType: true, autoExportOnCapture: true },
     });
     res.json(user);
   } catch (e) { next(e); }

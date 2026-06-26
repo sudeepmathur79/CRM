@@ -384,6 +384,85 @@ function VoiceDraftsSection() {
   );
 }
 
+const CRM_TYPES = [
+  { value: 'HUBSPOT', label: 'HubSpot' },
+  { value: 'SALESFORCE', label: 'Salesforce' },
+  { value: 'ZOHO', label: 'Zoho CRM' },
+  { value: 'OTHER', label: 'Other / Generic' },
+];
+
+function CrmIntegrationSection() {
+  const { user, refreshUser } = useAuth();
+  const [form, setForm] = useState({
+    personalCrmBccEmail: user?.personalCrmBccEmail || '',
+    targetCrmType: user?.targetCrmType || '',
+    autoExportOnCapture: user?.autoExportOnCapture ?? true,
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: (data) => usersApi.updateMe(data),
+    onSuccess: () => { refreshUser(); toast.success('CRM integration saved'); },
+    onError: (e) => toast.error(e.response?.data?.error || 'Save failed'),
+  });
+
+  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
+
+  return (
+    <section className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-4">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-base">🔗</span>
+        <h2 className="font-semibold text-sm">CRM Integration (BCC Export)</h2>
+      </div>
+      <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+        After every call analysis, SalesFlow auto-emails a formatted activity log to your existing CRM's BCC address. Works with HubSpot, Salesforce, Zoho, and any CRM that has an email logging inbox.
+      </p>
+
+      <div className="space-y-3">
+        <div>
+          <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Your CRM's BCC email address</label>
+          <input
+            type="email"
+            placeholder="e.g. bcc@yourcompany.hubspot.com"
+            value={form.personalCrmBccEmail}
+            onChange={set('personalCrmBccEmail')}
+            className="w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">CRM type</label>
+          <select
+            value={form.targetCrmType}
+            onChange={set('targetCrmType')}
+            className="w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="">Select your CRM…</option>
+            {CRM_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+          </select>
+        </div>
+
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={form.autoExportOnCapture}
+            onChange={set('autoExportOnCapture')}
+            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+          />
+          <span className="text-sm text-slate-700 dark:text-slate-300">Auto-export after every call analysis</span>
+        </label>
+
+        <button
+          onClick={() => saveMutation.mutate(form)}
+          disabled={saveMutation.isPending}
+          className="w-full py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-semibold"
+        >
+          {saveMutation.isPending ? 'Saving…' : 'Save integration'}
+        </button>
+      </div>
+    </section>
+  );
+}
+
 function DemoModeSection() {
   const { user, org, refreshOrg } = useAuth();
   const [confirming, setConfirming] = useState(false);
@@ -517,6 +596,9 @@ export default function SettingsPage() {
           <span className="ml-auto text-xs text-gray-400">{dark ? 'Light' : 'Dark'}</span>
         </button>
       </section>
+
+      {/* CRM BCC integration */}
+      <CrmIntegrationSection />
 
       {/* Demo mode */}
       <DemoModeSection />

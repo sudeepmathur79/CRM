@@ -1,62 +1,123 @@
-version: '3.8'
+version: '3.9'
+
+# ── Named volumes ─────────────────────────────────────────────────────────────
+# crm_uploads: persists Multer audio/avatar files across container restarts.
+# Agent C: named volume survives 'docker compose down', image rebuilds, updates.
+volumes:
+  crm_uploads:
+    driver: local
+
+# ── Networks ──────────────────────────────────────────────────────────────────
+networks:
+  crm_net:
+    driver: bridge
 
 services:
-  postgres:
-    image: postgres:15
+  # ── Application (single container — frontend served by Express) ───────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: salesflow-crm:latest
+    container_name: salesflow_crm
     restart: unless-stopped
-    environment:
-      POSTGRES_USER: crm_user
-      POSTGRES_PASSWORD: crm_password
-      POSTGRES_DB: crm
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U crm_user -d crm"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
 
-  backend:
-    build: ./backend
-    restart: unless-stopped
+    # Agent A: bind to 127.0.0.1 only — Cloudflare Tunnel handles external ingress.
+    # Never expose 0.0.0.0:3000 on a public IP without the tunnel in front.
+    ports:
+      - "127.0.0.1:3000:3000"
+
     environment:
-      DATABASE_URL: postgresql://crm_user:crm_password@postgres:5432/crm
-      JWT_SECRET: ${JWT_SECRET:-supersecretchangeme32charslong!!}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-refreshsecretchangeme32charslong}
-      PORT: 5000
       NODE_ENV: production
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost}
+      PORT: 3000
+
+      # ── Database (Neon hosted — stays in cloud) ────────────────────────────
+      DATABASE_URL: ${DATABASE_URL}
+
+      # ── Auth — Agent A: minimum 32 random chars, never defaults ───────────
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+
+      # ── Cloudflare Tunnel domain for CORS whitelist (TASK-4) ───────────────
+      CLOUDFLARE_TUNNEL_DOMAIN: ${CLOUDFLARE_TUNNEL_DOMAIN:-}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-}
+
+      # ── AI providers — priority: Groq → OpenRouter → Mistral ──────────────
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-}
+
+      # ── Email / CRM BCC export ─────────────────────────────────────────────
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
-      FROM_EMAIL: ${FROM_EMAIL:-}
+      FROM_EMAIL: ${FROM_EMAIL:-SalesFlow CRM <noreply@salesflow.app>}
+
+      # ── File storage ───────────────────────────────────────────────────────
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-}
+      AWS_REGION: ${AWS_REGION:-auto}
+      AWS_ENDPOINT_URL: ${AWS_ENDPOINT_URL:-}
+      AWS_PUBLIC_URL: ${AWS_PUBLIC_URL:-}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+      STORAGE_PATH: /app/uploads
+
+      # ── Whisper transcription ──────────────────────────────────────────────
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       WHISPER_ENABLED: ${WHISPER_ENABLED:-false}
-      STORAGE_PATH: /app/uploads
+
+      # ── Cron tuning ────────────────────────────────────────────────────────
       AGENT_INTERVAL: ${AGENT_INTERVAL:-300000}
       DIGEST_HOUR: ${DIGEST_HOUR:-8}
       DIGEST_MINUTE: ${DIGEST_MINUTE:-0}
-    ports:
-      - "5000:5000"
+
     volumes:
-      - uploads:/app/uploads
-    depends_on:
-      postgres:
-        condition: service_healthy
-    command: >
-      sh -c "npx prisma migrate deploy && node src/index.js"
+      # Agent C: named volume — uploads survive container restarts, rebuilds, and
+      # 'docker compose down'. Never use bind-mount to /tmp for audio files.
+      - crm_uploads:/app/uploads
 
-  frontend:
-    build: ./frontend
+    networks:
+      - crm_net
+
+    # Agent C: resource limits prevent OOM on a home desktop
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: '2.0'
+        reservations:
+          memory: 256m
+
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+
+  # ── Cloudflare Tunnel sidecar ─────────────────────────────────────────────
+  # Provides HTTPS ingress to localhost:3000 with zero port-forwarding.
+  # Agent A: all traffic encrypted end-to-end by Cloudflare Zero Trust.
+  # Usage: docker compose --profile tunnel up
+  # To run without tunnel: docker compose up (tunnel service is skipped)
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: salesflow_tunnel
     restart: unless-stopped
-    ports:
-      - "80:80"
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
     depends_on:
-      - backend
-
-volumes:
-  postgres_data:
-  uploads:
+      - app
+    networks:
+      - crm_net
+    profiles:
+      - tunnel

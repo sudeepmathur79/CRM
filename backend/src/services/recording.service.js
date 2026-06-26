@@ -99,6 +99,9 @@ const buildAiNoteContent = (fileName, summary, nextSteps) => {
   return content;
 };
 
+const { formatActivityLog } = require('./crmExporter');
+const { sendCrmActivityLog } = require('./mailer');
+
 const analyzeRecording = async (id) => {
   const rec = await prisma.recording.findUnique({ where: { id } });
   if (!rec) throw Object.assign(new Error('Not found'), { status: 404 });
@@ -135,10 +138,33 @@ const analyzeRecording = async (id) => {
   });
   if (analysis.summary) {
     const noteContent = buildAiNoteContent(rec.fileName, analysis.summary, analysis.nextSteps);
-    // Delete any existing AI note for this recording before creating a fresh one
     await prisma.leadNote.deleteMany({ where: { leadId: rec.leadId, type: 'ai_summary', content: { contains: rec.fileName } } });
     await prisma.leadNote.create({ data: { leadId: rec.leadId, content: noteContent, type: 'ai_summary' } });
   }
+
+  // Auto-export to user's CRM BCC email if configured
+  try {
+    const lead = await prisma.lead.findUnique({ where: { id: rec.leadId } });
+    // Find user who owns this recording (assignedTo or org admin as fallback)
+    const user = lead?.assignedToId
+      ? await prisma.user.findUnique({ where: { id: lead.assignedToId } })
+      : null;
+    if (user?.personalCrmBccEmail && user?.autoExportOnCapture) {
+      const { subject, html, text } = formatActivityLog({
+        lead,
+        capture: { transcript, summary: analysis.summary, nextSteps: analysis.nextSteps, recordedAt: new Date() },
+        agent: { name: user.name },
+        crmType: user.targetCrmType || 'OTHER',
+        appUrl: process.env.APP_PUBLIC_URL || '',
+      });
+      await sendCrmActivityLog({ to: user.personalCrmBccEmail, subject, html, text });
+      console.log('[crm-export] activity log sent for recording=%s', id);
+    }
+  } catch (exportErr) {
+    // Non-fatal: log error code only, never PII (Agent B)
+    console.error('[crm-export] failed code=%s', exportErr.code || 'UNKNOWN');
+  }
+
   return updated;
 };
 

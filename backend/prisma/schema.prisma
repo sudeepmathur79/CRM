@@ -38,9 +38,13 @@ model User {
   googleId         String?       @unique
   twoFactorSecret  String?
   twoFactorEnabled Boolean       @default(false)
-  avatar           String?
-  orgId            String?
-  org              Organisation? @relation(fields: [orgId], references: [id])
+  avatar               String?
+  orgId                String?
+  org                  Organisation? @relation(fields: [orgId], references: [id])
+  // CRM integration fields
+  personalCrmBccEmail  String?
+  targetCrmType        String?  // HUBSPOT | SALESFORCE | ZOHO | OTHER
+  autoExportOnCapture  Boolean  @default(true)
 
   leads            Lead[]        @relation("AssignedLeads")
   createdLeads     Lead[]        @relation("CreatedLeads")
@@ -75,6 +79,10 @@ model Lead {
   orgId          String?
   org            Organisation? @relation(fields: [orgId], references: [id])
   isDemo         Boolean       @default(false)
+  // Geolocation (optional — for nearby stale lead detection)
+  lat            Float?
+  lng            Float?
+  address        String?
 
   recordings  Recording[]
   activities  Activity[]

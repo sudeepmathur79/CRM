@@ -13,6 +13,7 @@ import RecordingsPage from './pages/Recordings';
 import SettingsPage from './pages/Settings';
 import InboxPage from './pages/Inbox';
 import AgentsPage from './pages/Agents';
+import GlassesHud from './views/GlassesHud';
 
 const Protected = ({ children }) => {
   const { user, loading } = useAuth();
@@ -25,6 +26,7 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/setup" element={<SetupPage />} />
+      <Route path="/hud" element={<Protected><GlassesHud /></Protected>} />
       <Route path="/login" element={user ? <Navigate to="/" /> : <LoginPage />} />
       <Route path="/signup" element={user ? <Navigate to="/" /> : <SignupPage />} />
       <Route path="/" element={<Protected><Layout /></Protected>}>

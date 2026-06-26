@@ -21,6 +21,7 @@ const messageRoutes = require('./routes/message.routes');
 const voiceDraftRoutes = require('./routes/voicedraft.routes');
 const agentRoutes = require('./routes/agent.routes');
 const orgRoutes = require('./routes/org.routes');
+const geoRoutes = require('./routes/geo.routes');
 
 const { startAgents } = require('./services/agents');
 const { startReminderScheduler } = require('./services/reminders');
@@ -28,17 +29,35 @@ const { runStuckDealAgents } = require('./services/agent.service');
 
 const isProd = process.env.NODE_ENV === 'production';
 
+// Build dynamic origin whitelist — always includes CORS_ORIGIN and, when set,
+// the Cloudflare Tunnel domain (Agent A: explicit allowlist, no wildcard in prod)
+function buildAllowedOrigins() {
+  const origins = new Set();
+  if (process.env.CORS_ORIGIN) origins.add(process.env.CORS_ORIGIN);
+  if (process.env.CLOUDFLARE_TUNNEL_DOMAIN) origins.add(process.env.CLOUDFLARE_TUNNEL_DOMAIN);
+  if (!isProd) origins.add('http://localhost:5173');
+  return [...origins];
+}
+const allowedOrigins = buildAllowedOrigins();
+
+const corsOptions = {
+  origin: (origin, cb) => {
+    // Allow server-to-server (no origin) and whitelisted origins
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    cb(new Error(`CORS: origin '${origin}' not allowed`));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
 const app = express();
-if (isProd) app.set('trust proxy', 1); // Render sits behind a proxy
+if (isProd) app.set('trust proxy', 1);
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: isProd ? false : { origin: process.env.CORS_ORIGIN || 'http://localhost:5173', credentials: true }
-});
+const io = new Server(server, { cors: corsOptions });
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
-if (!isProd) {
-  app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:5173', credentials: true }));
-}
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
@@ -67,6 +86,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/voice-drafts', voiceDraftRoutes);
 app.use('/api/agents', agentRoutes);
 app.use('/api/org', orgRoutes);
+app.use('/api/geo', geoRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date() }));
 
