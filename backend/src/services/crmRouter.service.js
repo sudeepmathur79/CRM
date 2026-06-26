@@ -38,7 +38,7 @@ async function routeExtractedLead(userId, leadData, options = {}) {
   }
 
   // 3. External CRM sync
-  if (user.targetCrmType === 'HUBSPOT') {
+  if (user.targetCrmType === 'HUBSPOT' && hubspotService.isConfigured()) {
     try {
       await hubspotService.syncLeadToHubSpot(userId, leadData);
       synced.push('hubspot');

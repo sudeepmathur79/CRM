@@ -1,73 +1,26 @@
-'use strict';
-
-const express = require('express');
-const router = express.Router();
+const router = require('express').Router();
 const { authenticate } = require('../middleware/auth.middleware');
-const {
-  getAuthUrl,
-  exchangeCode,
-  disconnectHubSpot,
-} = require('../services/hubspot.service');
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { isConfigured, syncLeadToHubSpot } = require('../services/hubspot.service');
 
-// GET /api/hubspot/connect — redirect to HubSpot OAuth
-router.get('/connect', authenticate, (req, res) => {
-  try {
-    const url = getAuthUrl(req.user.id);
-    res.redirect(url);
-  } catch (err) {
-    res.status(err.status || 500).json({ error: err.message || 'Failed to build auth URL' });
-  }
+router.use(authenticate);
+
+// GET /api/hubspot/status — is service key configured?
+router.get('/status', (req, res) => {
+  res.json({ connected: isConfigured() });
 });
 
-// GET /api/hubspot/callback — HubSpot redirects here after OAuth
-// NOTE: No authenticate middleware — state param carries userId
-router.get('/callback', async (req, res) => {
-  const { code, state: userId, error } = req.query;
-
-  if (error) {
-    return res.redirect('/settings?hubspot=error');
-  }
-
-  if (!code || !userId) {
-    return res.status(400).json({ error: 'Missing code or state' });
-  }
-
+// POST /api/hubspot/test — push a test contact/deal to verify the key works
+router.post('/test', async (req, res, next) => {
   try {
-    // Verify user exists
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) return res.status(400).json({ error: 'Invalid state' });
-
-    await exchangeCode(code, userId);
-    res.redirect('/settings?hubspot=connected');
-  } catch (err) {
-    console.error('[HubSpot] Callback error:', err.message || err);
-    res.redirect('/settings?hubspot=error');
-  }
-});
-
-// GET /api/hubspot/status — check connection status
-router.get('/status', authenticate, async (req, res) => {
-  try {
-    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
-    res.json({
-      connected: Boolean(user?.hubspotAccessToken),
-      portalId: user?.hubspotPortalId || null,
+    if (!isConfigured()) return res.status(400).json({ error: 'HUBSPOT_ACCESS_TOKEN not set' });
+    const result = await syncLeadToHubSpot(req.user.id, {
+      name: 'SalesFlow Test Contact',
+      company: 'SalesFlow CRM',
+      email: `test-${Date.now()}@salesflow-test.invalid`,
+      summary: 'Test contact created from SalesFlow CRM integration check.',
     });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to check HubSpot status' });
-  }
-});
-
-// POST /api/hubspot/disconnect
-router.post('/disconnect', authenticate, async (req, res) => {
-  try {
-    await disconnectHubSpot(req.user.id);
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to disconnect HubSpot' });
-  }
+    res.json({ ok: true, ...result });
+  } catch (e) { next(e); }
 });
 
 module.exports = router;

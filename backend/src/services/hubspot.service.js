@@ -1,10 +1,5 @@
-<<<<<<< HEAD
 'use strict';
 
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
-
-const HUBSPOT_TOKEN_URL = 'https://api.hubapi.com/oauth/v1/token';
 const HUBSPOT_API_BASE = 'https://api.hubspot.com';
 const TIMEOUT_MS = 10_000;
 
@@ -14,299 +9,110 @@ function fetchWithTimeout(url, options = {}) {
   return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
 }
 
-// ── Auth URL ─────────────────────────────────────────────────────────────────
-
-function getAuthUrl(userId) {
-  const clientId = process.env.HUBSPOT_CLIENT_ID;
-  if (!clientId) throw { status: 400, message: 'HubSpot integration not configured' };
-  const redirectUri = process.env.HUBSPOT_REDIRECT_URI;
-  const scope = 'crm.objects.contacts.write crm.objects.deals.write';
-  return (
-    `https://app.hubspot.com/oauth/authorize` +
-    `?client_id=${encodeURIComponent(clientId)}` +
-    `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-    `&scope=${encodeURIComponent(scope)}` +
-    `&state=${encodeURIComponent(userId)}`
-  );
+function getHeaders() {
+  const token = process.env.HUBSPOT_ACCESS_TOKEN;
+  if (!token) throw Object.assign(new Error('HubSpot not configured — set HUBSPOT_ACCESS_TOKEN'), { status: 400 });
+  return {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  };
 }
 
-// ── Token exchange ────────────────────────────────────────────────────────────
-
-async function exchangeCode(code, userId) {
-  const body = new URLSearchParams({
-    grant_type: 'authorization_code',
-    client_id: process.env.HUBSPOT_CLIENT_ID,
-    client_secret: process.env.HUBSPOT_CLIENT_SECRET,
-    redirect_uri: process.env.HUBSPOT_REDIRECT_URI,
-    code,
-  });
-
-  const res = await fetchWithTimeout(HUBSPOT_TOKEN_URL, {
+// Search for existing contact by email
+async function findContact(email) {
+  if (!email) return null;
+  const res = await fetchWithTimeout(`${HUBSPOT_API_BASE}/crm/v3/objects/contacts/search`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
+    headers: getHeaders(),
+    body: JSON.stringify({
+      filterGroups: [{ filters: [{ propertyName: 'email', operator: 'EQ', value: email }] }],
+      properties: ['email', 'firstname', 'lastname', 'phone'],
+      limit: 1,
+    }),
   });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw { status: 502, message: `HubSpot token exchange failed: ${err}` };
-  }
-
+  if (!res.ok) return null;
   const data = await res.json();
-  const expiry = new Date(Date.now() + data.expires_in * 1000);
-
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      hubspotAccessToken: data.access_token,
-      hubspotRefreshToken: data.refresh_token,
-      hubspotTokenExpiry: expiry,
-      hubspotPortalId: String(data.hub_id),
-    },
-  });
-
-  console.log(`[HubSpot] Token stored for userId=${userId} portalId=${data.hub_id}`);
-  return { ok: true };
+  return data.results?.[0] ?? null;
 }
 
-// ── Token refresh ─────────────────────────────────────────────────────────────
-
-async function refreshTokenIfNeeded(userId) {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user?.hubspotRefreshToken) return;
-
-  const expiryMs = user.hubspotTokenExpiry ? new Date(user.hubspotTokenExpiry).getTime() : 0;
-  const fiveMinMs = 5 * 60 * 1000;
-  if (Date.now() < expiryMs - fiveMinMs) return; // still valid
-
-  const body = new URLSearchParams({
-    grant_type: 'refresh_token',
-    client_id: process.env.HUBSPOT_CLIENT_ID,
-    client_secret: process.env.HUBSPOT_CLIENT_SECRET,
-    refresh_token: user.hubspotRefreshToken,
-  });
-
-  const res = await fetchWithTimeout(HUBSPOT_TOKEN_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
-  });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw { status: 502, message: `HubSpot token refresh failed: ${err}` };
-  }
-
-  const data = await res.json();
-  const expiry = new Date(Date.now() + data.expires_in * 1000);
-
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      hubspotAccessToken: data.access_token,
-      hubspotRefreshToken: data.refresh_token || user.hubspotRefreshToken,
-      hubspotTokenExpiry: expiry,
-    },
-  });
-
-  console.log(`[HubSpot] Token refreshed for userId=${userId}`);
-}
-
-// ── Get valid token ───────────────────────────────────────────────────────────
-
-async function getValidToken(userId) {
-  await refreshTokenIfNeeded(userId);
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user?.hubspotAccessToken) throw { status: 400, message: 'HubSpot not connected' };
-  return user.hubspotAccessToken;
-}
-
-// ── Internal HubSpot API call with 401-retry ──────────────────────────────────
-
-async function hubspotFetch(userId, url, options = {}, retried = false) {
-  const token = await getValidToken(userId);
-  const res = await fetchWithTimeout(url, {
-    ...options,
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      ...(options.headers || {}),
-    },
-  });
-
-  if (res.status === 401 && !retried) {
-    // Force refresh and retry once
-    await prisma.user.update({
-      where: { id: userId },
-      data: { hubspotTokenExpiry: new Date(0) }, // expire immediately
-    });
-    return hubspotFetch(userId, url, options, true);
-  }
-
-  return res;
-}
-
-// ── Main sync function ────────────────────────────────────────────────────────
-
-async function syncLeadToHubSpot(userId, leadData) {
-  const { name, company, email, phone, value, nextFollowUp, nextAction, summary } = leadData;
-
-  // Ensure connected
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user?.hubspotAccessToken) throw { status: 400, message: 'HubSpot not connected' };
-
-  // ── Contact: search by email ──────────────────────────────────────────────
-  let contactId;
-
-  if (email) {
-    const searchRes = await hubspotFetch(userId, `${HUBSPOT_API_BASE}/crm/v3/objects/contacts/search`, {
-      method: 'POST',
-      body: JSON.stringify({
-        filterGroups: [{ filters: [{ propertyName: 'email', operator: 'EQ', value: email }] }],
-        properties: ['email', 'firstname', 'lastname'],
-        limit: 1,
-      }),
-    });
-
-    if (!searchRes.ok) {
-      const err = await searchRes.text();
-      throw { status: 502, message: `HubSpot contact search failed: ${err}` };
-    }
-
-    const searchData = await searchRes.json();
-
-    if (searchData.total > 0) {
-      // Update existing contact
-      contactId = searchData.results[0].id;
-      const parts = (name || '').split(' ');
-      const updateRes = await hubspotFetch(userId, `${HUBSPOT_API_BASE}/crm/v3/objects/contacts/${contactId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          properties: {
-            firstname: parts[0] || '',
-            lastname: parts.slice(1).join(' ') || '',
-            phone: phone || '',
-            company: company || '',
-          },
-        }),
-      });
-      if (!updateRes.ok) {
-        const err = await updateRes.text();
-        throw { status: 502, message: `HubSpot contact update failed: ${err}` };
-      }
-      console.log(`[HubSpot] Updated contact id=${contactId}`);
-    } else {
-      // Create new contact
-      const parts = (name || '').split(' ');
-      const createRes = await hubspotFetch(userId, `${HUBSPOT_API_BASE}/crm/v3/objects/contacts`, {
-        method: 'POST',
-        body: JSON.stringify({
-          properties: {
-            email,
-            firstname: parts[0] || '',
-            lastname: parts.slice(1).join(' ') || '',
-            phone: phone || '',
-            company: company || '',
-          },
-        }),
-      });
-      if (!createRes.ok) {
-        const err = await createRes.text();
-        throw { status: 502, message: `HubSpot contact create failed: ${err}` };
-      }
-      const created = await createRes.json();
-      contactId = created.id;
-      console.log(`[HubSpot] Created contact id=${contactId}`);
-    }
-  }
-
-  // ── Deal: search by name association ─────────────────────────────────────
-  const dealName = name + (company ? ` — ${company}` : '');
-
-  // Search for existing deal associated with contact (if any)
-  let dealId;
-
-  if (contactId) {
-    const assocRes = await hubspotFetch(
-      userId,
-      `${HUBSPOT_API_BASE}/crm/v3/objects/contacts/${contactId}/associations/deals`,
-      { method: 'GET' }
-    );
-
-    if (assocRes.ok) {
-      const assocData = await assocRes.json();
-      if (assocData.results?.length > 0) {
-        dealId = assocData.results[0].id;
-      }
-    }
-  }
-
-  const dealProperties = {
-    dealname: dealName,
-    ...(value != null ? { amount: String(value) } : {}),
-    ...(nextFollowUp ? { closedate: new Date(nextFollowUp).toISOString() } : {}),
-    ...(summary ? { description: summary } : {}),
+// Create or update a contact, return contactId
+async function upsertContact(leadData) {
+  const [firstName, ...rest] = (leadData.name || 'Unknown').split(' ');
+  const lastName = rest.join(' ') || '';
+  const properties = {
+    firstname: firstName,
+    lastname: lastName,
+    email: leadData.email || '',
+    phone: leadData.phone || '',
+    company: leadData.company || '',
   };
 
-  if (dealId) {
-    const updateRes = await hubspotFetch(userId, `${HUBSPOT_API_BASE}/crm/v3/objects/deals/${dealId}`, {
+  const existing = await findContact(leadData.email);
+  if (existing) {
+    await fetchWithTimeout(`${HUBSPOT_API_BASE}/crm/v3/objects/contacts/${existing.id}`, {
       method: 'PATCH',
-      body: JSON.stringify({ properties: dealProperties }),
+      headers: getHeaders(),
+      body: JSON.stringify({ properties }),
     });
-    if (!updateRes.ok) {
-      const err = await updateRes.text();
-      throw { status: 502, message: `HubSpot deal update failed: ${err}` };
-    }
-    console.log(`[HubSpot] Updated deal id=${dealId}`);
-  } else {
-    const createRes = await hubspotFetch(userId, `${HUBSPOT_API_BASE}/crm/v3/objects/deals`, {
-      method: 'POST',
-      body: JSON.stringify({ properties: dealProperties }),
-    });
-    if (!createRes.ok) {
-      const err = await createRes.text();
-      throw { status: 502, message: `HubSpot deal create failed: ${err}` };
-    }
-    const created = await createRes.json();
-    dealId = created.id;
-    console.log(`[HubSpot] Created deal id=${dealId}`);
-
-    // Associate deal with contact
-    if (contactId && dealId) {
-      const assocRes = await hubspotFetch(
-        userId,
-        `${HUBSPOT_API_BASE}/crm/v3/objects/deals/${dealId}/associations/contacts/${contactId}/deal_to_contact`,
-        { method: 'PUT', body: '' }
-      );
-      if (!assocRes.ok) {
-        console.warn(`[HubSpot] Association warning: deal=${dealId} contact=${contactId}`);
-      }
-    }
+    return existing.id;
   }
 
+  const res = await fetchWithTimeout(`${HUBSPOT_API_BASE}/crm/v3/objects/contacts`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ properties }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw Object.assign(new Error('HubSpot contact create failed'), { status: 502, detail: err.message });
+  }
+  const data = await res.json();
+  return data.id;
+}
+
+// Create a deal and associate it with the contact
+async function createDeal(leadData, contactId) {
+  const dealName = leadData.name + (leadData.company ? ` — ${leadData.company}` : '');
+  const properties = {
+    dealname: dealName,
+    pipeline: 'default',
+    dealstage: 'appointmentscheduled',
+    ...(leadData.value ? { amount: String(leadData.value) } : {}),
+    ...(leadData.nextFollowUp ? { closedate: new Date(leadData.nextFollowUp).toISOString() } : {}),
+    ...(leadData.summary ? { description: leadData.summary.slice(0, 65535) } : {}),
+  };
+
+  const res = await fetchWithTimeout(`${HUBSPOT_API_BASE}/crm/v3/objects/deals`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({
+      properties,
+      associations: [{
+        to: { id: contactId },
+        types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 3 }],
+      }],
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw Object.assign(new Error('HubSpot deal create failed'), { status: 502, detail: err.message });
+  }
+  const data = await res.json();
+  return data.id;
+}
+
+// Main sync function — call this after AI extraction
+async function syncLeadToHubSpot(userId, leadData) {
+  const contactId = await upsertContact(leadData);
+  const dealId = await createDeal(leadData, contactId);
+  // Log only IDs, no PII
+  console.log(`[HubSpot] synced contactId=${contactId} dealId=${dealId}`);
   return { contactId, dealId };
 }
 
-// ── Disconnect ────────────────────────────────────────────────────────────────
-
-async function disconnectHubSpot(userId) {
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      hubspotAccessToken: null,
-      hubspotRefreshToken: null,
-      hubspotTokenExpiry: null,
-      hubspotPortalId: null,
-    },
-  });
-  console.log(`[HubSpot] Disconnected userId=${userId}`);
+// Check if HubSpot is configured (service key present)
+function isConfigured() {
+  return !!process.env.HUBSPOT_ACCESS_TOKEN;
 }
 
-module.exports = {
-  getAuthUrl,
-  exchangeCode,
-  refreshTokenIfNeeded,
-  getValidToken,
-  syncLeadToHubSpot,
-  disconnectHubSpot,
-};
+module.exports = { syncLeadToHubSpot, isConfigured };
