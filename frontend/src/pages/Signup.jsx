@@ -4,7 +4,7 @@ import { authApi } from '../services/api';
 import { Zap, CheckCircle2, Mail } from 'lucide-react';
 import { Turnstile } from '@marsidev/react-turnstile';
 
-const SITEKEY = window.__APP_CONFIG__?.turnstileSiteKey || import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
+const getSiteKey = () => window.__APP_CONFIG__?.turnstileSiteKey || import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
 
 const PERKS = [
   'AI agents that qualify and coach — on day one',
@@ -68,6 +68,7 @@ export default function Signup() {
   const [verificationEmail, setVerificationEmail] = useState(null);
   const [captchaToken, setCaptchaToken] = useState('');
   const turnstileRef = useRef(null);
+  const siteKey = getSiteKey();
 
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
 
@@ -83,7 +84,7 @@ export default function Signup() {
       return;
     }
     const token = captchaToken || turnstileRef.current?.getResponse() || '';
-    if (SITEKEY && !token) {
+    if (siteKey && !token) {
       setError('Please complete the CAPTCHA');
       return;
     }
@@ -195,10 +196,10 @@ export default function Signup() {
                   />
                 </div>
 
-                {SITEKEY && (
+                {siteKey && (
                   <Turnstile
                     ref={turnstileRef}
-                    siteKey={SITEKEY}
+                    siteKey={siteKey}
                     onSuccess={setCaptchaToken}
                     onExpire={() => setCaptchaToken('')}
                     options={{ theme: 'auto' }}

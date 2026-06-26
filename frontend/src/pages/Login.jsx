@@ -7,8 +7,7 @@ import toast from 'react-hot-toast';
 import { Shield, ArrowLeft, Zap } from 'lucide-react';
 import { Turnstile } from '@marsidev/react-turnstile';
 
-// Site key fetched at runtime from backend so it doesn't need to be baked into the Docker image
-const SITEKEY = window.__APP_CONFIG__?.turnstileSiteKey || import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
+const getSiteKey = () => window.__APP_CONFIG__?.turnstileSiteKey || import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
 
 function TwoFactorStep({ tempToken, onBack, onSuccess }) {
   const { verify2FA } = useAuth();
@@ -118,6 +117,7 @@ export default function LoginPage() {
   const [unverifiedEmail, setUnverifiedEmail] = useState(null);
   const [captchaToken, setCaptchaToken] = useState('');
   const turnstileRef = useRef(null);
+  const siteKey = getSiteKey();
 
   const justVerified = searchParams.get('verified') === '1';
 
@@ -129,7 +129,7 @@ export default function LoginPage() {
 
   const onSubmit = async (data) => {
     const token = captchaToken || turnstileRef.current?.getResponse() || '';
-    if (SITEKEY && !token) {
+    if (siteKey && !token) {
       toast.error('Please complete the CAPTCHA');
       return;
     }
@@ -207,10 +207,10 @@ export default function LoginPage() {
                 {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>}
               </div>
 
-              {SITEKEY && (
+              {siteKey && (
                 <Turnstile
                   ref={turnstileRef}
-                  siteKey={SITEKEY}
+                  siteKey={siteKey}
                   onSuccess={setCaptchaToken}
                   onExpire={() => setCaptchaToken('')}
                   options={{ theme: 'auto' }}
