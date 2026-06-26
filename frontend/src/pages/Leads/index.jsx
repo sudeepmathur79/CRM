@@ -13,7 +13,7 @@ import SmartAdd from '../../components/forms/SmartAdd';
 import CsvImportModal from '../../components/csv/CsvImportModal';
 import api from '../../services/api';
 
-const STATUSES = ['', 'New', 'Contacted', 'Qualified', 'Proposal', 'Closed Won', 'Closed Lost'];
+const STATUSES = ['', 'New', 'Contacted', 'Qualified', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
 
 export default function LeadsPage() {
   const { user } = useAuth();
@@ -98,12 +98,14 @@ export default function LeadsPage() {
             <h1 className="text-xl md:text-2xl font-bold">Leads</h1>
             <p className="text-xs text-gray-500 dark:text-gray-400">{leads.length} total</p>
           </div>
-          {/* Primary actions — always visible */}
+          {/* Primary actions */}
           <div className="flex items-center gap-2">
-            <button onClick={() => setShowSmartAdd(true)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-sm font-medium transition-colors">
-              <Sparkles size={15} /> <span className="hidden sm:inline">Smart Add</span>
-            </button>
+            {user.role === 'admin' && (
+              <button onClick={() => setShowSmartAdd(true)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-sm font-medium transition-colors">
+                <Sparkles size={15} /> <span className="hidden sm:inline">Smart Add</span>
+              </button>
+            )}
             <button onClick={() => setShowCreate(true)}
               className="flex items-center gap-1.5 px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors">
               <Plus size={15} /> <span className="hidden sm:inline">New Lead</span>
@@ -113,16 +115,18 @@ export default function LeadsPage() {
 
         {/* Secondary actions row */}
         <div className="flex flex-wrap gap-2 mt-3">
-          {(user.role === 'admin' || user.role === 'agent') && (
+          {user.role === 'admin' && (
             <button onClick={() => setShowImport(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700">
               <Upload size={13} /> Import CSV
             </button>
           )}
-          <button onClick={handleExport}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700">
-            <Download size={13} /> Export CSV
-          </button>
+          {user.role === 'admin' && (
+            <button onClick={handleExport}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700">
+              <Download size={13} /> Export CSV
+            </button>
+          )}
           <button onClick={() => setShowArchived(v => !v)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${showArchived ? 'bg-amber-100 border-amber-300 text-amber-800 dark:bg-amber-900/30 dark:border-amber-700 dark:text-amber-300' : 'bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-400'}`}>
             <Archive size={13} /> {showArchived ? 'Hide Archive' : 'View Archive'}

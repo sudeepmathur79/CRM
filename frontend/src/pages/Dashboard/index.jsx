@@ -29,10 +29,10 @@ const StatCard = ({ icon: Icon, label, value, color, sub }) => (
 
 const STATUS_COLORS = {
   'New': '#6366f1', 'Contacted': '#3b82f6', 'Qualified': '#f59e0b',
-  'Proposal': '#8b5cf6', 'Closed Won': '#10b981', 'Closed Lost': '#ef4444',
+  'Proposal': '#8b5cf6', 'Negotiation': '#ec4899', 'Closed Won': '#10b981', 'Closed Lost': '#ef4444',
 };
 
-const FUNNEL_STAGES = ['New', 'Contacted', 'Qualified', 'Proposal', 'Closed Won'];
+const FUNNEL_STAGES = ['New', 'Contacted', 'Qualified', 'Proposal', 'Negotiation', 'Closed Won'];
 
 function ConversionFunnel({ stats }) {
   const navigate = useNavigate();

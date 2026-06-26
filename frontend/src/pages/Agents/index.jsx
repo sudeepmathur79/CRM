@@ -37,12 +37,17 @@ function RunModal({ agent, onClose }) {
 
   const { data: leadsData } = useQuery({
     queryKey: ['leads-agent-picker', leadQuery],
-    queryFn: () => leadsApi.list({ search: leadQuery, take: 8, archived: 'false' }).then(r => r.data),
-    enabled: !!leadQuery,
+    queryFn: () => leadsApi.list({ search: leadQuery || undefined, take: 8, archived: 'false' }).then(r => r.data),
   });
   const leads = Array.isArray(leadsData) ? leadsData : (leadsData?.leads || []);
 
+  const needsLead = agent.promptTemplate?.includes('{{lead.');
+
   const handleRun = async () => {
+    if (needsLead && !selectedLead) {
+      toast.error('This agent requires a lead — please select one first');
+      return;
+    }
     setRunning(true);
     setOutput('');
     try {
@@ -91,8 +96,9 @@ function RunModal({ agent, onClose }) {
                   </div>
                   <button onClick={() => { setSelectedLead(null); setLeadQuery(''); }} className="text-slate-400 hover:text-slate-600"><X size={14} /></button>
                 </div>
-              ) : leadQuery ? (
+              ) : (
                 <div className="space-y-1 max-h-40 overflow-y-auto">
+                  {leads.length === 0 && leadQuery && <p className="text-xs text-slate-400 px-3 py-2">No leads found</p>}
                   {leads.map(l => (
                     <button key={l.id} onClick={() => { setSelectedLead(l); setLeadQuery(l.name); }}
                       className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 text-sm">
@@ -101,7 +107,7 @@ function RunModal({ agent, onClose }) {
                     </button>
                   ))}
                 </div>
-              ) : null}
+              )}
             </div>
           )}
 

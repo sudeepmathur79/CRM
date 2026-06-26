@@ -432,6 +432,9 @@ export default function LeadDetailPage() {
                 <div>
                   <p className="text-sm">{ACTION_LABELS[act.action] || act.action}</p>
                   {act.details?.from && <p className="text-xs text-gray-400">{act.details.from} → {act.details.to}</p>}
+                  {act.action === 'updated' && act.details?.fields?.length > 0 && (
+                    <p className="text-xs text-gray-400">{act.details.fields.join(', ')} changed</p>
+                  )}
                   <p className="text-xs text-gray-400">{act.user?.name} · {safeFormat(act.createdAt, 'MMM d, HH:mm')}</p>
                 </div>
               </div>

@@ -97,8 +97,13 @@ const updateLead = async (id, data, userId, user) => {
   });
   if (data.status && data.status !== existing.status)
     await logActivity(id, userId, 'status_changed', { from: existing.status, to: data.status });
-  else
-    await logActivity(id, userId, 'updated', { fields: Object.keys(data) });
+  else {
+    const FIELD_LABELS = { name: 'Name', company: 'Company', email: 'Email', phone: 'Phone', source: 'Source', notes: 'Notes', value: 'Deal value', nextFollowUp: 'Follow-up date', assignedToId: 'Assigned to' };
+    const changes = Object.entries(data)
+      .filter(([k]) => FIELD_LABELS[k] && existing[k] !== data[k])
+      .map(([k]) => FIELD_LABELS[k]);
+    await logActivity(id, userId, 'updated', { fields: changes.length ? changes : Object.keys(data) });
+  }
   return updated;
 };
 

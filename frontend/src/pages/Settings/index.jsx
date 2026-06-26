@@ -487,7 +487,7 @@ function DemoModeSection() {
           <h2 className="font-semibold text-sm">Demo Mode</h2>
         </div>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Demo mode was disabled on {new Date(org.demoDisabledAt).toLocaleDateString()}. All demo data has been archived.
+          Demo mode was disabled{org.demoDisabledAt ? ` on ${new Date(org.demoDisabledAt).toLocaleDateString()}` : ''}. All demo data has been archived.
         </p>
       </section>
     );

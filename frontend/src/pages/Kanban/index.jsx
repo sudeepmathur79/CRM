@@ -10,10 +10,10 @@ import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 
-const STATUSES = ['New', 'Contacted', 'Qualified', 'Proposal', 'Closed Won', 'Closed Lost'];
+const STATUSES = ['New', 'Contacted', 'Qualified', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
 const STATUS_COLORS = {
   'New': 'border-blue-300', 'Contacted': 'border-yellow-300', 'Qualified': 'border-purple-300',
-  'Proposal': 'border-orange-300', 'Closed Won': 'border-green-300', 'Closed Lost': 'border-red-300'
+  'Proposal': 'border-orange-300', 'Negotiation': 'border-pink-300', 'Closed Won': 'border-green-300', 'Closed Lost': 'border-red-300'
 };
 
 const LeadCard = ({ lead, isDragging }) => {

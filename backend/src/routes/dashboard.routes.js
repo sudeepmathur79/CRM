@@ -8,13 +8,14 @@ router.use(authenticate);
 
 router.get('/stats', async (req, res, next) => {
   try {
-    const where = { archived: false, ...(req.user.role === 'agent' ? { assignedToId: req.user.id } : {}) };
+    const orgFilter = req.user.orgId ? { orgId: req.user.orgId } : {};
+    const where = { archived: false, ...orgFilter, ...(req.user.role === 'agent' ? { assignedToId: req.user.id } : {}) };
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
 
     const staleThreshold = new Date(now); staleThreshold.setDate(staleThreshold.getDate() - 14);
-    const adminWhere = { archived: false }; // unassigned is always global (admin-level insight)
+    const adminWhere = { archived: false, ...orgFilter };
 
     const [total, byStatus, followUpsToday, newToday, overdue, valueAgg, stale, unassigned] = await Promise.all([
       prisma.lead.count({ where }),
@@ -50,7 +51,8 @@ router.get('/stats', async (req, res, next) => {
 
 router.get('/charts', async (req, res, next) => {
   try {
-    const where = { archived: false, ...(req.user.role === 'agent' ? { assignedToId: req.user.id } : {}) };
+    const orgFilter = req.user.orgId ? { orgId: req.user.orgId } : {};
+    const where = { archived: false, ...orgFilter, ...(req.user.role === 'agent' ? { assignedToId: req.user.id } : {}) };
     const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     const recentLeads = await prisma.lead.findMany({
@@ -67,7 +69,7 @@ router.get('/charts', async (req, res, next) => {
 
     const leadsOverTime = Object.entries(byDay).map(([date, count]) => ({ date, count }));
 
-    const statuses = ['New', 'Contacted', 'Qualified', 'Proposal', 'Closed Won', 'Closed Lost'];
+    const statuses = ['New', 'Contacted', 'Qualified', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
     const pipeline = await Promise.all(statuses.map(async status => {
       const agg = await prisma.lead.aggregate({
         where: { ...where, status },
