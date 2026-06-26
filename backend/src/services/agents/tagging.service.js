@@ -27,14 +27,15 @@ const autoTagLeads = async () => {
         const alreadyTagged = lead.tags.some(t => t.name === kt.tag);
         if (alreadyTagged) continue;
 
+        // Schema uses @@unique([name, orgId]) so where must use the compound key
         const tag = await prisma.tag.upsert({
-          where: { name: kt.tag },
+          where: { name_orgId: { name: kt.tag, orgId: lead.orgId ?? null } },
           update: {},
-          create: { name: kt.tag, color: kt.color }
+          create: { name: kt.tag, color: kt.color, orgId: lead.orgId ?? null },
         });
         await prisma.lead.update({
           where: { id: lead.id },
-          data: { tags: { connect: { id: tag.id } } }
+          data: { tags: { connect: { id: tag.id } } },
         });
       }
     }

@@ -35,6 +35,9 @@ function buildAllowedOrigins() {
   const origins = new Set();
   if (process.env.CORS_ORIGIN) origins.add(process.env.CORS_ORIGIN);
   if (process.env.CLOUDFLARE_TUNNEL_DOMAIN) origins.add(process.env.CLOUDFLARE_TUNNEL_DOMAIN);
+  // Render injects RENDER_EXTERNAL_URL automatically — use it so CORS_ORIGIN
+  // doesn't need to be manually set for same-service deployments
+  if (process.env.RENDER_EXTERNAL_URL) origins.add(process.env.RENDER_EXTERNAL_URL);
   if (!isProd) origins.add('http://localhost:5173');
   return [...origins];
 }
@@ -42,8 +45,11 @@ const allowedOrigins = buildAllowedOrigins();
 
 const corsOptions = {
   origin: (origin, cb) => {
-    // Allow server-to-server (no origin) and whitelisted origins
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    // No origin = same-origin request (browser serving our own frontend) or server-to-server
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    // In dev with no env vars set, allow all to avoid blocking local work
+    if (!isProd && !allowedOrigins.size) return cb(null, true);
     cb(new Error(`CORS: origin '${origin}' not allowed`));
   },
   credentials: true,
