@@ -29,27 +29,28 @@ const { runStuckDealAgents } = require('./services/agent.service');
 
 const isProd = process.env.NODE_ENV === 'production';
 
-// Build dynamic origin whitelist — always includes CORS_ORIGIN and, when set,
-// the Cloudflare Tunnel domain (Agent A: explicit allowlist, no wildcard in prod)
+// Resolve all permitted origins from env vars, stripping trailing slashes
 function buildAllowedOrigins() {
-  const origins = new Set();
-  if (process.env.CORS_ORIGIN) origins.add(process.env.CORS_ORIGIN);
-  if (process.env.CLOUDFLARE_TUNNEL_DOMAIN) origins.add(process.env.CLOUDFLARE_TUNNEL_DOMAIN);
-  // Render injects RENDER_EXTERNAL_URL automatically — use it so CORS_ORIGIN
-  // doesn't need to be manually set for same-service deployments
-  if (process.env.RENDER_EXTERNAL_URL) origins.add(process.env.RENDER_EXTERNAL_URL);
-  if (!isProd) origins.add('http://localhost:5173');
-  return [...origins];
+  const raw = [
+    process.env.CORS_ORIGIN,
+    process.env.CLOUDFLARE_TUNNEL_DOMAIN,
+    // Render injects RENDER_EXTERNAL_URL (full URL) and RENDER_EXTERNAL_HOSTNAME (bare host)
+    process.env.RENDER_EXTERNAL_URL,
+    process.env.RENDER_EXTERNAL_HOSTNAME && `https://${process.env.RENDER_EXTERNAL_HOSTNAME}`,
+    !isProd && 'http://localhost:5173',
+  ];
+  return raw.filter(Boolean).map(o => o.replace(/\/$/, ''));
 }
-const allowedOrigins = buildAllowedOrigins();
 
 const corsOptions = {
   origin: (origin, cb) => {
-    // No origin = same-origin request (browser serving our own frontend) or server-to-server
+    // No origin = same-origin or server-to-server — always allow
     if (!origin) return cb(null, true);
-    if (allowedOrigins.includes(origin)) return cb(null, true);
-    // In dev with no env vars set, allow all to avoid blocking local work
-    if (!isProd && !allowedOrigins.size) return cb(null, true);
+    // Evaluate allowlist at request time so late-set env vars are picked up
+    const allowed = buildAllowedOrigins();
+    if (allowed.includes(origin)) return cb(null, true);
+    // Dev fallback: if no allowlist configured at all, permit everything locally
+    if (!isProd && allowed.length === 0) return cb(null, true);
     cb(new Error(`CORS: origin '${origin}' not allowed`));
   },
   credentials: true,
