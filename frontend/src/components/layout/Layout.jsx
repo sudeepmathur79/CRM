@@ -211,6 +211,13 @@ export default function Layout() {
         </nav>
 
         <div className="p-3 border-t border-gray-200 dark:border-slate-700 space-y-2">
+          <button
+            onClick={() => window.__openVoiceCapture?.()}
+            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 w-full"
+          >
+            <Mic size={18} />
+            {!collapsed && 'Capture voice note'}
+          </button>
           <button onClick={toggle} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 w-full">
             {dark ? <Sun size={18} /> : <Moon size={18} />}
             {!collapsed && (dark ? 'Light mode' : 'Dark mode')}
@@ -239,8 +246,8 @@ export default function Layout() {
         </div>
       </main>
 
-      {/* Voice capture sheet — agent only */}
-      {user?.role === 'agent' && <VoiceCapture />}
+      {/* Voice capture sheet — available to all authenticated users */}
+      {user && <VoiceCapture />}
 
       {/* Bottom tab bar — mobile only */}
       <nav
@@ -268,19 +275,15 @@ export default function Layout() {
           </NavLink>
         ))}
 
-        {/* Centre mic button — agents only, or placeholder spacer */}
-        {user?.role === 'agent' ? (
-          <div className="flex-1 flex items-center justify-center">
-            <button
-              onClick={() => window.__openVoiceCapture?.()}
-              className="-mt-5 w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 active:scale-95 shadow-lg shadow-red-500/40 flex items-center justify-center text-white transition-all"
-            >
-              <Mic size={24} />
-            </button>
-          </div>
-        ) : (
-          <div className="flex-1" />
-        )}
+        {/* Centre mic button — all authenticated users */}
+        <div className="flex-1 flex items-center justify-center">
+          <button
+            onClick={() => window.__openVoiceCapture?.()}
+            className="-mt-5 w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 active:scale-95 shadow-lg shadow-red-500/40 flex items-center justify-center text-white transition-all"
+          >
+            <Mic size={24} />
+          </button>
+        </div>
 
         {/* Messages + Profile */}
         {mobileNavItems.slice(2).map(({ to, icon: Icon, label, exact, badge }) => (

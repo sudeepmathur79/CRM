@@ -278,4 +278,9 @@ Generate a concise meeting prep card:
   });
 }
 
-module.exports = { signup, register, login, googleLogin, setup2FA, enable2FA, disable2FA, verify2FALogin, refresh };
+// Public version (no transaction) — used to backfill orgs that missed seeding
+async function seedDefaultAgentsForOrg(orgId) {
+  await seedDefaultAgents(prisma, orgId);
+}
+
+module.exports = { signup, register, login, googleLogin, setup2FA, enable2FA, disable2FA, verify2FALogin, refresh, seedDefaultAgentsForOrg };

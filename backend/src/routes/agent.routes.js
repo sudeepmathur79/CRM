@@ -5,9 +5,18 @@ const prisma = new (require('@prisma/client').PrismaClient)();
 
 router.use(authenticate);
 
-// List all agents for the org
+// List all agents for the org — seed defaults if the org has none yet
 router.get('/', async (req, res, next) => {
   try {
+    if (!req.orgId) return res.status(400).json({ error: 'No organisation linked to this account. Please re-sign up.' });
+
+    const count = await prisma.agentConfig.count({ where: { orgId: req.orgId } });
+    if (count === 0) {
+      // Org was created before agent seeding was added — seed now
+      const { seedDefaultAgentsForOrg } = require('../services/auth.service');
+      await seedDefaultAgentsForOrg(req.orgId);
+    }
+
     const agents = await prisma.agentConfig.findMany({
       where: { orgId: req.orgId },
       include: {
