@@ -56,7 +56,7 @@ function validateRow(row, index) {
 }
 
 // POST /api/csv/import — preview=true returns analysis only, preview=false executes
-router.post('/import', requireRole('admin', 'agent'), upload.single('file'), async (req, res, next) => {
+router.post('/import', requireRole('admin'), upload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
@@ -137,11 +137,10 @@ router.post('/import', requireRole('admin', 'agent'), upload.single('file'), asy
   } catch (e) { next(e); }
 });
 
-// GET /api/csv/export — export leads as CSV
-router.get('/export', async (req, res, next) => {
+// GET /api/csv/export — admin only
+router.get('/export', requireRole('admin'), async (req, res, next) => {
   try {
     const where = { archived: false };
-    if (req.user.role === 'agent') where.assignedToId = req.user.id;
     if (req.query.status) where.status = req.query.status;
 
     const leads = await prisma.lead.findMany({

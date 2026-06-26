@@ -79,7 +79,13 @@ const Column = ({ status, leads }) => {
 export default function KanbanPage() {
   const qc = useQueryClient();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [activeId, setActiveId] = useState(null);
+
+  if (user?.role === 'agent') {
+    navigate('/leads', { replace: true });
+    return null;
+  }
 
   const { data: leads = [] } = useQuery({
     queryKey: ['leads-kanban', user?.id],

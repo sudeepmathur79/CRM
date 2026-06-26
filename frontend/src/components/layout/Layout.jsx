@@ -157,10 +157,12 @@ export default function Layout() {
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
+  const isAdmin = user?.role === 'admin';
+
   const desktopNavItems = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
     { to: '/leads', icon: Users, label: 'Leads' },
-    { to: '/kanban', icon: Columns, label: 'Kanban' },
+    ...(isAdmin ? [{ to: '/kanban', icon: Columns, label: 'Kanban' }] : []),
     { to: '/agents', icon: Bot, label: 'AI Agents' },
     { to: '/recordings', icon: Mic, label: 'Files' },
     { to: '/inbox', icon: MessageSquare, label: 'Messages', badge: unread },
