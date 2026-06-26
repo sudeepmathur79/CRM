@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { usersApi, voiceDraftsApi, leadsApi, orgApi } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Modal from '../../components/ui/Modal';
 import { Plus, Edit, UserX, UserCheck, LogOut, Sun, Moon, User, Shield, Smartphone, CheckCircle, XCircle, Camera, Mic, Check, Trash2, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -391,6 +391,62 @@ const CRM_TYPES = [
   { value: 'OTHER', label: 'Other / Generic' },
 ];
 
+function HubSpotSection() {
+  const { data: status, refetch } = useQuery({
+    queryKey: ['hubspot-status'],
+    queryFn: () => fetch('/api/hubspot/status', {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+    }).then(r => r.json()),
+  });
+
+  const disconnectMutation = useMutation({
+    mutationFn: () => fetch('/api/hubspot/disconnect', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+    }).then(r => r.json()),
+    onSuccess: () => { refetch(); toast.success('HubSpot disconnected'); },
+    onError: () => toast.error('Failed to disconnect HubSpot'),
+  });
+
+  const connected = status?.connected;
+  const portalId = status?.portalId;
+
+  return (
+    <section className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-4">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-base">🟠</span>
+        <h2 className="font-semibold text-sm">HubSpot Direct Sync</h2>
+      </div>
+      <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+        Connect your HubSpot account to automatically create or update contacts and deals after every AI call analysis.
+      </p>
+
+      {connected ? (
+        <div className="flex items-center justify-between gap-3">
+          <span className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 font-medium">
+            <CheckCircle size={16} />
+            Connected to HubSpot{portalId ? ` (Portal: ${portalId})` : ''}
+          </span>
+          <button
+            onClick={() => disconnectMutation.mutate()}
+            disabled={disconnectMutation.isPending}
+            className="px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-semibold disabled:opacity-50"
+          >
+            {disconnectMutation.isPending ? 'Disconnecting…' : 'Disconnect'}
+          </button>
+        </div>
+      ) : (
+        <a
+          href="/api/hubspot/connect"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold"
+        >
+          Connect HubSpot
+        </a>
+      )}
+    </section>
+  );
+}
+
 function CrmIntegrationSection() {
   const { user, refreshUser } = useAuth();
   const [form, setForm] = useState({
@@ -540,8 +596,19 @@ export default function SettingsPage() {
   const { user, logout } = useAuth();
   const { dark, toggle } = useTheme();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('hubspot') === 'connected') {
+      toast.success('HubSpot connected successfully!');
+      setSearchParams(p => { p.delete('hubspot'); return p; });
+    } else if (searchParams.get('hubspot') === 'error') {
+      toast.error('HubSpot connection failed. Please try again.');
+      setSearchParams(p => { p.delete('hubspot'); return p; });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [editUser, setEditUser] = useState(null);
 
   const { data: users = [] } = useQuery({
@@ -599,6 +666,9 @@ export default function SettingsPage() {
 
       {/* CRM BCC integration */}
       <CrmIntegrationSection />
+
+      {/* HubSpot direct sync */}
+      <HubSpotSection />
 
       {/* Demo mode */}
       <DemoModeSection />

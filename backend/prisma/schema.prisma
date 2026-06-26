@@ -47,6 +47,11 @@ model User {
   personalCrmBccEmail  String?
   targetCrmType        String?  // HUBSPOT | SALESFORCE | ZOHO | OTHER
   autoExportOnCapture  Boolean  @default(true)
+  // HubSpot OAuth fields
+  hubspotAccessToken   String?
+  hubspotRefreshToken  String?
+  hubspotTokenExpiry   DateTime?
+  hubspotPortalId      String?
 
   leads            Lead[]        @relation("AssignedLeads")
   createdLeads     Lead[]        @relation("CreatedLeads")
