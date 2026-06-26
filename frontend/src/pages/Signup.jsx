@@ -82,13 +82,14 @@ export default function Signup() {
       setError('Password must be at least 8 characters');
       return;
     }
-    if (SITEKEY && !captchaToken) {
+    const token = captchaToken || turnstileRef.current?.getResponse() || '';
+    if (SITEKEY && !token) {
       setError('Please complete the CAPTCHA');
       return;
     }
     setLoading(true);
     try {
-      const { data } = await authApi.signup({ ...form, captchaToken });
+      const { data } = await authApi.signup({ ...form, captchaToken: token });
       if (data.requiresVerification) {
         setVerificationEmail(data.email);
       }

@@ -128,13 +128,14 @@ export default function LoginPage() {
   }, []);
 
   const onSubmit = async (data) => {
-    if (SITEKEY && !captchaToken) {
+    const token = captchaToken || turnstileRef.current?.getResponse() || '';
+    if (SITEKEY && !token) {
       toast.error('Please complete the CAPTCHA');
       return;
     }
     setLoading(true);
     try {
-      const result = await login({ ...data, captchaToken });
+      const result = await login({ ...data, captchaToken: token });
       if (result?.requiresTwoFactor) {
         setTempToken(result.tempToken);
       } else {
