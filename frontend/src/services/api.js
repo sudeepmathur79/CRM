@@ -126,6 +126,10 @@ export const orgApi = {
   disableDemo: () => api.post('/org/demo/disable'),
 };
 
+export const aiApi = {
+  extract: (text) => api.post('/ai/extract', { text }),
+};
+
 export const agentsApi = {
   list: () => api.get('/agents'),
   get: (id) => api.get(`/agents/${id}`),

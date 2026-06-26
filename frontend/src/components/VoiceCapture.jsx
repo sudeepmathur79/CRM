@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { leadsApi, voiceDraftsApi } from '../services/api';
+import { leadsApi, voiceDraftsApi, aiApi } from '../services/api';
 import { Mic, MicOff, X, Check, Search, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -67,10 +67,26 @@ export default function VoiceCapture() {
         toast.success(`Saved to ${selectedLead.name}`);
       } else if (saveMode === 'new') {
         if (!newLeadName.trim()) { toast.error('Enter a lead name'); setSaving(false); return; }
-        const { data: newLead } = await leadsApi.create({ name: newLeadName.trim(), status: 'New' });
-        await leadsApi.addNote(newLead.id, full);
-        qc.invalidateQueries({ queryKey: ['leads'] });
-        toast.success(`New lead "${newLead.name}" created with recording`);
+        // Try AI extract first — it saves locally + syncs to CRM
+        let syncData = null;
+        try {
+          const { data: extractResult } = await aiApi.extract(full);
+          syncData = extractResult?._sync ?? null;
+        } catch (_) {
+          // extract failed — fall through to manual create
+        }
+        if (syncData?.localLeadId) {
+          // Backend already saved — no separate create needed
+          qc.invalidateQueries({ queryKey: ['leads'] });
+          const hubSynced = syncData.synced?.includes('hubspot');
+          toast.success(hubSynced ? 'Lead synced to HubSpot + saved locally' : 'Lead saved');
+        } else {
+          // Fallback: manual create
+          const { data: newLead } = await leadsApi.create({ name: newLeadName.trim(), status: 'New' });
+          await leadsApi.addNote(newLead.id, full);
+          qc.invalidateQueries({ queryKey: ['leads'] });
+          toast.success(`New lead "${newLead.name}" created with recording`);
+        }
       } else {
         await voiceDraftsApi.create(full);
         qc.invalidateQueries({ queryKey: ['voice-drafts'] });
