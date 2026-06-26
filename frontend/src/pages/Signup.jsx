@@ -147,9 +147,9 @@ export default function Signup() {
                 <span className="font-bold text-lg text-slate-900 dark:text-white">SalesFlow CRM</span>
               </div>
 
-              <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">Start your free trial</h2>
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">Start free — no credit card</h2>
               <p className="text-slate-500 dark:text-slate-400 text-sm mb-8">
-                30 days free · No credit card · Cancel anytime
+                10 captures free forever · No credit card · Upgrade anytime
               </p>
 
               <form onSubmit={handleSubmit} className="space-y-4">
