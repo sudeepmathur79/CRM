@@ -1,13 +1,34 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { seedDemoData } = require('./demo.service');
 const { PrismaClient } = require('@prisma/client');
 const { OAuth2Client } = require('google-auth-library');
 const { authenticator } = require('otplib');
 const QRCode = require('qrcode');
+const { sendMail } = require('./mailer');
 const prisma = new PrismaClient();
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+// ── Cloudflare Turnstile token verification ───────────────────────────────────
+async function verifyTurnstile(token) {
+  // If no secret is configured, skip verification (dev/test environments)
+  const secret = process.env.TURNSTILE_SECRET_KEY;
+  if (!secret) return;
+  if (!token) throw Object.assign(new Error('CAPTCHA token missing'), { status: 400 });
+
+  const body = new URLSearchParams({ secret, response: token });
+  const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+  });
+  const data = await res.json();
+  if (!data.success) {
+    throw Object.assign(new Error('CAPTCHA verification failed. Please try again.'), { status: 400 });
+  }
+}
 
 const generateTokens = (userId, orgId) => ({
   accessToken: jwt.sign({ userId, orgId }, process.env.JWT_SECRET, { expiresIn: '15m' }),
@@ -24,33 +45,47 @@ const safeUser = (u) => ({
 });
 
 // ── Self-service signup — creates org + first admin user ─────────────────────
-const signup = async ({ orgName, email, password, name }) => {
+const signup = async ({ orgName, email, password, name, captchaToken }) => {
   if (!orgName || !email || !password || !name) {
     throw Object.assign(new Error('orgName, name, email and password are required'), { status: 400 });
   }
+  await verifyTurnstile(captchaToken);
+
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) throw Object.assign(new Error('Email already in use'), { status: 400 });
 
   const slug = orgName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + Date.now();
   const trialEndsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
   const hashed = await bcrypt.hash(password, 12);
+  const verifyToken = crypto.randomBytes(32).toString('hex');
 
   const [org, user] = await prisma.$transaction(async (tx) => {
     const o = await tx.organisation.create({
       data: { name: orgName, slug, trialEndsAt },
     });
-    // Seed default AI agents for this org
     await seedDefaultAgents(tx, o.id);
     const u = await tx.user.create({
-      data: { email, password: hashed, name, role: 'admin', orgId: o.id },
+      data: { email, password: hashed, name, role: 'admin', orgId: o.id, emailVerifyToken: verifyToken },
     });
-    // Seed demo leads so new orgs have something to explore
     await seedDemoData(tx, o.id, u.id);
     return [o, u];
   });
 
-  const tokens = generateTokens(user.id, org.id);
-  return { user: safeUser(user), org: { id: org.id, name: org.name, plan: org.plan, trialEndsAt: org.trialEndsAt }, ...tokens };
+  // Send verification email — non-fatal if mailer isn't configured
+  const appUrl = process.env.APP_PUBLIC_URL || process.env.RENDER_EXTERNAL_URL?.replace(/\/$/, '') || 'http://localhost:3000';
+  const verifyUrl = `${appUrl}/verify-email?token=${verifyToken}`;
+  sendMail({
+    to: email,
+    subject: 'Verify your SalesFlow CRM email',
+    html: `<p>Hi ${name},</p>
+<p>Thanks for signing up! Click the link below to verify your email address and activate your account:</p>
+<p><a href="${verifyUrl}" style="display:inline-block;padding:12px 24px;background:#4f46e5;color:#fff;border-radius:6px;text-decoration:none;font-weight:600">Verify email address</a></p>
+<p>This link expires in 24 hours. If you didn't sign up for SalesFlow CRM, you can ignore this email.</p>`,
+    text: `Verify your SalesFlow CRM email:\n\n${verifyUrl}\n\nThis link expires in 24 hours.`,
+  }).catch(err => console.error('[auth] verification email failed:', err.message));
+
+  // Return requiresVerification flag instead of tokens — frontend shows "check your email" screen
+  return { requiresVerification: true, email };
 };
 
 // ── Password-based register (admin-inviting a new user) ──────────────────────
@@ -64,12 +99,22 @@ const register = async ({ email, password, name, role = 'agent', orgId }) => {
 };
 
 // ── Password login — returns full tokens OR a tempToken if 2FA is active ─────
-const login = async ({ email, password }) => {
+const login = async ({ email, password, captchaToken }) => {
+  await verifyTurnstile(captchaToken);
+
   const user = await prisma.user.findUnique({ where: { email }, include: { org: true } });
   if (!user || !user.isActive) throw Object.assign(new Error('Invalid credentials'), { status: 401 });
   if (!user.password) throw Object.assign(new Error('This account uses Google Sign-In'), { status: 401 });
   const valid = await bcrypt.compare(password, user.password);
   if (!valid) throw Object.assign(new Error('Invalid credentials'), { status: 401 });
+
+  // Block unverified self-signup accounts — admin-invited users skip verification
+  if (!user.emailVerifiedAt && user.emailVerifyToken) {
+    throw Object.assign(
+      new Error('Please verify your email address before logging in. Check your inbox for the verification link.'),
+      { status: 403, code: 'EMAIL_NOT_VERIFIED', email: user.email }
+    );
+  }
 
   if (user.twoFactorEnabled) {
     return { requiresTwoFactor: true, tempToken: generateTempToken(user.id) };

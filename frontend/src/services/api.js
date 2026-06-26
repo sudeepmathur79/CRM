@@ -48,6 +48,7 @@ export const authApi = {
   setup2FA: () => api.post('/auth/2fa/setup'),
   enable2FA: (data) => api.post('/auth/2fa/enable', data),
   disable2FA: (data) => api.post('/auth/2fa/disable', data),
+  resendVerification: (email) => api.post('/auth/resend-verification', { email }),
 };
 
 export const leadsApi = {

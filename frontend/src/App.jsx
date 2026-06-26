@@ -14,6 +14,7 @@ import SettingsPage from './pages/Settings';
 import InboxPage from './pages/Inbox';
 import AgentsPage from './pages/Agents';
 import GlassesHud from './views/GlassesHud';
+import VerifyEmailPage from './pages/VerifyEmail';
 
 const Protected = ({ children }) => {
   const { user, loading } = useAuth();
@@ -29,6 +30,7 @@ const AppRoutes = () => {
       <Route path="/hud" element={<Protected><GlassesHud /></Protected>} />
       <Route path="/login" element={user ? <Navigate to="/" /> : <LoginPage />} />
       <Route path="/signup" element={user ? <Navigate to="/" /> : <SignupPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/" element={<Protected><Layout /></Protected>}>
         <Route index element={<DashboardPage />} />
         <Route path="leads" element={<LeadsPage />} />

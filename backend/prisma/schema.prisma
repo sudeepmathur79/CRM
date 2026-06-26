@@ -38,6 +38,8 @@ model User {
   googleId         String?       @unique
   twoFactorSecret  String?
   twoFactorEnabled Boolean       @default(false)
+  emailVerifiedAt  DateTime?
+  emailVerifyToken String?
   avatar               String?
   orgId                String?
   org                  Organisation? @relation(fields: [orgId], references: [id])

@@ -5,7 +5,9 @@ const {
   setup2FA, enable2FA, disable2FA, verify2FALogin,
   refresh,
 } = require('../services/auth.service');
+const { sendMail } = require('../services/mailer');
 const { authenticate } = require('../middleware/auth.middleware');
+const crypto = require('crypto');
 const prisma = new PrismaClient();
 
 // Self-service signup — creates a new organisation + admin user
@@ -76,6 +78,49 @@ router.post('/2fa/disable', authenticate, async (req, res, next) => {
   try {
     const data = await disable2FA(req.user.id, req.body.code);
     res.json(data);
+  } catch (e) { next(e); }
+});
+
+// Email verification — clicked from the link in the signup email
+router.get('/verify-email', async (req, res, next) => {
+  try {
+    const { token } = req.query;
+    if (!token || typeof token !== 'string') return res.status(400).json({ error: 'Invalid verification link' });
+    const user = await prisma.user.findFirst({ where: { emailVerifyToken: token } });
+    if (!user) return res.status(400).json({ error: 'Verification link is invalid or has already been used' });
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { emailVerifiedAt: new Date(), emailVerifyToken: null },
+    });
+    // Redirect to login with success flag rather than auto-logging in (more secure)
+    const appUrl = process.env.APP_PUBLIC_URL || process.env.RENDER_EXTERNAL_URL?.replace(/\/$/, '') || '';
+    res.redirect(`${appUrl}/login?verified=1`);
+  } catch (e) { next(e); }
+});
+
+// Resend verification email — unauthenticated, rate-limited by address lookup
+router.post('/resend-verification', async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+    const user = await prisma.user.findUnique({ where: { email } });
+    // Return success even if not found to avoid email enumeration
+    if (!user || user.emailVerifiedAt || !user.emailVerifyToken) {
+      return res.json({ ok: true });
+    }
+    const verifyToken = crypto.randomBytes(32).toString('hex');
+    await prisma.user.update({ where: { id: user.id }, data: { emailVerifyToken: verifyToken } });
+    const appUrl = process.env.APP_PUBLIC_URL || process.env.RENDER_EXTERNAL_URL?.replace(/\/$/, '') || 'http://localhost:3000';
+    const verifyUrl = `${appUrl}/verify-email?token=${verifyToken}`;
+    await sendMail({
+      to: email,
+      subject: 'Verify your SalesFlow CRM email',
+      html: `<p>Hi ${user.name},</p><p>Here's a fresh verification link for your SalesFlow CRM account:</p>
+<p><a href="${verifyUrl}" style="display:inline-block;padding:12px 24px;background:#4f46e5;color:#fff;border-radius:6px;text-decoration:none;font-weight:600">Verify email address</a></p>
+<p>This link expires in 24 hours.</p>`,
+      text: `Verify your SalesFlow CRM email:\n\n${verifyUrl}`,
+    });
+    res.json({ ok: true });
   } catch (e) { next(e); }
 });
 

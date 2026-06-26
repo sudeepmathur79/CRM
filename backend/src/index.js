@@ -108,7 +108,10 @@ if (isProd) {
 
 app.use((err, req, res, next) => {
   console.error(err);
-  res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
+  const body = { error: err.message || 'Internal server error' };
+  if (err.code) body.code = err.code;
+  if (err.email) body.email = err.email;
+  res.status(err.status || 500).json(body);
 });
 
 io.on('connection', (socket) => {
