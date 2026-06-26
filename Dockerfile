@@ -1,5 +1,7 @@
 # ── Stage 1: Build frontend ───────────────────────────────────────────────────
 FROM node:20-alpine AS frontend-builder
+ARG VITE_TURNSTILE_SITE_KEY
+ENV VITE_TURNSTILE_SITE_KEY=$VITE_TURNSTILE_SITE_KEY
 WORKDIR /frontend
 COPY frontend/package*.json ./
 RUN npm ci
