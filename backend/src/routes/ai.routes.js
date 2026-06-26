@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { authenticate } = require('../middleware/auth.middleware');
 const { extractLeadFromText, summarizeTranscript } = require('../services/ai.service');
+const { routeExtractedLead } = require('../services/crmRouter.service');
 
 router.use(authenticate);
 
@@ -9,7 +10,16 @@ router.post('/extract', async (req, res, next) => {
     const { text } = req.body;
     if (!text?.trim()) return res.status(400).json({ error: 'Text is required' });
     const extracted = await extractLeadFromText(text);
-    res.json(extracted);
+
+    // Route to connected CRM + save locally; never fail the extract response
+    let syncResult = { synced: [], failed: [], localLeadId: null };
+    try {
+      syncResult = await routeExtractedLead(req.user.id, extracted, { saveLocally: true });
+    } catch (syncErr) {
+      console.error(`[ai/extract] routeExtractedLead threw unexpectedly userId=${req.user.id}: ${syncErr.message}`);
+    }
+
+    res.json({ ...extracted, _sync: syncResult });
   } catch (e) { next(e); }
 });
 
