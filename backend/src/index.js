@@ -102,19 +102,17 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date() }
 
 // Serve React frontend in production
 if (isProd) {
+  const fs = require('fs');
   const frontendDist = path.join(__dirname, '../frontend/dist');
-  app.use(express.static(frontendDist));
+  // Serve static assets (JS, CSS, images) but not index.html — catch-all handles that with config injection
+  app.use(express.static(frontendDist, { index: false }));
   app.get('*', (req, res) => {
-    const fs = require('fs');
     const html = fs.readFileSync(path.join(frontendDist, 'index.html'), 'utf8');
     const config = JSON.stringify({
       googleClientId: process.env.GOOGLE_CLIENT_ID || null,
       turnstileSiteKey: process.env.TURNSTILE_SITE_KEY || null,
     });
-    const injected = html.replace(
-      '<div id="root"></div>',
-      `<script>window.__APP_CONFIG__ = ${config};</script><div id="root"></div>`
-    );
+    const injected = html.replace('</head>', `<script>window.__APP_CONFIG__ = ${config};</script></head>`);
     res.send(injected);
   });
 }
