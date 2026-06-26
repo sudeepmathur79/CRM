@@ -15,6 +15,7 @@ import InboxPage from './pages/Inbox';
 import AgentsPage from './pages/Agents';
 import GlassesHud from './views/GlassesHud';
 import VerifyEmailPage from './pages/VerifyEmail';
+import WelcomePage from './pages/Welcome';
 
 const Protected = ({ children }) => {
   const { user, loading } = useAuth();
@@ -26,12 +27,13 @@ const AppRoutes = () => {
   const { user } = useAuth();
   return (
     <Routes>
+      <Route path="/welcome" element={<WelcomePage />} />
       <Route path="/setup" element={<SetupPage />} />
       <Route path="/hud" element={<Protected><GlassesHud /></Protected>} />
       <Route path="/login" element={user ? <Navigate to="/" /> : <LoginPage />} />
       <Route path="/signup" element={user ? <Navigate to="/" /> : <SignupPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
-      <Route path="/" element={<Protected><Layout /></Protected>}>
+      <Route path="/" element={user ? <Protected><Layout /></Protected> : <Navigate to="/welcome" />}>
         <Route index element={<DashboardPage />} />
         <Route path="leads" element={<LeadsPage />} />
         <Route path="leads/:id" element={<LeadDetailPage />} />
