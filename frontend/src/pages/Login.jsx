@@ -7,7 +7,8 @@ import toast from 'react-hot-toast';
 import { Shield, ArrowLeft, Zap } from 'lucide-react';
 import { Turnstile } from '@marsidev/react-turnstile';
 
-const SITEKEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
+// Site key fetched at runtime from backend so it doesn't need to be baked into the Docker image
+const SITEKEY = window.__APP_CONFIG__?.turnstileSiteKey || import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
 
 function TwoFactorStep({ tempToken, onBack, onSuccess }) {
   const { verify2FA } = useAuth();

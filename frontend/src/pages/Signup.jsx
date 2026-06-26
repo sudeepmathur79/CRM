@@ -4,7 +4,7 @@ import { authApi } from '../services/api';
 import { Zap, CheckCircle2, Mail } from 'lucide-react';
 import { Turnstile } from '@marsidev/react-turnstile';
 
-const SITEKEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
+const SITEKEY = window.__APP_CONFIG__?.turnstileSiteKey || import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
 
 const PERKS = [
   'AI agents that qualify and coach — on day one',
