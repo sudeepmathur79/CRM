@@ -1,12 +1,20 @@
 const router = require('express').Router();
 const { PrismaClient } = require('@prisma/client');
 const {
-  register, login, googleLogin,
+  signup, register, login, googleLogin,
   setup2FA, enable2FA, disable2FA, verify2FALogin,
   refresh,
 } = require('../services/auth.service');
 const { authenticate } = require('../middleware/auth.middleware');
 const prisma = new PrismaClient();
+
+// Self-service signup — creates a new organisation + admin user
+router.post('/signup', async (req, res, next) => {
+  try {
+    const data = await signup(req.body);
+    res.status(201).json(data);
+  } catch (e) { next(e); }
+});
 
 // One-time setup — only works when the database has zero users
 router.post('/setup', async (req, res, next) => {
@@ -77,9 +85,13 @@ router.post('/refresh', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-router.get('/me', authenticate, (req, res) => {
-  const { id, email, name, role, twoFactorEnabled, avatar } = req.user;
-  res.json({ id, email, name, role, twoFactorEnabled, avatar });
+router.get('/me', authenticate, async (req, res) => {
+  const { id, email, name, role, twoFactorEnabled, avatar, orgId } = req.user;
+  let org = null;
+  if (orgId) {
+    org = await prisma.organisation.findUnique({ where: { id: orgId }, select: { id: true, name: true, plan: true, trialEndsAt: true } });
+  }
+  res.json({ id, email, name, role, twoFactorEnabled, avatar, orgId, org });
 });
 
 module.exports = router;

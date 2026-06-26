@@ -4,6 +4,8 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const { authenticate } = require('../middleware/auth.middleware');
 const { saveRecording, getRecordings, deleteRecording, analyzeRecording, UPLOAD_DIR } = require('../services/recording.service');
+const { triggerAgents } = require('../services/agent.service');
+const prisma = new (require('@prisma/client').PrismaClient)();
 
 const storage = multer.diskStorage({
   destination: UPLOAD_DIR,
@@ -48,7 +50,15 @@ router.delete('/:id', async (req, res, next) => {
 
 // Trigger AI analysis on an existing recording
 router.post('/:id/analyze', async (req, res, next) => {
-  try { res.json(await analyzeRecording(req.params.id)); } catch (e) { next(e); }
+  try {
+    const result = await analyzeRecording(req.params.id);
+    // Trigger call_debrief agents after analysis
+    const recording = await prisma.recording.findUnique({ where: { id: req.params.id }, include: { lead: true } });
+    if (recording?.lead) {
+      triggerAgents('on_recording_uploaded', recording.lead, req.orgId, req.app.get('io'));
+    }
+    res.json(result);
+  } catch (e) { next(e); }
 });
 
 module.exports = router;

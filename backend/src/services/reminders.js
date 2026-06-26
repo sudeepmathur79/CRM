@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const { runStuckDealAgents } = require('./agent.service');
 
 /**
  * Runs every 15 minutes.
@@ -105,6 +106,17 @@ function startReminderScheduler(io) {
   });
 
   console.log('🎙 Voice draft reminder scheduler started (runs daily at 9am)');
+
+  // Daily 10am — run deal coach agents on stuck deals
+  cron.schedule('0 10 * * *', async () => {
+    try {
+      await runStuckDealAgents(io);
+      console.log('🤖 Stuck deal agents ran');
+    } catch (e) {
+      console.error('Stuck deal agent cron error:', e.message);
+    }
+  });
+  console.log('🤖 Deal coach agent scheduler started (runs daily at 10am)');
 }
 
 module.exports = { startReminderScheduler };

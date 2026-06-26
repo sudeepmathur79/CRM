@@ -39,6 +39,7 @@ export const configApi = {
 
 export const authApi = {
   login: (data) => api.post('/auth/login', data),
+  signup: (data) => api.post('/auth/signup', data),
   register: (data) => api.post('/auth/register', data),
   setup: (data) => api.post('/auth/setup', data),
   me: () => api.get('/auth/me'),
@@ -118,4 +119,14 @@ export const voiceDraftsApi = {
   create: (content) => api.post('/voice-drafts', { content }),
   resolve: (id, leadId) => api.post(`/voice-drafts/${id}/resolve`, { leadId }),
   dismiss: (id) => api.delete(`/voice-drafts/${id}`),
+};
+
+export const agentsApi = {
+  list: () => api.get('/agents'),
+  get: (id) => api.get(`/agents/${id}`),
+  create: (data) => api.post('/agents', data),
+  update: (id, data) => api.put(`/agents/${id}`, data),
+  delete: (id) => api.delete(`/agents/${id}`),
+  run: (id, leadId) => api.post(`/agents/${id}/run`, { leadId }),
+  runs: (id) => api.get(`/agents/${id}/runs`),
 };

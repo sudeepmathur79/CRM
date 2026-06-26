@@ -4,7 +4,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { messagesApi, voiceDraftsApi } from '../../services/api';
 import {
-  LayoutDashboard, Users, Columns, Mic, Settings, LogOut, Sun, Moon, ChevronLeft, ChevronRight, MessageSquare,
+  LayoutDashboard, Users, Columns, Mic, Settings, LogOut, Sun, Moon, ChevronLeft, ChevronRight, MessageSquare, Bot,
 } from 'lucide-react';
 
 import { useState, useEffect } from 'react';
@@ -17,8 +17,21 @@ const mobileMainStyle = {
   paddingBottom: 'calc(56px + env(safe-area-inset-bottom, 0px))',
 };
 
+function TrialBanner({ org }) {
+  if (!org || org.plan !== 'trial') return null;
+  const daysLeft = Math.max(0, Math.ceil((new Date(org.trialEndsAt) - Date.now()) / 86400000));
+  if (daysLeft > 25) return null; // only show in last 5 days
+  return (
+    <div className={`px-4 py-2 text-center text-xs font-medium ${daysLeft <= 3 ? 'bg-red-500 text-white' : 'bg-amber-400 text-amber-900'}`}>
+      {daysLeft <= 0
+        ? 'Your trial has ended. Upgrade to continue.'
+        : `${daysLeft} day${daysLeft === 1 ? '' : 's'} left in your free trial.`}
+    </div>
+  );
+}
+
 export default function Layout() {
-  const { user, logout } = useAuth();
+  const { user, org, logout } = useAuth();
   const { dark, toggle } = useTheme();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -107,6 +120,17 @@ export default function Layout() {
       ), { duration: 10000, icon: '📅' });
     });
 
+    socket.on('agent:output', (data) => {
+      toast(t => (
+        <button onClick={() => { navigate(`/leads/${data.leadId}`); toast.dismiss(t.id); }} className="text-left">
+          <div className="font-medium text-sm">🤖 {data.agentName}</div>
+          <div className="text-xs text-gray-500 mt-0.5">{data.leadName} — {data.output?.slice(0, 80)}…</div>
+        </button>
+      ), { duration: 10000, icon: '🤖' });
+      qc.invalidateQueries({ queryKey: ['lead', data.leadId] });
+      qc.invalidateQueries({ queryKey: ['agents'] });
+    });
+
     socket.on('mention:new', (data) => {
       const from = data.from?.name || 'Someone';
       const context = data.lead ? ` on "${data.lead.name}"` : '';
@@ -126,6 +150,7 @@ export default function Layout() {
     { to: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
     { to: '/leads', icon: Users, label: 'Leads' },
     { to: '/kanban', icon: Columns, label: 'Kanban' },
+    { to: '/agents', icon: Bot, label: 'AI Agents' },
     { to: '/recordings', icon: Mic, label: 'Files' },
     { to: '/inbox', icon: MessageSquare, label: 'Messages', badge: unread },
     { to: '/settings', icon: Settings, label: 'Settings' },
@@ -194,10 +219,13 @@ export default function Layout() {
 
       {/* Main content */}
       <main
-        className="flex-1 overflow-auto bg-gray-50 dark:bg-slate-900"
+        className="flex-1 overflow-auto bg-gray-50 dark:bg-slate-900 flex flex-col"
         style={isMobile ? mobileMainStyle : undefined}
       >
-        <Outlet />
+        <TrialBanner org={org} />
+        <div className="flex-1">
+          <Outlet />
+        </div>
       </main>
 
       {/* Voice capture sheet — agent only */}

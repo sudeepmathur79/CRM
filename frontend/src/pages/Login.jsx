@@ -1,6 +1,6 @@
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { authApi } from '../services/api';
 import toast from 'react-hot-toast';
@@ -132,6 +132,10 @@ export default function LoginPage() {
               </button>
             </form>
           )}
+          <p className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
+            Don't have an account?{' '}
+            <Link to="/signup" className="text-primary-600 dark:text-primary-400 font-medium hover:underline">Start free trial</Link>
+          </p>
         </div>
       </div>
     </div>

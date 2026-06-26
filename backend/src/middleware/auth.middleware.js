@@ -10,6 +10,7 @@ const authenticate = async (req, res, next) => {
     const user = await prisma.user.findUnique({ where: { id: payload.userId } });
     if (!user || !user.isActive) return res.status(401).json({ error: 'Unauthorized' });
     req.user = user;
+    req.orgId = user.orgId || null;
     next();
   } catch {
     res.status(401).json({ error: 'Invalid token' });

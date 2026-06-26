@@ -2,17 +2,20 @@ const router = require('express').Router();
 const { authenticate, requireRole } = require('../middleware/auth.middleware');
 const { getLeads, getLead, createLead, updateLead, deleteLead, bulkAction } = require('../services/lead.service');
 const { scoreLead } = require('../services/ai.service');
+const { triggerAgents } = require('../services/agent.service');
 const prisma = new (require('@prisma/client').PrismaClient)();
 
 router.use(authenticate);
 
 router.get('/', async (req, res, next) => {
-  try { res.json(await getLeads(req.user, req.query)); } catch (e) { next(e); }
+  try { res.json(await getLeads(req.user, req.query, req.orgId)); } catch (e) { next(e); }
 });
 
 router.post('/', async (req, res, next) => {
   try {
-    const lead = await createLead(req.body, req.user.id);
+    const lead = await createLead({ ...req.body, orgId: req.orgId }, req.user.id);
+    // Trigger on_lead_created agents
+    triggerAgents('on_lead_created', lead, req.orgId, req.app.get('io'));
     req.app.get('io')?.emit('lead:created', lead);
     res.status(201).json(lead);
   } catch (e) { next(e); }

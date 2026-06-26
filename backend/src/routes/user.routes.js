@@ -19,9 +19,10 @@ router.use(authenticate);
 
 router.get('/', async (req, res, next) => {
   try {
+    const base = req.orgId ? { orgId: req.orgId } : {};
     const where = req.query.assignable === 'true'
-      ? { isActive: true, role: { not: 'admin' } }
-      : req.query.activeOnly === 'true' ? { isActive: true } : {};
+      ? { ...base, isActive: true, role: { not: 'admin' } }
+      : req.query.activeOnly === 'true' ? { ...base, isActive: true } : base;
     const users = await prisma.user.findMany({
       where,
       select: { id: true, email: true, name: true, role: true, isActive: true, createdAt: true }
@@ -35,7 +36,7 @@ router.post('/', requireRole('admin'), async (req, res, next) => {
     const { email, password, name, role } = req.body;
     const hashed = await bcrypt.hash(password, 12);
     const user = await prisma.user.create({
-      data: { email, password: hashed, name, role },
+      data: { email, password: hashed, name, role, orgId: req.orgId },
       select: { id: true, email: true, name: true, role: true, isActive: true }
     });
     res.status(201).json(user);

@@ -8,9 +8,9 @@ const prisma = new PrismaClient();
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-const generateTokens = (userId) => ({
-  accessToken: jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '15m' }),
-  refreshToken: jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET, { expiresIn: '7d' }),
+const generateTokens = (userId, orgId) => ({
+  accessToken: jwt.sign({ userId, orgId }, process.env.JWT_SECRET, { expiresIn: '15m' }),
+  refreshToken: jwt.sign({ userId, orgId }, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET, { expiresIn: '7d' }),
 });
 
 // Temporary token issued mid-login when 2FA is required (5-minute TTL)
@@ -19,22 +19,50 @@ const generateTempToken = (userId) =>
 
 const safeUser = (u) => ({
   id: u.id, email: u.email, name: u.name, role: u.role,
-  twoFactorEnabled: u.twoFactorEnabled,
+  twoFactorEnabled: u.twoFactorEnabled, orgId: u.orgId,
 });
 
+// ── Self-service signup — creates org + first admin user ─────────────────────
+const signup = async ({ orgName, email, password, name }) => {
+  if (!orgName || !email || !password || !name) {
+    throw Object.assign(new Error('orgName, name, email and password are required'), { status: 400 });
+  }
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) throw Object.assign(new Error('Email already in use'), { status: 400 });
+
+  const slug = orgName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + Date.now();
+  const trialEndsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+  const hashed = await bcrypt.hash(password, 12);
+
+  const [org, user] = await prisma.$transaction(async (tx) => {
+    const o = await tx.organisation.create({
+      data: { name: orgName, slug, trialEndsAt },
+    });
+    // Seed default AI agents for this org
+    await seedDefaultAgents(tx, o.id);
+    const u = await tx.user.create({
+      data: { email, password: hashed, name, role: 'admin', orgId: o.id },
+    });
+    return [o, u];
+  });
+
+  const tokens = generateTokens(user.id, org.id);
+  return { user: safeUser(user), org: { id: org.id, name: org.name, plan: org.plan, trialEndsAt: org.trialEndsAt }, ...tokens };
+};
+
 // ── Password-based register (admin-inviting a new user) ──────────────────────
-const register = async ({ email, password, name, role = 'agent' }) => {
+const register = async ({ email, password, name, role = 'agent', orgId }) => {
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) throw Object.assign(new Error('Email already in use'), { status: 400 });
   const hashed = password ? await bcrypt.hash(password, 12) : null;
-  const user = await prisma.user.create({ data: { email, password: hashed, name, role } });
-  const tokens = generateTokens(user.id);
+  const user = await prisma.user.create({ data: { email, password: hashed, name, role, orgId } });
+  const tokens = generateTokens(user.id, orgId);
   return { user: safeUser(user), ...tokens };
 };
 
 // ── Password login — returns full tokens OR a tempToken if 2FA is active ─────
 const login = async ({ email, password }) => {
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await prisma.user.findUnique({ where: { email }, include: { org: true } });
   if (!user || !user.isActive) throw Object.assign(new Error('Invalid credentials'), { status: 401 });
   if (!user.password) throw Object.assign(new Error('This account uses Google Sign-In'), { status: 401 });
   const valid = await bcrypt.compare(password, user.password);
@@ -44,8 +72,9 @@ const login = async ({ email, password }) => {
     return { requiresTwoFactor: true, tempToken: generateTempToken(user.id) };
   }
 
-  const tokens = generateTokens(user.id);
-  return { user: safeUser(user), ...tokens };
+  const tokens = generateTokens(user.id, user.orgId);
+  const org = user.org ? { id: user.org.id, name: user.org.name, plan: user.org.plan, trialEndsAt: user.org.trialEndsAt } : null;
+  return { user: safeUser(user), org, ...tokens };
 };
 
 // ── Google SSO — verifies ID token, checks email is pre-registered ───────────
@@ -62,17 +91,17 @@ const googleLogin = async ({ credential }) => {
   }
 
   const { email, name, sub: googleId } = payload;
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await prisma.user.findUnique({ where: { email }, include: { org: true } });
   if (!user) throw Object.assign(new Error('No account found for this Google address. Ask your admin to add you.'), { status: 403 });
   if (!user.isActive) throw Object.assign(new Error('Account is inactive'), { status: 403 });
 
-  // Link googleId on first Google login
   if (!user.googleId) {
     await prisma.user.update({ where: { id: user.id }, data: { googleId } });
   }
 
-  const tokens = generateTokens(user.id);
-  return { user: safeUser(user), ...tokens };
+  const tokens = generateTokens(user.id, user.orgId);
+  const org = user.org ? { id: user.org.id, name: user.org.name, plan: user.org.plan, trialEndsAt: user.org.trialEndsAt } : null;
+  return { user: safeUser(user), org, ...tokens };
 };
 
 // ── 2FA setup — generate secret + QR code ────────────────────────────────────
@@ -119,13 +148,14 @@ const verify2FALogin = async ({ tempToken, code }) => {
   }
   if (payload.step !== '2fa') throw Object.assign(new Error('Invalid token'), { status: 401 });
 
-  const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+  const user = await prisma.user.findUnique({ where: { id: payload.userId }, include: { org: true } });
   if (!user || !user.isActive || !user.twoFactorEnabled) throw Object.assign(new Error('Invalid session'), { status: 401 });
   const valid = authenticator.verify({ token: code, secret: user.twoFactorSecret });
   if (!valid) throw Object.assign(new Error('Invalid authenticator code'), { status: 400 });
 
-  const tokens = generateTokens(user.id);
-  return { user: safeUser(user), ...tokens };
+  const tokens = generateTokens(user.id, user.orgId);
+  const org = user.org ? { id: user.org.id, name: user.org.name, plan: user.org.plan, trialEndsAt: user.org.trialEndsAt } : null;
+  return { user: safeUser(user), org, ...tokens };
 };
 
 // ── Token refresh ─────────────────────────────────────────────────────────────
@@ -134,10 +164,115 @@ const refresh = async (token) => {
     const { userId } = jwt.verify(token, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET);
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user || !user.isActive) throw new Error();
-    return generateTokens(userId);
+    return generateTokens(userId, user.orgId);
   } catch {
     throw Object.assign(new Error('Invalid refresh token'), { status: 401 });
   }
 };
 
-module.exports = { register, login, googleLogin, setup2FA, enable2FA, disable2FA, verify2FALogin, refresh };
+// ── Default agents seeded on org creation ─────────────────────────────────────
+async function seedDefaultAgents(tx, orgId) {
+  const defaults = [
+    {
+      name: 'Lead Qualifier',
+      description: 'Automatically scores and qualifies new leads as they are created.',
+      type: 'lead_qualifier',
+      trigger: 'on_lead_created',
+      promptTemplate: `You are a sales qualification expert. Analyze this new lead and provide:
+1. A qualification score from 1-10 (10 = highest priority)
+2. Key qualifying factors (2-3 bullet points)
+3. Recommended next action
+
+Lead details:
+Name: {{lead.name}}
+Company: {{lead.company}}
+Source: {{lead.source}}
+Value: {{lead.value}}
+Notes: {{lead.notes}}
+
+Respond in JSON: { "score": number, "factors": ["..."], "nextAction": "..." }`,
+      config: {},
+    },
+    {
+      name: 'Follow-up Drafter',
+      description: 'Drafts a personalised follow-up message based on the lead\'s conversation history.',
+      type: 'followup_drafter',
+      trigger: 'manual',
+      promptTemplate: `You are a sales professional. Draft a concise, personalised follow-up message for this lead.
+
+Lead: {{lead.name}} at {{lead.company}}
+Status: {{lead.status}}
+Last note: {{lead.lastNote}}
+Previous interactions: {{lead.activitySummary}}
+
+Write a follow-up message (2-3 short paragraphs) that:
+- References the last conversation naturally
+- Adds value (insight, resource, or next step)
+- Has a clear, low-friction call to action
+
+Keep it warm, professional, and under 150 words.`,
+      config: {},
+    },
+    {
+      name: 'Deal Coach',
+      description: 'Identifies stalled deals and suggests specific actions to move them forward.',
+      type: 'deal_coach',
+      trigger: 'on_stage_stuck',
+      promptTemplate: `You are an experienced sales coach. This deal has been stuck in the "{{lead.status}}" stage for {{stuckDays}} days.
+
+Lead: {{lead.name}} at {{lead.company}}
+Deal value: {{lead.value}}
+Last activity: {{lead.lastActivitySummary}}
+Notes: {{lead.notes}}
+
+Provide:
+1. Why this deal is likely stalling (1-2 sentences)
+2. Three specific actions to unblock it (numbered list)
+3. A suggested re-engagement message (2 sentences)`,
+      config: { stuckDays: 7 },
+    },
+    {
+      name: 'Call Debrief',
+      description: 'Generates a structured debrief after a call recording is uploaded.',
+      type: 'call_debrief',
+      trigger: 'on_recording_uploaded',
+      promptTemplate: `You are a sales coach reviewing a call recording transcript. Provide a structured debrief.
+
+Lead: {{lead.name}} at {{lead.company}}
+Transcript: {{recording.transcript}}
+
+Respond with:
+**What went well:** (2-3 points)
+**Watch out for:** (1-2 risks or objections raised)
+**Commitments made:** (bullet list of any promises from either side)
+**Next steps:** (specific, actionable, with suggested timing)`,
+      config: {},
+    },
+    {
+      name: 'Meeting Prep',
+      description: 'Creates a briefing card before a scheduled follow-up call.',
+      type: 'meeting_prep',
+      trigger: 'manual',
+      promptTemplate: `You are a sales assistant preparing a call briefing for a meeting happening today.
+
+Lead: {{lead.name}}, {{lead.company}}
+Status: {{lead.status}}
+Deal value: {{lead.value}}
+Recent notes: {{lead.recentNotes}}
+Activity history: {{lead.activitySummary}}
+
+Generate a concise meeting prep card:
+**Context:** (1-2 sentence reminder of where the deal stands)
+**Open questions to address:** (3 bullet points)
+**Suggested talking points:** (3 bullet points)
+**Goal for this call:** (one clear outcome to aim for)`,
+      config: {},
+    },
+  ];
+
+  await tx.agentConfig.createMany({
+    data: defaults.map(d => ({ ...d, orgId, config: d.config })),
+  });
+}
+
+module.exports = { signup, register, login, googleLogin, setup2FA, enable2FA, disable2FA, verify2FALogin, refresh };

@@ -8,57 +8,82 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Organisation {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  plan        String   @default("trial") // trial | active | inactive
+  trialEndsAt DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users        User[]
+  leads        Lead[]
+  tags         Tag[]
+  messages     Message[]
+  voiceDrafts  VoiceDraft[]
+  agentConfigs AgentConfig[]
+  agentRuns    AgentRun[]
+}
+
 model User {
-  id               String     @id @default(cuid())
-  email            String     @unique
+  id               String        @id @default(cuid())
+  email            String        @unique
   password         String?
   name             String
-  role             String     @default("agent") // "admin", "agent", "viewer"
-  isActive         Boolean    @default(true)
-  googleId         String?    @unique
+  role             String        @default("agent") // "admin", "agent", "viewer"
+  isActive         Boolean       @default(true)
+  googleId         String?       @unique
   twoFactorSecret  String?
-  twoFactorEnabled Boolean    @default(false)
+  twoFactorEnabled Boolean       @default(false)
   avatar           String?
-  leads        Lead[]     @relation("AssignedLeads")
-  createdLeads Lead[]     @relation("CreatedLeads")
-  activities   Activity[]
-  sentMessages     Message[] @relation("SentMessages")
-  receivedMessages Message[] @relation("ReceivedMessages")
+  orgId            String?
+  org              Organisation? @relation(fields: [orgId], references: [id])
+
+  leads            Lead[]        @relation("AssignedLeads")
+  createdLeads     Lead[]        @relation("CreatedLeads")
+  activities       Activity[]
+  sentMessages     Message[]     @relation("SentMessages")
+  receivedMessages Message[]     @relation("ReceivedMessages")
   voiceDrafts      VoiceDraft[]
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 }
 
 model Lead {
-  id           String      @id @default(cuid())
-  name         String
-  company      String?
-  email        String?
-  phone        String?
-  status       String      @default("New")
-  source       String?
-  notes        String?
-  value        Float?
-  nextFollowUp    DateTime?
-  reminderSentAt  DateTime?
-  aiScore         Int?
-  aiScoreReason   String?
-  aiNextAction    String?
-  aiScoredAt      DateTime?
-  assignedToId String?
-  assignedTo   User?       @relation("AssignedLeads", fields: [assignedToId], references: [id])
-  createdById  String?
-  createdBy    User?       @relation("CreatedLeads", fields: [createdById], references: [id])
-  recordings   Recording[]
-  activities   Activity[]
-  leadNotes    LeadNote[]
-  tags         Tag[]       @relation("LeadTags")
-  messages     Message[]
-  archived     Boolean     @default(false)
+  id             String        @id @default(cuid())
+  name           String
+  company        String?
+  email          String?
+  phone          String?
+  status         String        @default("New")
+  source         String?
+  notes          String?
+  value          Float?
+  nextFollowUp   DateTime?
+  reminderSentAt DateTime?
+  aiScore        Int?
+  aiScoreReason  String?
+  aiNextAction   String?
+  aiScoredAt     DateTime?
+  assignedToId   String?
+  assignedTo     User?         @relation("AssignedLeads", fields: [assignedToId], references: [id])
+  createdById    String?
+  createdBy      User?         @relation("CreatedLeads", fields: [createdById], references: [id])
+  orgId          String?
+  org            Organisation? @relation(fields: [orgId], references: [id])
+
+  recordings  Recording[]
+  activities  Activity[]
+  leadNotes   LeadNote[]
+  tags        Tag[]       @relation("LeadTags")
+  messages    Message[]
+  agentRuns   AgentRun[]
+  archived    Boolean     @default(false)
   archiveLabel String?
-  archivedAt   DateTime?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  archivedAt  DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 }
 
 model LeadNote {
@@ -67,7 +92,8 @@ model LeadNote {
   lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
   userId    String?
   content   String
-  type      String   @default("manual") // "manual" | "ai_summary"
+  type      String   @default("manual") // "manual" | "ai_summary" | "agent_output"
+  agentType String?
   createdAt DateTime @default(now())
 }
 
@@ -99,30 +125,75 @@ model Activity {
 }
 
 model Tag {
-  id    String @id @default(cuid())
-  name  String @unique
-  color String @default("#6366f1")
-  leads Lead[] @relation("LeadTags")
+  id    String        @id @default(cuid())
+  name  String
+  color String        @default("#6366f1")
+  orgId String?
+  org   Organisation? @relation(fields: [orgId], references: [id])
+  leads Lead[]        @relation("LeadTags")
+
+  @@unique([name, orgId])
 }
 
 model Message {
-  id         String   @id @default(cuid())
-  fromId     String
-  from       User     @relation("SentMessages", fields: [fromId], references: [id])
-  toId       String
-  to         User     @relation("ReceivedMessages", fields: [toId], references: [id])
-  leadId     String?
-  lead       Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  body       String
-  read       Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  id        String        @id @default(cuid())
+  fromId    String
+  from      User          @relation("SentMessages", fields: [fromId], references: [id])
+  toId      String
+  to        User          @relation("ReceivedMessages", fields: [toId], references: [id])
+  leadId    String?
+  lead      Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  orgId     String?
+  org       Organisation? @relation(fields: [orgId], references: [id])
+  body      String
+  read      Boolean       @default(false)
+  createdAt DateTime      @default(now())
 }
 
 model VoiceDraft {
-  id        String   @id @default(cuid())
+  id        String        @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User          @relation(fields: [userId], references: [id])
+  orgId     String?
+  org       Organisation? @relation(fields: [orgId], references: [id])
   content   String
-  resolved  Boolean  @default(false)
-  createdAt DateTime @default(now())
+  resolved  Boolean       @default(false)
+  createdAt DateTime      @default(now())
+}
+
+// ── AI Agent Framework ────────────────────────────────────────────────────────
+
+model AgentConfig {
+  id             String       @id @default(cuid())
+  orgId          String
+  org            Organisation @relation(fields: [orgId], references: [id])
+  name           String
+  description    String?
+  type           String
+  // lead_qualifier | followup_drafter | meeting_prep | deal_coach
+  // re_engagement | call_debrief | pipeline_health | drip_sequence
+  trigger        String
+  // manual | on_lead_created | on_recording_uploaded | on_stage_stuck | scheduled_daily
+  promptTemplate String
+  enabled        Boolean      @default(true)
+  scope          String       @default("team") // team | personal
+  createdById    String?
+  config         Json?        // { stuckDays, scheduleHour, maxRuns, ... }
+  runs           AgentRun[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model AgentRun {
+  id            String      @id @default(cuid())
+  agentConfigId String
+  agentConfig   AgentConfig @relation(fields: [agentConfigId], references: [id], onDelete: Cascade)
+  orgId         String?
+  org           Organisation? @relation(fields: [orgId], references: [id])
+  leadId        String?
+  lead          Lead?       @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  input         Json?
+  output        String?
+  status        String      @default("pending") // pending | running | done | failed
+  createdAt     DateTime    @default(now())
 }

@@ -4,6 +4,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import Layout from './components/layout/Layout';
 import LoginPage from './pages/Login';
 import SetupPage from './pages/Setup';
+import SignupPage from './pages/Signup';
 import DashboardPage from './pages/Dashboard';
 import LeadsPage from './pages/Leads';
 import KanbanPage from './pages/Kanban';
@@ -11,6 +12,7 @@ import LeadDetailPage from './pages/LeadDetail';
 import RecordingsPage from './pages/Recordings';
 import SettingsPage from './pages/Settings';
 import InboxPage from './pages/Inbox';
+import AgentsPage from './pages/Agents';
 
 const Protected = ({ children }) => {
   const { user, loading } = useAuth();
@@ -24,6 +26,7 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/setup" element={<SetupPage />} />
       <Route path="/login" element={user ? <Navigate to="/" /> : <LoginPage />} />
+      <Route path="/signup" element={user ? <Navigate to="/" /> : <SignupPage />} />
       <Route path="/" element={<Protected><Layout /></Protected>}>
         <Route index element={<DashboardPage />} />
         <Route path="leads" element={<LeadsPage />} />
@@ -32,6 +35,7 @@ const AppRoutes = () => {
         <Route path="recordings" element={<RecordingsPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="inbox" element={<InboxPage />} />
+        <Route path="agents" element={<AgentsPage />} />
       </Route>
     </Routes>
   );

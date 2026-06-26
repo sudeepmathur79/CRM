@@ -316,4 +316,14 @@ Return ONLY valid JSON, no markdown:
   }
 };
 
-module.exports = { extractLeadFromText, summarizeTranscript, analyzeConversation, transcribeAudio, recommendManagementActions, scoreLead };
+const callAI = async (prompt) => {
+  const { client, model } = getClient();
+  const resp = await client.chat.completions.create({
+    model,
+    messages: [{ role: 'user', content: prompt }],
+    max_tokens: 800,
+  });
+  return resp.choices[0]?.message?.content?.trim() || '';
+};
+
+module.exports = { extractLeadFromText, summarizeTranscript, analyzeConversation, transcribeAudio, recommendManagementActions, scoreLead, callAI };

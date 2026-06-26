@@ -5,9 +5,10 @@ const logActivity = async (leadId, userId, action, details) => {
   await prisma.activity.create({ data: { leadId, userId, action, details } });
 };
 
-const getLeads = async (user, filters = {}) => {
+const getLeads = async (user, filters = {}, orgId = null) => {
   const where = {};
   where.archived = filters.archived === 'true';
+  if (orgId) where.orgId = orgId;
   if (user.role === 'agent') where.assignedToId = user.id;
   if (filters.status) where.status = filters.status;
   if (filters.source) where.source = filters.source;
