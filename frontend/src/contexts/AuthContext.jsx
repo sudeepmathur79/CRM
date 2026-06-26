@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { authApi } from '../services/api';
+import { authApi, orgApi } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -52,9 +52,10 @@ export const AuthProvider = ({ children }) => {
   };
 
   const refreshUser = () => authApi.me().then(r => { setUser(r.data); setOrg(r.data.org || null); });
+  const refreshOrg = () => orgApi.get().then(r => setOrg(r.data));
 
   return (
-    <AuthContext.Provider value={{ user, org, setUser, setOrg, setAuth, login, verify2FA, logout, refreshUser, loading }}>
+    <AuthContext.Provider value={{ user, org, setUser, setOrg, setAuth, login, verify2FA, logout, refreshUser, refreshOrg, loading }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { usersApi, voiceDraftsApi, leadsApi } from '../../services/api';
+import { usersApi, voiceDraftsApi, leadsApi, orgApi } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useForm } from 'react-hook-form';
@@ -384,6 +384,79 @@ function VoiceDraftsSection() {
   );
 }
 
+function DemoModeSection() {
+  const { user, org, refreshOrg } = useAuth();
+  const [confirming, setConfirming] = useState(false);
+
+  const disableMutation = useMutation({
+    mutationFn: () => orgApi.disableDemo(),
+    onSuccess: () => {
+      refreshOrg();
+      setConfirming(false);
+      toast.success('Demo mode disabled. Demo leads have been archived.');
+    },
+    onError: (e) => toast.error(e.response?.data?.error || 'Failed'),
+  });
+
+  if (!org) return null;
+
+  if (!org.demoMode) {
+    return (
+      <section className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-4">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-base">🎮</span>
+          <h2 className="font-semibold text-sm">Demo Mode</h2>
+        </div>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Demo mode was disabled on {new Date(org.demoDisabledAt).toLocaleDateString()}. All demo data has been archived.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="bg-white dark:bg-slate-800 rounded-2xl border border-indigo-200 dark:border-indigo-800 p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-base">🎮</span>
+        <h2 className="font-semibold text-sm text-indigo-700 dark:text-indigo-400">Demo Mode is ON</h2>
+      </div>
+      <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+        Your workspace contains <strong>8 demo leads</strong> with realistic data so you can explore the CRM. When you're ready to start for real, turn off demo mode — all demo data will be archived and you'll start with a clean slate.
+      </p>
+      <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2 mb-4">
+        ⚠️ This cannot be undone. Once demo mode is off, it stays off.
+      </p>
+
+      {user?.role === 'admin' && (
+        confirming ? (
+          <div className="flex gap-2">
+            <button
+              onClick={() => disableMutation.mutate()}
+              disabled={disableMutation.isPending}
+              className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold disabled:opacity-50"
+            >
+              {disableMutation.isPending ? 'Disabling…' : 'Yes, disable demo mode'}
+            </button>
+            <button onClick={() => setConfirming(false)} className="px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 text-sm">
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setConfirming(true)}
+            className="w-full py-2 rounded-lg border-2 border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-400 text-sm font-semibold hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+          >
+            Turn off demo mode
+          </button>
+        )
+      )}
+      {user?.role !== 'admin' && (
+        <p className="text-xs text-slate-400">Only an admin can disable demo mode.</p>
+      )}
+    </section>
+  );
+}
+
 export default function SettingsPage() {
   const { user, logout } = useAuth();
   const { dark, toggle } = useTheme();
@@ -444,6 +517,9 @@ export default function SettingsPage() {
           <span className="ml-auto text-xs text-gray-400">{dark ? 'Light' : 'Dark'}</span>
         </button>
       </section>
+
+      {/* Demo mode */}
+      <DemoModeSection />
 
       {/* Unresolved voice recordings */}
       <VoiceDraftsSection />

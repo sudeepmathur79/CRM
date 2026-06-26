@@ -8,7 +8,7 @@ const logActivity = async (leadId, userId, action, details) => {
 const getLeads = async (user, filters = {}, orgId = null) => {
   const where = {};
   where.archived = filters.archived === 'true';
-  if (orgId) where.orgId = orgId;
+  where.orgId = orgId ?? null; // strict: never leak across orgs
   if (user.role === 'agent') where.assignedToId = user.id;
   if (filters.status) where.status = filters.status;
   if (filters.source) where.source = filters.source;

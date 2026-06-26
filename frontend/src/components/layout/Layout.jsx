@@ -17,16 +17,27 @@ const mobileMainStyle = {
   paddingBottom: 'calc(56px + env(safe-area-inset-bottom, 0px))',
 };
 
-function TrialBanner({ org }) {
-  if (!org || org.plan !== 'trial') return null;
-  const daysLeft = Math.max(0, Math.ceil((new Date(org.trialEndsAt) - Date.now()) / 86400000));
-  if (daysLeft > 25) return null; // only show in last 5 days
+function TopBanners({ org }) {
+  const navigate = useNavigate();
+  if (!org) return null;
+  const daysLeft = org.plan === 'trial' ? Math.max(0, Math.ceil((new Date(org.trialEndsAt) - Date.now()) / 86400000)) : null;
+  const showTrial = daysLeft !== null && daysLeft <= 25;
   return (
-    <div className={`px-4 py-2 text-center text-xs font-medium ${daysLeft <= 3 ? 'bg-red-500 text-white' : 'bg-amber-400 text-amber-900'}`}>
-      {daysLeft <= 0
-        ? 'Your trial has ended. Upgrade to continue.'
-        : `${daysLeft} day${daysLeft === 1 ? '' : 's'} left in your free trial.`}
-    </div>
+    <>
+      {org.demoMode && (
+        <div className="px-4 py-2 text-center text-xs font-medium bg-indigo-600 text-white flex items-center justify-center gap-3">
+          <span>🎮 You are in <strong>Demo Mode</strong> — this data is not real. Explore freely.</span>
+          <button onClick={() => navigate('/settings')} className="underline font-semibold hover:no-underline">
+            Turn off demo
+          </button>
+        </div>
+      )}
+      {showTrial && (
+        <div className={`px-4 py-2 text-center text-xs font-medium ${daysLeft <= 3 ? 'bg-red-500 text-white' : 'bg-amber-400 text-amber-900'}`}>
+          {daysLeft <= 0 ? 'Your trial has ended. Upgrade to continue.' : `${daysLeft} day${daysLeft === 1 ? '' : 's'} left in your free trial.`}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -222,7 +233,7 @@ export default function Layout() {
         className="flex-1 overflow-auto bg-gray-50 dark:bg-slate-900 flex flex-col"
         style={isMobile ? mobileMainStyle : undefined}
       >
-        <TrialBanner org={org} />
+        <TopBanners org={org} />
         <div className="flex-1">
           <Outlet />
         </div>

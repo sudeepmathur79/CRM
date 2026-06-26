@@ -9,13 +9,15 @@ datasource db {
 }
 
 model Organisation {
-  id          String   @id @default(cuid())
-  name        String
-  slug        String   @unique
-  plan        String   @default("trial") // trial | active | inactive
-  trialEndsAt DateTime
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               String    @id @default(cuid())
+  name             String
+  slug             String    @unique
+  plan             String    @default("trial") // trial | active | inactive
+  trialEndsAt      DateTime
+  demoMode         Boolean   @default(true)
+  demoDisabledAt   DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   users        User[]
   leads        Lead[]
@@ -72,6 +74,7 @@ model Lead {
   createdBy      User?         @relation("CreatedLeads", fields: [createdById], references: [id])
   orgId          String?
   org            Organisation? @relation(fields: [orgId], references: [id])
+  isDemo         Boolean       @default(false)
 
   recordings  Recording[]
   activities  Activity[]

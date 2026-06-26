@@ -121,6 +121,11 @@ export const voiceDraftsApi = {
   dismiss: (id) => api.delete(`/voice-drafts/${id}`),
 };
 
+export const orgApi = {
+  get: () => api.get('/org'),
+  disableDemo: () => api.post('/org/demo/disable'),
+};
+
 export const agentsApi = {
   list: () => api.get('/agents'),
   get: (id) => api.get(`/agents/${id}`),

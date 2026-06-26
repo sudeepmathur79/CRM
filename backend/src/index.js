@@ -20,6 +20,7 @@ const migrateRoutes = require('./routes/migrate.routes');
 const messageRoutes = require('./routes/message.routes');
 const voiceDraftRoutes = require('./routes/voicedraft.routes');
 const agentRoutes = require('./routes/agent.routes');
+const orgRoutes = require('./routes/org.routes');
 
 const { startAgents } = require('./services/agents');
 const { startReminderScheduler } = require('./services/reminders');
@@ -65,6 +66,7 @@ app.use('/api/migrate', migrateRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/voice-drafts', voiceDraftRoutes);
 app.use('/api/agents', agentRoutes);
+app.use('/api/org', orgRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date() }));
 

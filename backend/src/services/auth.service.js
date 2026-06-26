@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { seedDemoData } = require('./demo.service');
 const { PrismaClient } = require('@prisma/client');
 const { OAuth2Client } = require('google-auth-library');
 const { authenticator } = require('otplib');
@@ -43,6 +44,8 @@ const signup = async ({ orgName, email, password, name }) => {
     const u = await tx.user.create({
       data: { email, password: hashed, name, role: 'admin', orgId: o.id },
     });
+    // Seed demo leads so new orgs have something to explore
+    await seedDemoData(tx, o.id, u.id);
     return [o, u];
   });
 
