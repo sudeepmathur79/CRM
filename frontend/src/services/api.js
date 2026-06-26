@@ -69,7 +69,6 @@ export const recordingsApi = {
   upload: (leadId, formData) => api.post(`/recordings/upload/${leadId}`, formData),
   record: (leadId, formData) => api.post(`/recordings/record/${leadId}`, formData),
   delete: (id) => api.delete(`/recordings/${id}`),
-  transcribe: (id) => api.post(`/recordings/${id}/transcribe`),
   analyze: (id) => api.post(`/recordings/${id}/analyze`),
 };
 

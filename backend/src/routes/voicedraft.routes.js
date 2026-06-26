@@ -22,7 +22,7 @@ router.post('/', async (req, res, next) => {
     const { content } = req.body;
     if (!content?.trim()) return res.status(400).json({ error: 'Content required' });
     const draft = await prisma.voiceDraft.create({
-      data: { userId: req.user.id, content },
+      data: { userId: req.user.id, orgId: req.orgId ?? null, content },
     });
     res.status(201).json(draft);
   } catch (e) { next(e); }

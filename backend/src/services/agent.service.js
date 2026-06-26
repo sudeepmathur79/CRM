@@ -106,7 +106,7 @@ async function triggerAgents(triggerType, lead, orgId, io) {
       try {
         const result = await runAgent(agent.id, lead?.id);
         if (result?.output && lead?.assignedToId && io) {
-          io.to(lead.assignedToId).emit('agent:output', {
+          io.to(`user:${lead.assignedToId}`).emit('agent:output', {
             agentName: agent.name,
             leadId: lead.id,
             leadName: lead.name,
@@ -144,7 +144,7 @@ async function runStuckDealAgents(io) {
         try {
           const result = await runAgent(agent.id, lead.id, { stuckDays });
           if (result?.output && lead.assignedToId && io) {
-            io.to(lead.assignedToId).emit('agent:output', {
+            io.to(`user:${lead.assignedToId}`).emit('agent:output', {
               agentName: agent.name,
               leadId: lead.id,
               leadName: lead.name,

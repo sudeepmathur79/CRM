@@ -70,8 +70,14 @@ router.put('/me', [
   body('name').optional().trim().isLength({ min: 1, max: 120 }),
   body('email').optional().isEmail().normalizeEmail(),
   body('password').optional().isLength({ min: 8, max: 128 }),
-  body('personalCrmBccEmail').optional({ nullable: true }).custom(v => !v || validateBccEmail(v) || (() => { throw new Error('Invalid BCC email'); })()),
-  body('targetCrmType').optional({ nullable: true }).isIn([...CRM_TYPES, null, '']),
+  body('personalCrmBccEmail').optional({ nullable: true }).custom(v => {
+    if (v && !validateBccEmail(v)) throw new Error('Invalid BCC email format');
+    return true;
+  }),
+  body('targetCrmType').optional({ nullable: true }).custom(v => {
+    if (v && !CRM_TYPES.includes(v)) throw new Error(`targetCrmType must be one of: ${CRM_TYPES.join(', ')}`);
+    return true;
+  }),
   body('autoExportOnCapture').optional().isBoolean(),
 ], async (req, res, next) => {
   const errors = validationResult(req);
@@ -86,18 +92,10 @@ router.put('/me', [
     if (targetCrmType !== undefined) data.targetCrmType = targetCrmType || null;
     if (autoExportOnCapture !== undefined) data.autoExportOnCapture = autoExportOnCapture;
 
-    // SOC 2: audit log the settings change (no PII values in action string)
+    // SOC 2: audit trail (Activity requires leadId, so log to console only for settings changes)
     if (personalCrmBccEmail !== undefined || targetCrmType !== undefined) {
-      const lead = null; // settings change, not lead-specific
-      await prisma.activity.create({
-        data: {
-          leadId: undefined, // activity without lead isn't supported — skip
-          userId: req.user.id,
-          action: 'CRM integration settings updated',
-          details: { targetCrmType: targetCrmType || null, autoExport: autoExportOnCapture },
-        },
-      }).catch(() => {}); // non-fatal — activity table requires leadId; log to console only
-      console.log('[audit] userId=%s updated CRM integration settings', req.user.id);
+      console.log('[audit] userId=%s updated CRM integration settings targetCrmType=%s autoExport=%s',
+        req.user.id, targetCrmType || null, autoExportOnCapture);
     }
 
     const user = await prisma.user.update({

@@ -108,11 +108,17 @@ router.patch(
     if (!errors.isEmpty()) return res.status(400).json({ error: errors.array()[0].msg });
     try {
       const { lat, lng, address } = req.body;
-      const lead = await prisma.lead.updateMany({
+      // findFirst + update (not updateMany) to avoid matching all null-orgId leads
+      // when req.orgId is null — only update the exact target lead
+      const existing = await prisma.lead.findFirst({
         where: { id: req.params.id, orgId: req.orgId ?? null },
+        select: { id: true },
+      });
+      if (!existing) return res.status(404).json({ error: 'Lead not found' });
+      await prisma.lead.update({
+        where: { id: existing.id },
         data: { lat, lng, address: address || null },
       });
-      if (lead.count === 0) return res.status(404).json({ error: 'Lead not found' });
       res.json({ ok: true });
     } catch (e) { next(e); }
   }

@@ -68,6 +68,7 @@ const createLead = async (data, userId) => {
       value: data.value ? parseFloat(data.value) : null,
       nextFollowUp: data.nextFollowUp ? new Date(data.nextFollowUp) : null,
       assignedToId: data.assignedToId || null,
+      orgId: data.orgId ?? null,
       createdById: userId,
     },
     include: { assignedTo: { select: { id: true, name: true } }, createdBy: { select: { id: true, name: true } }, tags: true }

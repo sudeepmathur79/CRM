@@ -317,9 +317,10 @@ Return ONLY valid JSON, no markdown:
 };
 
 const callAI = async (prompt) => {
-  const { client, model } = getClient();
-  const resp = await client.chat.completions.create({
-    model,
+  const provider = getClient();
+  if (!provider) throw new Error('No AI provider configured. Set GROQ_API_KEY, OPENROUTER_API_KEY, or MISTRAL_API_KEY.');
+  const resp = await provider.client.chat.completions.create({
+    model: provider.model,
     messages: [{ role: 'user', content: prompt }],
     max_tokens: 800,
   });

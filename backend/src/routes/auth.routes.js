@@ -86,12 +86,18 @@ router.post('/refresh', async (req, res, next) => {
 });
 
 router.get('/me', authenticate, async (req, res) => {
-  const { id, email, name, role, twoFactorEnabled, avatar, orgId } = req.user;
+  const { id, email, name, role, twoFactorEnabled, avatar, orgId,
+    personalCrmBccEmail, targetCrmType, autoExportOnCapture } = req.user;
   let org = null;
   if (orgId) {
-    org = await prisma.organisation.findUnique({ where: { id: orgId }, select: { id: true, name: true, plan: true, trialEndsAt: true } });
+    const orgRecord = await prisma.organisation.findUnique({
+      where: { id: orgId },
+      select: { id: true, name: true, plan: true, trialEndsAt: true, demoMode: true, demoDisabledAt: true },
+    });
+    org = orgRecord;
   }
-  res.json({ id, email, name, role, twoFactorEnabled, avatar, orgId, org });
+  res.json({ id, email, name, role, twoFactorEnabled, avatar, orgId,
+    personalCrmBccEmail, targetCrmType, autoExportOnCapture, org });
 });
 
 module.exports = router;
