@@ -22,6 +22,7 @@ const voiceDraftRoutes = require('./routes/voicedraft.routes');
 const agentRoutes = require('./routes/agent.routes');
 const orgRoutes = require('./routes/org.routes');
 const geoRoutes = require('./routes/geo.routes');
+const hubspotRoutes = require('./routes/hubspot.routes');
 
 const { startAgents } = require('./services/agents');
 const { startReminderScheduler } = require('./services/reminders');
@@ -97,6 +98,7 @@ app.use('/api/voice-drafts', voiceDraftRoutes);
 app.use('/api/agents', agentRoutes);
 app.use('/api/org', orgRoutes);
 app.use('/api/geo', geoRoutes);
+app.use('/api/hubspot', hubspotRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date() }));
 
