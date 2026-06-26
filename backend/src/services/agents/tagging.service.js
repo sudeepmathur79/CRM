@@ -13,6 +13,7 @@ const KEYWORD_TAGS = [
 const autoTagLeads = async () => {
   try {
     const leads = await prisma.lead.findMany({
+      where: { orgId: { not: null } },
       include: { recordings: { select: { transcript: true } }, tags: true }
     });
 
