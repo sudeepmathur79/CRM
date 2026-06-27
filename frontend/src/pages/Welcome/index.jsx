@@ -1,8 +1,6 @@
 import { Mic, Zap, ArrowRight, Check, ChevronDown } from 'lucide-react';
 
-const NAV_LINKS = [
-  { label: 'Sign in', href: '/login' },
-];
+const highlightSignIn = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('signin') === '1';
 
 const PAIN_POINTS = [
   {
@@ -64,7 +62,7 @@ export default function WelcomePage() {
             SalesFlow
           </a>
           <div className="flex items-center gap-4">
-            <a href="/login" className="text-sm text-slate-400 hover:text-white transition-colors">
+            <a href="/login" className={`text-sm transition-colors ${highlightSignIn ? 'text-white font-semibold ring-1 ring-indigo-400 px-3 py-1.5 rounded-lg' : 'text-slate-400 hover:text-white'}`}>
               Sign in
             </a>
             <a

@@ -49,6 +49,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.clear();
     setUser(null);
     setOrg(null);
+    window.location.href = '/welcome?signin=1';
   };
 
   const refreshUser = () => authApi.me().then(r => { setUser(r.data); setOrg(r.data.org || null); });
