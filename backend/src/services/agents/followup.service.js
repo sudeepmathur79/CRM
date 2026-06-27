@@ -16,8 +16,16 @@ const sendFollowUpReminders = async () => {
     const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const end = new Date(start); end.setDate(end.getDate() + 1);
 
+    // Only send if reminder hasn't been sent today for this lead
     const leads = await prisma.lead.findMany({
-      where: { nextFollowUp: { gte: start, lt: end }, status: { notIn: ['Closed Won', 'Closed Lost'] } },
+      where: {
+        nextFollowUp: { gte: start, lt: end },
+        status: { notIn: ['Closed Won', 'Closed Lost'] },
+        OR: [
+          { reminderSentAt: null },
+          { reminderSentAt: { lt: start } },
+        ],
+      },
       include: { assignedTo: true }
     });
 
@@ -29,6 +37,11 @@ const sendFollowUpReminders = async () => {
         to: lead.assignedTo.email,
         subject: `Follow-up reminder: ${lead.name}`,
         html: `<h2>Follow-up Reminder</h2><p>You have a follow-up scheduled today for <strong>${lead.name}</strong>${lead.company ? ` (${lead.company})` : ''}.</p><p>Status: ${lead.status}</p>${lead.notes ? `<p>Notes: ${lead.notes}</p>` : ''}`
+      });
+      // Mark sent so this lead isn't emailed again today
+      await prisma.lead.update({
+        where: { id: lead.id },
+        data: { reminderSentAt: new Date() },
       });
     }
     if (leads.length) console.log(`[Agent] Sent ${leads.length} follow-up reminders`);
