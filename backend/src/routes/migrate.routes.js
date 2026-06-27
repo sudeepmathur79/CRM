@@ -155,12 +155,34 @@ router.post('/test-email', async (req, res, next) => {
     if (!secret || secret !== process.env.MIGRATE_SECRET) {
       return res.status(403).json({ error: 'Forbidden' });
     }
+
+    // Use Resend API directly if key is set — bypasses SMTP format issues
+    if (process.env.RESEND_API_KEY) {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: process.env.FROM_EMAIL || 'SalesFlow CRM <hello@aussieinnovationfactory.com>',
+          to: [to],
+          subject: 'SalesFlow CRM — email test',
+          html: '<h2>Email is working ✅</h2><p>Resend is configured correctly on SalesFlow CRM.</p>',
+          text: 'Email is working. Resend is configured correctly on SalesFlow CRM.',
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) return res.status(500).json({ error: data.message || 'Resend error', data });
+      return res.json({ ok: true, messageId: data.id });
+    }
+
     const { sendMail } = require('../services/mailer');
     const result = await sendMail({
       to,
       subject: 'SalesFlow CRM — email test',
-      html: '<h2>Email is working ✅</h2><p>SMTP via Brevo is configured correctly on SalesFlow CRM.</p>',
-      text: 'Email is working. SMTP via Brevo is configured correctly on SalesFlow CRM.',
+      html: '<h2>Email is working ✅</h2><p>SMTP is configured correctly on SalesFlow CRM.</p>',
+      text: 'Email is working. SMTP is configured correctly on SalesFlow CRM.',
     });
     res.json({ ok: true, messageId: result.messageId });
   } catch (e) { next(e); }
