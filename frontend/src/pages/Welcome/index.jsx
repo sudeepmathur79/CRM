@@ -4,17 +4,17 @@ const highlightSignIn = typeof window !== 'undefined' && new URLSearchParams(win
 
 const PAIN_POINTS = [
   {
-    emoji: '🕐',
+    emoji: '⏰',
     title: 'Sunday night CRM catch-up',
     body: 'The average field rep spends 3.5 hours/week on manual data entry. That\'s 182 hours a year.',
   },
   {
-    emoji: '😤',
+    emoji: '🧠',
     title: 'Details forgotten before you\'re back at your desk',
     body: 'Human memory starts degrading within minutes. Your best deals deserve better notes.',
   },
   {
-    emoji: '📉',
+    emoji: '📊',
     title: 'Your pipeline is fiction',
     body: 'CRM data reflects what reps remembered to log — not what actually happened in the field.',
   },
@@ -40,7 +40,7 @@ const STEPS = [
 
 const FREE_FEATURES = [
   '10 captures / month',
-  'Internal pipeline',
+  'Your own pipeline included',
   'No credit card required',
 ];
 
@@ -51,6 +51,37 @@ const PRO_FEATURES = [
   'Follow-up reminders',
 ];
 
+// SVG logo mark — glasses icon matching fieldlens brand, transparent background
+function FieldLensLogo({ className = '', textSize = 'text-xl' }) {
+  return (
+    <div className={`flex items-center gap-2.5 ${className}`}>
+      <svg viewBox="0 0 56 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-7 w-auto">
+        {/* Left lens */}
+        <rect x="1" y="4" width="22" height="16" rx="5" fill="#1e1b4b" stroke="#6366f1" strokeWidth="1.5"/>
+        {/* Right lens */}
+        <rect x="33" y="4" width="22" height="16" rx="5" fill="#1e1b4b" stroke="#6366f1" strokeWidth="1.5"/>
+        {/* Bridge */}
+        <path d="M23 12 C26 12 30 12 33 12" stroke="#6366f1" strokeWidth="1.5" strokeLinecap="round"/>
+        {/* Left arm */}
+        <path d="M1 12 C-1 12 -3 10 -4 9" stroke="#6366f1" strokeWidth="1.5" strokeLinecap="round"/>
+        {/* Right arm */}
+        <path d="M55 12 C57 12 59 10 60 9" stroke="#6366f1" strokeWidth="1.5" strokeLinecap="round"/>
+        {/* Left lens - audio bars */}
+        <rect x="6" y="10" width="2" height="4" rx="1" fill="#818cf8" opacity="0.6"/>
+        <rect x="10" y="8" width="2" height="8" rx="1" fill="#818cf8"/>
+        <rect x="14" y="9" width="2" height="6" rx="1" fill="#818cf8" opacity="0.8"/>
+        <rect x="18" y="10" width="2" height="4" rx="1" fill="#818cf8" opacity="0.6"/>
+        {/* Right lens - text lines */}
+        <rect x="37" y="9" width="12" height="2" rx="1" fill="#818cf8"/>
+        <rect x="37" y="13" width="9" height="2" rx="1" fill="#818cf8" opacity="0.7"/>
+      </svg>
+      <span className={`font-bold tracking-tight ${textSize}`}>
+        <span className="text-indigo-300">field</span><span className="text-white">lens</span>
+      </span>
+    </div>
+  );
+}
+
 export default function WelcomePage() {
   return (
     <div className="min-h-screen bg-slate-900 text-white font-sans">
@@ -58,9 +89,7 @@ export default function WelcomePage() {
       {/* Nav */}
       <nav className="sticky top-0 z-50 bg-slate-900/90 backdrop-blur border-b border-slate-800">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
-          <a href="/" className="flex items-center">
-            <img src="/fieldlens-logo.png" alt="fieldlens" className="h-10 w-auto" />
-          </a>
+          <a href="/"><FieldLensLogo /></a>
           <div className="flex items-center gap-3">
             <a
               href="/login"
@@ -72,10 +101,7 @@ export default function WelcomePage() {
             >
               Sign in
             </a>
-            <a
-              href="/signup"
-              className="text-sm bg-white text-slate-900 hover:bg-slate-100 transition-colors px-4 py-2 rounded-lg font-semibold"
-            >
+            <a href="/signup" className="text-sm bg-white text-slate-900 hover:bg-slate-100 transition-colors px-4 py-2 rounded-lg font-semibold">
               Start free →
             </a>
           </div>
@@ -84,9 +110,9 @@ export default function WelcomePage() {
 
       {/* Hero */}
       <section className="max-w-5xl mx-auto px-4 sm:px-6 pt-24 pb-20 text-center">
-        {/* Logo mark — large in hero */}
+        {/* Large logo mark in hero */}
         <div className="flex justify-center mb-10">
-          <img src="/fieldlens-logo.png" alt="fieldlens" className="h-28 sm:h-36 w-auto" />
+          <FieldLensLogo className="scale-[2.2] origin-center" textSize="text-2xl" />
         </div>
 
         <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight leading-[1.1] mb-6">
@@ -125,13 +151,11 @@ export default function WelcomePage() {
 
       {/* Pain section */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 py-20">
-        <h2 className="text-2xl sm:text-3xl font-bold text-center mb-3 text-slate-100">
-          Sound familiar?
-        </h2>
+        <h2 className="text-2xl sm:text-3xl font-bold text-center mb-3 text-slate-100">Sound familiar?</h2>
         <p className="text-center text-slate-500 mb-12 text-sm">If any of these hit — fieldlens is for you.</p>
         <div className="grid sm:grid-cols-3 gap-5">
           {PAIN_POINTS.map((p) => (
-            <div key={p.title} className="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 hover:border-slate-600 transition-colors">
+            <div key={p.title} className="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 hover:border-indigo-500/40 transition-colors">
               <div className="text-3xl mb-4">{p.emoji}</div>
               <h3 className="font-semibold text-base mb-2 text-white leading-snug">{p.title}</h3>
               <p className="text-slate-400 text-sm leading-relaxed">{p.body}</p>
@@ -151,9 +175,7 @@ export default function WelcomePage() {
                 <div className="w-14 h-14 rounded-2xl bg-indigo-600/10 border border-indigo-500/30 flex items-center justify-center mb-4">
                   {step.icon}
                 </div>
-                <div className="text-xs font-semibold text-indigo-400 uppercase tracking-widest mb-2">
-                  Step {i + 1}
-                </div>
+                <div className="text-xs font-semibold text-indigo-400 uppercase tracking-widest mb-2">Step {i + 1}</div>
                 <h3 className="text-xl font-bold mb-2">{step.title}</h3>
                 <p className="text-slate-400 text-sm leading-relaxed">{step.body}</p>
               </div>
@@ -162,18 +184,15 @@ export default function WelcomePage() {
         </div>
       </section>
 
-      {/* CTA band */}
+      {/* Mid-page CTA band */}
       <section className="max-w-3xl mx-auto px-4 sm:px-6 py-20 text-center">
-        <h2 className="text-3xl sm:text-4xl font-extrabold mb-4 leading-tight">
-          Stop losing deals to bad notes.
-        </h2>
+        <h2 className="text-3xl sm:text-4xl font-extrabold mb-4 leading-tight">Stop losing deals to bad notes.</h2>
         <p className="text-slate-400 mb-8">Start capturing in 60 seconds. Free forever for 10 captures a month.</p>
         <a
           href="/signup"
           className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 transition-colors px-8 py-4 rounded-xl font-semibold text-base shadow-lg shadow-indigo-600/30"
         >
-          Get started free
-          <ArrowRight className="w-4 h-4" />
+          Get started free <ArrowRight className="w-4 h-4" />
         </a>
       </section>
 
@@ -187,15 +206,12 @@ export default function WelcomePage() {
             {/* Free */}
             <div className="bg-slate-800 border border-slate-700 rounded-2xl p-7 flex flex-col">
               <div className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Free</div>
-              <div className="flex items-end gap-1 mb-1">
-                <span className="text-4xl font-extrabold">$0</span>
-              </div>
+              <div className="text-4xl font-extrabold mb-1">$0</div>
               <div className="text-slate-500 text-sm mb-6">forever</div>
               <ul className="space-y-3 mb-8 flex-1">
                 {FREE_FEATURES.map((f) => (
                   <li key={f} className="flex items-center gap-3 text-sm text-slate-300">
-                    <Check className="w-4 h-4 text-green-400 flex-shrink-0" />
-                    {f}
+                    <Check className="w-4 h-4 text-green-400 flex-shrink-0" />{f}
                   </li>
                 ))}
               </ul>
@@ -208,9 +224,7 @@ export default function WelcomePage() {
             {/* Pro */}
             <div className="bg-indigo-950/60 border-2 border-indigo-500 rounded-2xl p-7 flex flex-col relative shadow-xl shadow-indigo-900/40">
               <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
-                <span className="bg-indigo-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
-                  Most popular
-                </span>
+                <span className="bg-indigo-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">Most popular</span>
               </div>
               <div className="text-indigo-300 text-xs font-bold uppercase tracking-widest mb-4">Pro</div>
               <div className="flex items-end gap-1 mb-1">
@@ -221,8 +235,7 @@ export default function WelcomePage() {
               <ul className="space-y-3 mb-8 flex-1">
                 {PRO_FEATURES.map((f) => (
                   <li key={f} className="flex items-center gap-3 text-sm text-slate-200">
-                    <Check className="w-4 h-4 text-indigo-400 flex-shrink-0" />
-                    {f}
+                    <Check className="w-4 h-4 text-indigo-400 flex-shrink-0" />{f}
                   </li>
                 ))}
               </ul>
@@ -251,10 +264,8 @@ export default function WelcomePage() {
 
       {/* Footer */}
       <footer className="max-w-6xl mx-auto px-4 sm:px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-500 text-sm border-t border-slate-800">
-        <div className="flex items-center gap-3">
-          <img src="/fieldlens-logo.png" alt="fieldlens" className="h-6 w-auto opacity-60" />
-          <span>© 2026 SalesFlow. Built for field sales reps.</span>
-        </div>
+        <FieldLensLogo textSize="text-base" className="opacity-60" />
+        <span>© 2026 SalesFlow. Built for field sales reps.</span>
         <div className="flex gap-6">
           <a href="/login" className="hover:text-slate-300 transition-colors">Sign in</a>
           <a href="/signup" className="hover:text-slate-300 transition-colors">Sign up</a>
