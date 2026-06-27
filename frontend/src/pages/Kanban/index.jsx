@@ -31,7 +31,8 @@ const LeadCard = ({ lead, isDragging }) => {
         <div className="font-medium text-sm">{lead.name}</div>
         {lead.value > 0 && <div className="text-xs font-semibold text-green-600 dark:text-green-400 flex-shrink-0">{fmtVal(lead.value)}</div>}
       </div>
-      {lead.company && <div className="text-xs text-gray-400 mt-0.5">{lead.company}</div>}
+      {lead.contactName && <div className="text-xs text-gray-400 mt-0.5">{lead.contactName}{lead.company ? ` · ${lead.company}` : ''}</div>}
+      {!lead.contactName && lead.company && <div className="text-xs text-gray-400 mt-0.5">{lead.company}</div>}
       {lead.assignedTo && <div className="text-xs text-gray-400 mt-1">→ {lead.assignedTo.name}</div>}
       {lead.aiScore && (
         <div className={`inline-flex items-center gap-1 text-[10px] font-semibold mt-1 px-1.5 py-0.5 rounded-full text-white ${

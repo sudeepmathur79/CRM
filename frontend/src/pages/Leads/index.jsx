@@ -216,7 +216,8 @@ export default function LeadsPage() {
                   )}
                   <td className="p-4">
                     <div className="font-medium">{lead.name}</div>
-                    <div className="text-xs text-gray-400">{lead.email || lead.phone}</div>
+                    {lead.contactName && <div className="text-xs text-gray-400">{lead.contactName}</div>}
+                    {!lead.contactName && <div className="text-xs text-gray-400">{lead.email || lead.phone}</div>}
                   </td>
                   <td className="p-4 text-gray-600 dark:text-gray-400">{lead.company || '—'}</td>
                   <td className="p-4"><StatusBadge status={lead.status} /></td>
@@ -263,6 +264,7 @@ export default function LeadsPage() {
                 {lead.value > 0 && <span className="text-xs font-semibold text-green-600 dark:text-green-400">{lead.value >= 1000000 ? `$${(lead.value/1000000).toFixed(1)}M` : lead.value >= 1000 ? `$${(lead.value/1000).toFixed(0)}K` : `$${lead.value}`}</span>}
               </div>
               <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                {lead.contactName && <span>{lead.contactName} · </span>}
                 {lead.company && <span>{lead.company} · </span>}
                 {lead.assignedTo ? <span>{lead.assignedTo.name} · </span> : null}
                 {lead.email || lead.phone}

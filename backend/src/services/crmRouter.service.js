@@ -63,7 +63,7 @@ async function routeExtractedLead(userId, leadData, options = {}) {
 }
 
 async function upsertLeadLocally(userId, orgId, leadData) {
-  const { name, company, email, phone, value, nextFollowUp, nextAction, summary } = leadData;
+  const { name, contactName, company, email, phone, value, nextFollowUp, nextAction, summary } = leadData;
 
   let lead = null;
 
@@ -84,6 +84,7 @@ async function upsertLeadLocally(userId, orgId, leadData) {
       where: { id: lead.id },
       data: {
         ...(name ? { name } : {}),
+        ...(contactName !== undefined ? { contactName } : {}),
         ...(company !== undefined ? { company } : {}),
         ...(phone !== undefined ? { phone } : {}),
         ...(value !== undefined ? { value } : {}),
@@ -96,6 +97,7 @@ async function upsertLeadLocally(userId, orgId, leadData) {
     lead = await prisma.lead.create({
       data: {
         name: name || 'Unknown',
+        contactName,
         company,
         email,
         phone,

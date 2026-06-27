@@ -71,8 +71,9 @@ model User {
 
 model Lead {
   id             String        @id @default(cuid())
-  name           String
-  company        String?
+  name           String        // Deal name e.g. "Apex Roofing — New Install Q3"
+  contactName    String?       // Person name e.g. "James O'Brien"
+  company        String?       // Account / company name e.g. "Apex Roofing"
   email          String?
   phone          String?
   status         String        @default("New")

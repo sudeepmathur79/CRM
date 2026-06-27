@@ -15,17 +15,41 @@ export default function LeadForm({ onSubmit, defaultValues = {}, loading }) {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name *</label>
-          <input {...register('name', { required: 'Required' })}
-            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+
+        {/* Deal name — primary identifier */}
+        <div className="col-span-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Deal name <span className="text-red-400">*</span>
+          </label>
+          <input
+            {...register('name', { required: 'Deal name is required' })}
+            placeholder="e.g. Apex Roofing — New Install Q3"
+            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
+          <p className="text-xs text-gray-400 mt-1">Use format: Company — Intent. Same company can have multiple deals.</p>
           {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
         </div>
+
+        {/* Company */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Company</label>
-          <input {...register('company')}
-            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Company / Account</label>
+          <input
+            {...register('company')}
+            placeholder="e.g. Apex Roofing Ltd"
+            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
         </div>
+
+        {/* Contact name */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Contact name</label>
+          <input
+            {...register('contactName')}
+            placeholder="e.g. James O'Brien"
+            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Email {!phone && <span className="text-red-400">*</span>}
@@ -49,6 +73,7 @@ export default function LeadForm({ onSubmit, defaultValues = {}, loading }) {
         <div className="col-span-2 -mt-2">
           <p className="text-xs text-gray-400">At least one of email or phone is required.</p>
         </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
           <select {...register('status')}
@@ -91,7 +116,7 @@ export default function LeadForm({ onSubmit, defaultValues = {}, loading }) {
       <div className="flex justify-end gap-3 pt-2">
         <button type="submit" disabled={loading}
           className="px-5 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white font-medium rounded-lg text-sm transition-colors">
-          {loading ? 'Saving...' : 'Save Lead'}
+          {loading ? 'Saving...' : 'Save Deal'}
         </button>
       </div>
     </form>

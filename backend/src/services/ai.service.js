@@ -30,12 +30,13 @@ const getClient = () => {
   return null;
 };
 
-const EXTRACT_PROMPT = (today) => `You are a CRM data extraction assistant. Extract lead/contact information from the text below.
+const EXTRACT_PROMPT = (today) => `You are a CRM data extraction assistant for a field sales team. Extract deal and contact information from the rep's voice note below.
 
 Return ONLY a valid JSON object — no markdown, no explanation, just raw JSON:
 {
-  "name": "full name of the lead/prospect (string or null)",
-  "company": "company or organization name (string or null)",
+  "name": "Deal name in format 'Company — Intent', e.g. 'Apex Roofing — New Install Q3' or 'City HVAC — Maintenance Renewal'. If no company, use 'Contact Name — Intent'. Never use a person's name alone.",
+  "contactName": "Full name of the person the rep met with (string or null)",
+  "company": "Company or organisation name (string or null)",
   "email": "email address (string or null)",
   "phone": "phone number (string or null)",
   "status": "one of: New, Contacted, Qualified, Proposal, Closed Won, Closed Lost",
@@ -46,6 +47,8 @@ Return ONLY a valid JSON object — no markdown, no explanation, just raw JSON:
 }
 
 Rules:
+- Deal name is ALWAYS Company + intent, never just a person's name
+- If the same company has multiple deals, the intent distinguishes them (e.g. 'Apex Roofing — New Install' vs 'Apex Roofing — Maintenance Contract')
 - status: ready to buy → Qualified/Proposal, initial contact → New/Contacted
 - Today is ${today}. Convert relative dates: "next Monday", "this Friday", "tomorrow" → actual YYYY-MM-DD
 - Keep notes brief but capture key business context
