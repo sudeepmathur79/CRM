@@ -1,97 +1,114 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { leadsApi, voiceDraftsApi, aiApi } from '../services/api';
-import { Mic, MicOff, X, Check, Search } from 'lucide-react';
+import { Mic, MicOff, X, Check, RefreshCw, Plus, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 import posthog from 'posthog-js';
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-const SAVE_MODES = [
-  { id: 'existing', label: 'Existing lead' },
-  { id: 'new', label: 'Create new lead' },
-  { id: 'none', label: 'Save for later' },
-];
-
 const MAX_ERROR_RETRIES = 3;
 
 function formatElapsed(secs) {
   const m = Math.floor(secs / 60);
   const s = secs % 60;
-  return `${m}m ${String(s).padStart(2, '0')}s`;
+  return `${m}:${String(s).padStart(2, '0')}`;
 }
 
+// ── Review card shown after AI processing ────────────────────────────────────
+function ReviewCard({ result, onConfirm, onSaveLater, onRetry, saving }) {
+  const isUpdate = !!result.matchedLead;
+  const dealName = result.name || result.matchedLead?.name || 'Unknown Deal';
+  const contact = result.contactName;
+  const company = result.company || result.matchedLead?.company;
+  const value = result.value;
+  const followUp = result.nextFollowUp;
+
+  return (
+    <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      {/* Action label */}
+      <div className={`flex items-center gap-2 text-sm font-semibold ${isUpdate ? 'text-amber-400' : 'text-green-400'}`}>
+        {isUpdate ? <RefreshCw size={16} /> : <Plus size={16} />}
+        {isUpdate ? `Updating: ${result.matchedLead.name}` : 'Creating new deal'}
+      </div>
+
+      {/* Extracted fields */}
+      <div className="rounded-xl bg-slate-800 divide-y divide-slate-700 overflow-hidden">
+        <Field label="Deal" value={dealName} />
+        {contact && <Field label="Contact" value={contact} />}
+        {company && <Field label="Company" value={company} />}
+        {value && <Field label="Value" value={`$${Number(value).toLocaleString()}`} />}
+        {followUp && <Field label="Follow-up" value={new Date(followUp).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })} />}
+      </div>
+
+      {result.notes && (
+        <div className="rounded-xl bg-slate-800 px-4 py-3">
+          <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Notes</div>
+          <p className="text-sm text-slate-300 leading-relaxed">{result.notes}</p>
+        </div>
+      )}
+
+      <p className="text-xs text-slate-500 text-center">Review the details above before confirming.</p>
+    </div>
+  );
+}
+
+function Field({ label, value }) {
+  return (
+    <div className="flex items-center justify-between px-4 py-3">
+      <span className="text-xs text-slate-500 uppercase tracking-wide w-20 flex-shrink-0">{label}</span>
+      <span className="text-sm text-white text-right">{value}</span>
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 export default function VoiceCapture() {
   const [open, setOpen] = useState(false);
   const [recording, setRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [interim, setInterim] = useState('');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [saveMode, setSaveMode] = useState('existing');
-  const [leadQuery, setLeadQuery] = useState('');
-  const [selectedLead, setSelectedLead] = useState(null);
-  const [newLeadName, setNewLeadName] = useState('');
+  const [phase, setPhase] = useState('record'); // 'record' | 'processing' | 'review'
+  const [aiResult, setAiResult] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  // Refs for recognition session management
   const recognitionRef = useRef(null);
-  const accumulatedRef = useRef('');       // text confirmed across all completed sessions
-  const shouldRestartRef = useRef(false);  // false = user stopped; true = auto-restart on end
-  const restartCountRef = useRef(0);       // error retry counter
+  const accumulatedRef = useRef('');
+  const shouldRestartRef = useRef(false);
+  const restartCountRef = useRef(0);
   const timerRef = useRef(null);
-
   const qc = useQueryClient();
 
-  const { data: leadsData } = useQuery({
-    queryKey: ['leads-voice-picker', leadQuery],
-    queryFn: () => leadsApi.list({ search: leadQuery, take: 10, archived: 'false' }).then(r => r.data),
-    enabled: open && saveMode === 'existing',
-  });
-  const leads = Array.isArray(leadsData) ? leadsData : (leadsData?.leads || []);
-
-  // startRecognition is called on each session start (including auto-restarts).
-  // It must be defined with useCallback so stopRecording can safely call the ref version.
   const startRecognition = useCallback(() => {
     if (!SpeechRecognition) {
       toast.error('Speech recognition not supported in this browser');
       return;
     }
-
     const rec = new SpeechRecognition();
     rec.continuous = true;
     rec.interimResults = true;
     rec.lang = 'en-US';
-
-    // Track final text accumulated within this single recognition session
     let sessionFinal = '';
 
     rec.onresult = (e) => {
       let newFinal = '';
       let interimText = '';
       for (let i = 0; i < e.results.length; i++) {
-        if (e.results[i].isFinal) {
-          newFinal += e.results[i][0].transcript + ' ';
-        } else {
-          interimText += e.results[i][0].transcript;
-        }
+        if (e.results[i].isFinal) newFinal += e.results[i][0].transcript + ' ';
+        else interimText += e.results[i][0].transcript;
       }
       sessionFinal = newFinal;
-      // Display = all previous sessions + this session's finals + live interim
       setTranscript(accumulatedRef.current + sessionFinal);
       setInterim(interimText);
     };
 
     rec.onerror = (e) => {
-      if (e.error === 'no-speech') {
-        // Transient — onend will fire and we auto-restart; nothing to show user
-        return;
-      }
+      if (e.error === 'no-speech') return;
       if (e.error === 'not-allowed' || e.error === 'service-not-available') {
         shouldRestartRef.current = false;
-        toast.error('Microphone access denied. Please allow microphone access and try again.');
+        toast.error('Microphone access denied.');
         return;
       }
-      // Other errors: count retries; stop after MAX_ERROR_RETRIES
       restartCountRef.current += 1;
       if (restartCountRef.current >= MAX_ERROR_RETRIES) {
         shouldRestartRef.current = false;
@@ -100,19 +117,10 @@ export default function VoiceCapture() {
     };
 
     rec.onend = () => {
-      // Commit this session's finals into the accumulator before any restart
-      if (sessionFinal) {
-        accumulatedRef.current += sessionFinal;
-      }
+      if (sessionFinal) accumulatedRef.current += sessionFinal;
       setInterim('');
-
       if (shouldRestartRef.current) {
-        // 300 ms delay prevents tight loop on iOS when the browser fires onend immediately
-        setTimeout(() => {
-          if (shouldRestartRef.current) {
-            startRecognition();
-          }
-        }, 300);
+        setTimeout(() => { if (shouldRestartRef.current) startRecognition(); }, 300);
       } else {
         setRecording(false);
       }
@@ -121,20 +129,18 @@ export default function VoiceCapture() {
     recognitionRef.current = rec;
     rec.start();
     setRecording(true);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const startRecording = () => {
-    if (!SpeechRecognition) {
-      toast.error('Speech recognition not supported in this browser');
-      return;
-    }
-    // Reset state for a fresh capture session
+    if (!SpeechRecognition) { toast.error('Speech recognition not supported in this browser'); return; }
     accumulatedRef.current = '';
     shouldRestartRef.current = true;
     restartCountRef.current = 0;
     setElapsedSeconds(0);
     setTranscript('');
     setInterim('');
+    setPhase('record');
+    setAiResult(null);
     startRecognition();
   };
 
@@ -145,7 +151,6 @@ export default function VoiceCapture() {
     setInterim('');
   };
 
-  // Elapsed-time counter — ticks every second while recording, resets when recording stops
   useEffect(() => {
     if (recording) {
       timerRef.current = setInterval(() => setElapsedSeconds(s => s + 1), 1000);
@@ -155,75 +160,119 @@ export default function VoiceCapture() {
     return () => clearInterval(timerRef.current);
   }, [recording]);
 
-  const handleSave = async () => {
+  // After stopping — auto-process with AI
+  const handleStopAndProcess = async () => {
+    stopRecording();
     const full = (transcript + interim).trim();
     if (!full) { toast.error('Nothing recorded yet'); return; }
-    setSaving(true);
+
+    setPhase('processing');
     try {
-      if (saveMode === 'existing') {
-        if (!selectedLead) { toast.error('Pick a lead first'); setSaving(false); return; }
-        await leadsApi.addNote(selectedLead.id, full);
-        toast.success(`Saved to ${selectedLead.name}`);
-      } else if (saveMode === 'new') {
-        // AI extracts deal name, contact, company etc from transcript — no manual input needed
-        let syncData = null;
+      const { data } = await aiApi.extract(full);
+
+      // Try to match against existing leads by company or contact name
+      let matchedLead = null;
+      if (data.company || data.contactName) {
         try {
-          let extractResult;
-          try {
-            const { data } = await aiApi.extract(full);
-            extractResult = data;
-          } catch (err) {
-            if (err.response?.status === 402 && err.response?.data?.code === 'CAPTURE_LIMIT_REACHED') {
-              toast.error('Free plan limit reached (10/month). Upgrade to Pro →', { duration: 6000 });
-              try {
-                const origin = window.location.origin;
-                const checkoutResp = await fetch('/api/stripe/checkout', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${localStorage.getItem('token')}`,
-                  },
-                  body: JSON.stringify({
-                    successUrl: `${origin}/settings?billing=success`,
-                    returnUrl: `${origin}/settings`,
-                  }),
-                });
-                const checkoutData = await checkoutResp.json();
-                if (checkoutData?.url) window.location.href = checkoutData.url;
-              } catch (_) {}
-              setSaving(false);
-              return;
-            }
-            throw err;
-          }
-          syncData = extractResult?._sync ?? null;
-        } catch (_) {
-          // extract failed — fall through to manual create
-        }
-        if (syncData?.localLeadId) {
-          // Backend already saved — no separate create needed
-          qc.invalidateQueries({ queryKey: ['leads'] });
-          const hubSynced = syncData.synced?.includes('hubspot');
-          toast.success(hubSynced ? 'Lead synced to HubSpot + saved locally' : 'Lead saved');
-        } else {
-          // Fallback: AI failed — create with timestamp name, attach transcript as note
-          const fallbackName = `New Lead — ${new Date().toLocaleDateString('en-AU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`;
-          const { data: newLead } = await leadsApi.create({ name: fallbackName, status: 'New' });
-          await leadsApi.addNote(newLead.id, full);
-          qc.invalidateQueries({ queryKey: ['leads'] });
-          toast.success('Lead saved — AI extraction unavailable, review the details');
-        }
-      } else {
+          const searchTerm = data.company || data.contactName;
+          const resp = await leadsApi.list({ search: searchTerm, take: 5, archived: 'false' });
+          const candidates = Array.isArray(resp.data) ? resp.data : (resp.data?.leads || []);
+          // Simple match: company name substring match
+          const match = candidates.find(l =>
+            data.company && l.company?.toLowerCase().includes(data.company.toLowerCase())
+          ) || candidates.find(l =>
+            data.contactName && l.contactName?.toLowerCase().includes(data.contactName.toLowerCase())
+          );
+          if (match) matchedLead = match;
+        } catch (_) {}
+      }
+
+      setAiResult({ ...data, matchedLead, _transcript: full, _sync: data._sync });
+      setPhase('review');
+    } catch (err) {
+      if (err.response?.status === 402 && err.response?.data?.code === 'CAPTURE_LIMIT_REACHED') {
+        toast.error('Free plan limit reached (10/month). Upgrade to Pro →', { duration: 6000 });
+        try {
+          const origin = window.location.origin;
+          const resp = await fetch('/api/stripe/checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+            body: JSON.stringify({ successUrl: `${origin}/settings?billing=success`, returnUrl: `${origin}/settings` }),
+          });
+          const d = await resp.json();
+          if (d?.url) window.location.href = d.url;
+        } catch (_) {}
+        setPhase('record');
+        return;
+      }
+      // AI failed — save as draft
+      toast.error('AI unavailable — saved for later');
+      try {
         await voiceDraftsApi.create(full);
         qc.invalidateQueries({ queryKey: ['voice-drafts'] });
-        toast.success('Saved to your unresolved recordings');
+      } catch (_) {}
+      setPhase('record');
+    }
+  };
+
+  const handleConfirm = async () => {
+    if (!aiResult) return;
+    setSaving(true);
+    try {
+      const { matchedLead, _transcript, _sync, ...extracted } = aiResult;
+
+      if (matchedLead) {
+        // Update existing lead — add note + update fields
+        const updates = {};
+        if (extracted.value) updates.value = extracted.value;
+        if (extracted.nextFollowUp) updates.nextFollowUp = extracted.nextFollowUp;
+        if (extracted.status) updates.status = extracted.status;
+        if (extracted.contactName) updates.contactName = extracted.contactName;
+        if (Object.keys(updates).length) await leadsApi.update(matchedLead.id, updates);
+        await leadsApi.addNote(matchedLead.id, _transcript);
+        qc.invalidateQueries({ queryKey: ['leads'] });
+        toast.success(`Updated: ${matchedLead.name}`);
+      } else if (_sync?.localLeadId) {
+        // AI already created the lead via extract endpoint
+        qc.invalidateQueries({ queryKey: ['leads'] });
+        toast.success(`Created: ${extracted.name || 'New deal'}`);
+      } else {
+        // Fallback create
+        const name = extracted.name || `New Lead — ${new Date().toLocaleDateString('en-AU')}`;
+        const { data: newLead } = await leadsApi.create({
+          name,
+          contactName: extracted.contactName,
+          company: extracted.company,
+          email: extracted.email,
+          phone: extracted.phone,
+          value: extracted.value,
+          nextFollowUp: extracted.nextFollowUp,
+          status: extracted.status || 'New',
+        });
+        await leadsApi.addNote(newLead.id, _transcript);
+        qc.invalidateQueries({ queryKey: ['leads'] });
+        toast.success(`Created: ${newLead.name}`);
       }
-      posthog.capture('voice_capture_saved', { saveMode, synced: syncData?.synced ?? [] });
+
+      posthog.capture('voice_capture_saved', { action: matchedLead ? 'update' : 'create' });
       handleClose();
     } catch (e) {
-      toast.error('Save failed');
+      toast.error('Save failed — please try again');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveLater = async () => {
+    const full = aiResult?._transcript || (transcript + interim).trim();
+    if (!full) return;
+    try {
+      await voiceDraftsApi.create(full);
+      qc.invalidateQueries({ queryKey: ['voice-drafts'] });
+      toast.success('Saved to your unresolved list');
+      handleClose();
+    } catch (_) {
+      toast.error('Save failed');
     }
   };
 
@@ -233,132 +282,131 @@ export default function VoiceCapture() {
     setTranscript('');
     setInterim('');
     setElapsedSeconds(0);
-    setLeadQuery('');
-    setSelectedLead(null);
-    setNewLeadName('');
-    setSaveMode('existing');
+    setPhase('record');
+    setAiResult(null);
     accumulatedRef.current = '';
   };
 
   useEffect(() => {
     window.__openVoiceCapture = () => setOpen(true);
-    return () => {
-      recognitionRef.current?.stop();
-      delete window.__openVoiceCapture;
-    };
+    return () => { recognitionRef.current?.stop(); delete window.__openVoiceCapture; };
   }, []);
+
+  const hasTranscript = !!(transcript + interim).trim();
 
   return (
     <>
       {open && (
         <div className="fixed inset-0 z-[60] flex flex-col bg-slate-900 text-white">
+          {/* Header */}
           <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-slate-700">
-            <h2 className="font-semibold text-lg">Capture Conversation</h2>
+            <h2 className="font-semibold text-lg">
+              {phase === 'processing' ? 'Processing…' : phase === 'review' ? 'Review & confirm' : 'Capture meeting'}
+            </h2>
             <button onClick={handleClose} className="p-2 rounded-lg hover:bg-slate-700"><X size={20} /></button>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
-            {/* Mic */}
-            <div className="flex flex-col items-center gap-3 py-4">
-              <button
-                onClick={recording ? stopRecording : startRecording}
-                className={`w-20 h-20 rounded-full flex items-center justify-center text-white shadow-xl transition-all active:scale-95 ${
-                  recording ? 'bg-red-500 animate-pulse shadow-red-500/40' : 'bg-primary-600 shadow-primary-500/40'
-                }`}
-              >
-                {recording ? <MicOff size={32} /> : <Mic size={32} />}
-              </button>
-              {recording ? (
-                <p className="text-sm text-red-400 font-medium">
-                  Recording · {formatElapsed(elapsedSeconds)}
-                </p>
-              ) : (
-                <p className="text-sm text-slate-400">Tap to start</p>
-              )}
-            </div>
-
-            {/* Transcript */}
-            <div className="rounded-xl bg-slate-800 p-4 min-h-[100px]">
-              <div className="text-xs text-slate-500 mb-2 uppercase tracking-wide">Transcript</div>
-              {(transcript || interim) ? (
-                <p className="text-sm leading-relaxed">
-                  <span className="text-white">{transcript}</span>
-                  <span className="text-slate-400 italic">{interim}</span>
-                </p>
-              ) : (
-                <p className="text-slate-500 text-sm italic">Speech will appear here…</p>
-              )}
-            </div>
-
-            {/* Save mode selector */}
-            <div>
-              <div className="text-xs text-slate-400 uppercase tracking-wide mb-2">Attach to</div>
-              <div className="flex gap-2">
-                {SAVE_MODES.map(m => (
-                  <button key={m.id} onClick={() => { setSaveMode(m.id); setSelectedLead(null); setLeadQuery(''); }}
-                    className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors ${
-                      saveMode === m.id
-                        ? 'bg-primary-600 text-white'
-                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                    }`}>
-                    {m.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Existing lead picker */}
-            {saveMode === 'existing' && (
-              <div>
-                <div className="relative mb-2">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                  <input type="text" placeholder="Search leads…" value={leadQuery}
-                    onChange={e => { setLeadQuery(e.target.value); setSelectedLead(null); }}
-                    className="w-full bg-slate-800 text-white placeholder-slate-500 rounded-lg pl-8 pr-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-primary-500" />
-                </div>
-                {selectedLead ? (
-                  <div className="flex items-center justify-between bg-primary-600/20 border border-primary-500/40 rounded-lg px-3 py-2.5">
-                    <div>
-                      <div className="text-sm font-medium">{selectedLead.name}</div>
-                      {selectedLead.company && <div className="text-xs text-slate-400">{selectedLead.company}</div>}
-                    </div>
-                    <button onClick={() => setSelectedLead(null)} className="text-slate-400 hover:text-white"><X size={14} /></button>
-                  </div>
+          {/* Body */}
+          {phase === 'record' && (
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
+              {/* Mic button */}
+              <div className="flex flex-col items-center gap-3 py-6">
+                <button
+                  onClick={recording ? null : startRecording}
+                  className={`w-24 h-24 rounded-full flex items-center justify-center text-white shadow-xl transition-all active:scale-95 ${
+                    recording ? 'bg-red-500 shadow-red-500/40 animate-pulse' : 'bg-primary-600 shadow-primary-500/40'
+                  }`}
+                >
+                  {recording ? <MicOff size={36} /> : <Mic size={36} />}
+                </button>
+                {recording ? (
+                  <p className="text-sm text-red-400 font-medium">Recording · {formatElapsed(elapsedSeconds)}</p>
                 ) : (
-                  <div className="space-y-1">
-                    {leads.slice(0, 8).map(lead => (
-                      <button key={lead.id} onClick={() => { setSelectedLead(lead); setLeadQuery(lead.name); }}
-                        className="w-full text-left px-3 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 transition-colors">
-                        <div className="text-sm font-medium">{lead.name}</div>
-                        {lead.company && <div className="text-xs text-slate-500">{lead.company}</div>}
-                      </button>
-                    ))}
-                  </div>
+                  <p className="text-sm text-slate-400">{hasTranscript ? 'Tap to re-record' : 'Tap to start'}</p>
                 )}
               </div>
+
+              {/* Transcript */}
+              <div className="rounded-xl bg-slate-800 p-4 min-h-[120px]">
+                <div className="text-xs text-slate-500 mb-2 uppercase tracking-wide">Transcript</div>
+                {hasTranscript ? (
+                  <p className="text-sm leading-relaxed">
+                    <span className="text-white">{transcript}</span>
+                    <span className="text-slate-400 italic">{interim}</span>
+                  </p>
+                ) : (
+                  <p className="text-slate-500 text-sm italic">Speak naturally — "just met James at Apex Roofing, $40k install, follow up Friday"</p>
+                )}
+              </div>
+
+              {/* Hint */}
+              {!recording && !hasTranscript && (
+                <p className="text-xs text-slate-500 text-center leading-relaxed">
+                  AI will automatically detect whether this is a new deal or an update to an existing one.
+                </p>
+              )}
+            </div>
+          )}
+
+          {phase === 'processing' && (
+            <div className="flex-1 flex flex-col items-center justify-center gap-4 px-4">
+              <div className="w-12 h-12 rounded-full border-2 border-primary-500 border-t-transparent animate-spin" />
+              <p className="text-slate-400 text-sm">AI is extracting deal details…</p>
+            </div>
+          )}
+
+          {phase === 'review' && aiResult && (
+            <ReviewCard
+              result={aiResult}
+              onConfirm={handleConfirm}
+              onSaveLater={handleSaveLater}
+              onRetry={() => { setPhase('record'); setAiResult(null); }}
+              saving={saving}
+            />
+          )}
+
+          {/* Footer */}
+          <div className="px-4 pb-8 pt-3 border-t border-slate-700 space-y-2">
+            {phase === 'record' && (
+              <>
+                {recording ? (
+                  <button onClick={handleStopAndProcess}
+                    className="w-full py-3.5 rounded-xl bg-primary-600 hover:bg-primary-700 font-semibold flex items-center justify-center gap-2 transition-all">
+                    <Check size={18} /> Stop & process
+                  </button>
+                ) : (
+                  <button onClick={handleStopAndProcess} disabled={!hasTranscript}
+                    className="w-full py-3.5 rounded-xl bg-primary-600 hover:bg-primary-700 disabled:opacity-40 font-semibold flex items-center justify-center gap-2 transition-all">
+                    <Check size={18} /> Process recording
+                  </button>
+                )}
+                {hasTranscript && !recording && (
+                  <button onClick={handleSaveLater}
+                    className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 text-sm flex items-center justify-center gap-2 transition-all">
+                    <FileText size={15} /> Save for later instead
+                  </button>
+                )}
+              </>
             )}
 
-            {/* New lead — AI extracts deal name automatically */}
-            {saveMode === 'new' && (
-              <div className="rounded-xl bg-slate-800 px-4 py-3 text-sm text-slate-400">
-                AI will extract the <span className="text-white font-medium">deal name, contact, company and value</span> from your recording automatically.
+            {phase === 'review' && (
+              <div className="space-y-2">
+                <button onClick={handleConfirm} disabled={saving}
+                  className="w-full py-3.5 rounded-xl bg-primary-600 hover:bg-primary-700 disabled:opacity-40 font-semibold flex items-center justify-center gap-2 transition-all">
+                  <Check size={18} /> {saving ? 'Saving…' : 'Confirm & save'}
+                </button>
+                <div className="flex gap-2">
+                  <button onClick={() => { setPhase('record'); setAiResult(null); }}
+                    className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 text-sm flex items-center justify-center gap-1.5 transition-all">
+                    <RefreshCw size={14} /> Re-record
+                  </button>
+                  <button onClick={handleSaveLater}
+                    className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 text-sm flex items-center justify-center gap-1.5 transition-all">
+                    <FileText size={14} /> Save for later
+                  </button>
+                </div>
               </div>
             )}
-
-            {/* No lead explanation */}
-            {saveMode === 'none' && (
-              <div className="rounded-xl bg-slate-800 px-4 py-3 text-sm text-slate-400">
-                Recording will be saved to your <span className="text-amber-400 font-medium">unresolved list</span> in Profile. You can assign it to a lead later.
-              </div>
-            )}
-          </div>
-
-          <div className="px-4 pb-8 pt-3 border-t border-slate-700">
-            <button onClick={handleSave} disabled={saving || !(transcript + interim).trim()}
-              className="w-full py-3.5 rounded-xl bg-primary-600 hover:bg-primary-700 disabled:opacity-40 font-semibold flex items-center justify-center gap-2 transition-all">
-              <Check size={18} />
-              {saving ? 'Saving…' : saveMode === 'none' ? 'Save for later' : 'Save recording'}
-            </button>
           </div>
         </div>
       )}
