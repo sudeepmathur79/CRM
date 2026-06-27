@@ -165,8 +165,7 @@ export default function VoiceCapture() {
         await leadsApi.addNote(selectedLead.id, full);
         toast.success(`Saved to ${selectedLead.name}`);
       } else if (saveMode === 'new') {
-        if (!newLeadName.trim()) { toast.error('Enter a lead name'); setSaving(false); return; }
-        // Try AI extract first — it saves locally + syncs to CRM
+        // AI extracts deal name, contact, company etc from transcript — no manual input needed
         let syncData = null;
         try {
           let extractResult;
@@ -207,11 +206,12 @@ export default function VoiceCapture() {
           const hubSynced = syncData.synced?.includes('hubspot');
           toast.success(hubSynced ? 'Lead synced to HubSpot + saved locally' : 'Lead saved');
         } else {
-          // Fallback: manual create
-          const { data: newLead } = await leadsApi.create({ name: newLeadName.trim(), status: 'New' });
+          // Fallback: AI failed — create with timestamp name, attach transcript as note
+          const fallbackName = `New Lead — ${new Date().toLocaleDateString('en-AU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`;
+          const { data: newLead } = await leadsApi.create({ name: fallbackName, status: 'New' });
           await leadsApi.addNote(newLead.id, full);
           qc.invalidateQueries({ queryKey: ['leads'] });
-          toast.success(`New lead "${newLead.name}" created with recording`);
+          toast.success('Lead saved — AI extraction unavailable, review the details');
         }
       } else {
         await voiceDraftsApi.create(full);
@@ -338,13 +338,10 @@ export default function VoiceCapture() {
               </div>
             )}
 
-            {/* New lead name */}
+            {/* New lead — AI extracts deal name automatically */}
             {saveMode === 'new' && (
-              <div>
-                <label className="text-xs text-slate-400 uppercase tracking-wide mb-2 block">New lead name</label>
-                <input type="text" placeholder="e.g. Acme Corp — John Smith"
-                  value={newLeadName} onChange={e => setNewLeadName(e.target.value)}
-                  className="w-full bg-slate-800 text-white placeholder-slate-500 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-primary-500" />
+              <div className="rounded-xl bg-slate-800 px-4 py-3 text-sm text-slate-400">
+                AI will extract the <span className="text-white font-medium">deal name, contact, company and value</span> from your recording automatically.
               </div>
             )}
 
