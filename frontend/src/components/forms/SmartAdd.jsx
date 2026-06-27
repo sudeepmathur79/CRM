@@ -288,7 +288,7 @@ export default function SmartAdd({ onClose, onSuccess }) {
                 </button>
                 <button type="submit" disabled={createMutation.isPending}
                   className="flex items-center gap-2 px-5 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors">
-                  <Check size={14} /> {createMutation.isPending ? 'Saving…' : 'Save Lead'}
+                  <Check size={14} /> {createMutation.isPending ? 'Saving…' : 'Save Deal'}
                 </button>
               </div>
             </form>

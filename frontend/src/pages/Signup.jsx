@@ -149,7 +149,7 @@ export default function Signup() {
 
               <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">Start free — no credit card</h2>
               <p className="text-slate-500 dark:text-slate-400 text-sm mb-8">
-                10 captures free forever · No credit card · Upgrade anytime
+                10 captures free / month · No credit card · Upgrade anytime
               </p>
 
               <form onSubmit={handleSubmit} className="space-y-4">

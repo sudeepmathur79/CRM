@@ -185,7 +185,7 @@ export default function WelcomePage() {
             See how it works <ChevronDown className="w-4 h-4" />
           </a>
         </div>
-        <p className="text-sm text-slate-500">10 captures free every month. No credit card. No catch.</p>
+        <p className="text-sm text-slate-500">10 captures free / month. No credit card. No catch.</p>
 
         {/* Stats */}
         <div className="mt-16 grid grid-cols-3 gap-4 max-w-lg mx-auto">
@@ -274,7 +274,7 @@ export default function WelcomePage() {
       {/* Mid-page CTA */}
       <section className="max-w-3xl mx-auto px-4 sm:px-6 py-16 text-center">
         <h2 className="text-3xl sm:text-4xl font-extrabold mb-4 leading-tight">Stop losing deals to bad notes.</h2>
-        <p className="text-slate-400 mb-8">Start capturing in 60 seconds. Free forever for 10 captures a month.</p>
+        <p className="text-slate-400 mb-8">Start capturing in 60 seconds. Free — 10 captures / month, no credit card.</p>
         <a
           href="/signup"
           className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 transition-colors px-8 py-4 rounded-xl font-semibold text-base shadow-lg shadow-indigo-600/30"
