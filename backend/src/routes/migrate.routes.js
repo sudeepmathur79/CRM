@@ -148,4 +148,22 @@ router.post('/run', async (req, res) => {
   }
 });
 
+// Test email endpoint — admin only, protected by MIGRATE_SECRET
+router.post('/test-email', async (req, res, next) => {
+  try {
+    const { secret, to } = req.body;
+    if (!secret || secret !== process.env.MIGRATE_SECRET) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const { sendMail } = require('../services/mailer');
+    const result = await sendMail({
+      to,
+      subject: 'SalesFlow CRM — email test',
+      html: '<h2>Email is working ✅</h2><p>SMTP via Brevo is configured correctly on SalesFlow CRM.</p>',
+      text: 'Email is working. SMTP via Brevo is configured correctly on SalesFlow CRM.',
+    });
+    res.json({ ok: true, messageId: result.messageId });
+  } catch (e) { next(e); }
+});
+
 module.exports = router;
