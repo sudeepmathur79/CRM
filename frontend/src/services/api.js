@@ -128,6 +128,12 @@ export const orgApi = {
 
 export const aiApi = {
   extract: (text) => api.post('/ai/extract', { text }),
+  draftEmail: (leadId) => api.post('/ai/draft-email', { leadId }),
+};
+
+export const onboardingApi = {
+  status: () => api.get('/onboarding/status'),
+  dismiss: () => api.post('/onboarding/dismiss'),
 };
 
 export const agentsApi = {

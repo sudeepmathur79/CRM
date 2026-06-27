@@ -6,10 +6,11 @@ import { StatusBadge, TagBadge } from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
 import LeadForm from '../../components/forms/LeadForm';
 import { format } from 'date-fns';
-import { ArrowLeft, Edit, Mic, Upload, Play, Pause, Trash2, FileText, Clock, Plus, ChevronDown, ChevronUp, MessageSquare, Sparkles } from 'lucide-react';
+import { ArrowLeft, Edit, Mic, Upload, Play, Pause, Trash2, FileText, Clock, Plus, ChevronDown, ChevronUp, MessageSquare, Sparkles, Mail } from 'lucide-react';
 import toast from 'react-hot-toast';
 import MentionTextarea, { MentionText } from '../../components/ui/MentionTextarea';
 import { useAuth } from '../../contexts/AuthContext';
+import EmailDraftModal from '../../components/EmailDraftModal';
 
 const ACTION_LABELS = {
   created: '✨ Lead created', updated: '✏️ Updated', status_changed: '🔄 Status changed',
@@ -64,6 +65,7 @@ export default function LeadDetailPage() {
   const qc = useQueryClient();
   const { user: currentUser } = useAuth();
   const [showEdit, setShowEdit] = useState(false);
+  const [showEmailDraft, setShowEmailDraft] = useState(false);
   const [recording, setRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState(null);
   const [chunks, setChunks] = useState([]);
@@ -275,6 +277,12 @@ export default function LeadDetailPage() {
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 md:p-5 border border-gray-100 dark:border-slate-700">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold flex items-center gap-2"><FileText size={16} /> Notes</h2>
+              <button
+                onClick={() => setShowEmailDraft(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900/40 transition-colors"
+              >
+                <Mail size={13} /> Draft follow-up email
+              </button>
             </div>
 
             {/* Add note input */}
@@ -442,6 +450,10 @@ export default function LeadDetailPage() {
           </div>
         </div>
       </div>
+
+      {showEmailDraft && (
+        <EmailDraftModal leadId={lead.id} leadName={lead.name} onClose={() => setShowEmailDraft(false)} />
+      )}
 
       <Modal open={showEdit} onClose={() => setShowEdit(false)} title="Edit Lead" size="lg">
         <LeadForm
