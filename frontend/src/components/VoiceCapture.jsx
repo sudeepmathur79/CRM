@@ -169,7 +169,34 @@ export default function VoiceCapture() {
         // Try AI extract first — it saves locally + syncs to CRM
         let syncData = null;
         try {
-          const { data: extractResult } = await aiApi.extract(full);
+          let extractResult;
+          try {
+            const { data } = await aiApi.extract(full);
+            extractResult = data;
+          } catch (err) {
+            if (err.response?.status === 402 && err.response?.data?.code === 'CAPTURE_LIMIT_REACHED') {
+              toast.error('Free plan limit reached (10/month). Upgrade to Pro →', { duration: 6000 });
+              try {
+                const origin = window.location.origin;
+                const checkoutResp = await fetch('/api/stripe/checkout', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${localStorage.getItem('token')}`,
+                  },
+                  body: JSON.stringify({
+                    successUrl: `${origin}/settings?billing=success`,
+                    returnUrl: `${origin}/settings`,
+                  }),
+                });
+                const checkoutData = await checkoutResp.json();
+                if (checkoutData?.url) window.location.href = checkoutData.url;
+              } catch (_) {}
+              setSaving(false);
+              return;
+            }
+            throw err;
+          }
           syncData = extractResult?._sync ?? null;
         } catch (_) {
           // extract failed — fall through to manual create

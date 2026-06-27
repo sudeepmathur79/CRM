@@ -495,6 +495,131 @@ function CrmIntegrationSection() {
   );
 }
 
+function BillingSection() {
+  const { user } = useAuth();
+  const [redirecting, setRedirecting] = useState(false);
+
+  const { data: status } = useQuery({
+    queryKey: ['stripe-status'],
+    queryFn: () =>
+      fetch('/api/stripe/status', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      }).then((r) => r.json()),
+  });
+
+  const handleUpgrade = async () => {
+    setRedirecting(true);
+    try {
+      const origin = window.location.origin;
+      const resp = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({
+          successUrl: `${origin}/settings?billing=success`,
+          returnUrl: `${origin}/settings`,
+        }),
+      });
+      const data = await resp.json();
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        toast.error(data?.error || 'Could not start checkout');
+      }
+    } catch {
+      toast.error('Billing redirect failed');
+    } finally {
+      setRedirecting(false);
+    }
+  };
+
+  const handlePortal = async () => {
+    setRedirecting(true);
+    try {
+      const origin = window.location.origin;
+      const resp = await fetch('/api/stripe/portal', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ returnUrl: `${origin}/settings` }),
+      });
+      const data = await resp.json();
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        toast.error(data?.error || 'Could not open billing portal');
+      }
+    } catch {
+      toast.error('Billing redirect failed');
+    } finally {
+      setRedirecting(false);
+    }
+  };
+
+  if (!status?.stripeConfigured) return null;
+
+  const isPro = status?.plan && status.plan !== 'free';
+  const resetDate = status?.resetAt
+    ? new Date(status.resetAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    : null;
+
+  return (
+    <section className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-4">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-base">💳</span>
+        <h2 className="font-semibold text-sm">Billing</h2>
+        <span
+          className={`ml-auto text-xs font-semibold px-2 py-0.5 rounded-full ${
+            isPro
+              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+              : 'bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-400'
+          }`}
+        >
+          {isPro ? 'Pro' : 'Free'}
+        </span>
+      </div>
+
+      {!isPro && (
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+          {status.capturesThisMonth ?? 0} / {status.limit} captures used this month
+          {resetDate ? ` · resets ${resetDate}` : ''}
+        </p>
+      )}
+
+      {isPro ? (
+        <div className="space-y-2">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+            Unlimited captures included.
+          </p>
+          {user?.role === 'admin' && (
+            <button
+              onClick={handlePortal}
+              disabled={redirecting}
+              className="w-full py-2 rounded-lg border border-gray-300 dark:border-slate-600 text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors"
+            >
+              {redirecting ? 'Redirecting…' : 'Manage billing'}
+            </button>
+          )}
+        </div>
+      ) : (
+        user?.role === 'admin' && (
+          <button
+            onClick={handleUpgrade}
+            disabled={redirecting}
+            className="w-full py-2 rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white text-sm font-semibold transition-colors"
+          >
+            {redirecting ? 'Redirecting…' : 'Upgrade to Pro — $29/month'}
+          </button>
+        )
+      )}
+    </section>
+  );
+}
+
 function DemoModeSection() {
   const { user, org, refreshOrg } = useAuth();
   const [confirming, setConfirming] = useState(false);
@@ -639,6 +764,9 @@ export default function SettingsPage() {
           <span className="ml-auto text-xs text-gray-400">{dark ? 'Light' : 'Dark'}</span>
         </button>
       </section>
+
+      {/* Billing */}
+      <BillingSection />
 
       {/* CRM BCC integration */}
       <CrmIntegrationSection />
