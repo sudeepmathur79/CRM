@@ -1,8 +1,10 @@
-const Stripe = require('stripe');
+let Stripe;
+try { Stripe = require('stripe'); } catch (_) { Stripe = null; }
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 function getStripe() {
+  if (!Stripe) throw Object.assign(new Error('Stripe package not installed'), { status: 503 });
   if (!process.env.STRIPE_SECRET_KEY) {
     throw Object.assign(new Error('Stripe not configured'), { status: 503 });
   }
