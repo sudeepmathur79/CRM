@@ -99,6 +99,7 @@ const register = async ({ email, password, name, role = 'agent', orgId }) => {
 
 // ── Password login — returns full tokens OR a tempToken if 2FA is active ─────
 const login = async ({ email, password, captchaToken }) => {
+  if (!email || !password) throw Object.assign(new Error('Email and password are required'), { status: 400 });
   await verifyTurnstile(captchaToken);
 
   const user = await prisma.user.findUnique({ where: { email }, include: { org: true } });
