@@ -1,4 +1,4 @@
-import { Mic, Zap, ArrowRight, Check, ChevronDown } from 'lucide-react';
+import { Mic, ArrowRight, Check, ChevronDown } from 'lucide-react';
 
 const highlightSignIn = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('signin') === '1';
 
@@ -24,7 +24,7 @@ const STEPS = [
   {
     emoji: '🎤',
     title: 'Speak',
-    body: 'Open SalesFlow after a meeting. Tap record. Speak naturally for 30 seconds.',
+    body: 'Open fieldlens after a meeting. Tap record. Speak naturally for 30 seconds.',
   },
   {
     emoji: '✨',
@@ -57,9 +57,8 @@ export default function WelcomePage() {
       {/* Nav */}
       <nav className="sticky top-0 z-50 bg-slate-900/80 backdrop-blur border-b border-slate-800">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
-          <a href="/" className="flex items-center gap-2 font-bold text-xl tracking-tight">
-            <Zap className="text-yellow-400 w-5 h-5" />
-            SalesFlow
+          <a href="/" className="flex items-center">
+            <img src="/fieldlens-logo.png" alt="fieldlens" className="h-8 w-auto" />
           </a>
           <div className="flex items-center gap-4">
             <a href="/login" className={`text-sm transition-colors ${highlightSignIn ? 'text-white font-semibold ring-1 ring-indigo-400 px-3 py-1.5 rounded-lg' : 'text-slate-400 hover:text-white'}`}>
