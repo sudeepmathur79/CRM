@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import OnboardingChecklist from '../../components/OnboardingChecklist';
 import { useQuery } from '@tanstack/react-query';
 import { dashboardApi } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -368,6 +369,7 @@ export default function DashboardPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+      <OnboardingChecklist />
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl md:text-2xl font-bold">Dashboard</h1>

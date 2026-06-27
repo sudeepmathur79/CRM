@@ -6,6 +6,7 @@ import { authApi } from '../services/api';
 import toast from 'react-hot-toast';
 import { Shield, ArrowLeft, Zap } from 'lucide-react';
 import { Turnstile } from '@marsidev/react-turnstile';
+import posthog from 'posthog-js';
 
 const getSiteKey = () => window.__APP_CONFIG__?.turnstileSiteKey || import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
 
@@ -139,6 +140,9 @@ export default function LoginPage() {
       if (result?.requiresTwoFactor) {
         setTempToken(result.tempToken);
       } else {
+        if (result) {
+          posthog.identify(result.email, { name: result.name, role: result.role });
+        }
         navigate('/');
       }
     } catch (e) {

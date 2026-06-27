@@ -12,7 +12,12 @@ model Organisation {
   id               String    @id @default(cuid())
   name             String
   slug             String    @unique
-  plan             String    @default("trial") // trial | active | inactive
+  plan             String    @default("free")        // "free" | "pro" | "premium"
+  stripeCustomerId String?
+  stripeSubId      String?
+  planExpiresAt    DateTime?
+  capturesThisMonth Int      @default(0)
+  captureResetAt   DateTime?
   trialEndsAt      DateTime
   demoMode         Boolean   @default(true)
   demoDisabledAt   DateTime?
@@ -47,6 +52,11 @@ model User {
   personalCrmBccEmail  String?
   targetCrmType        String?  // HUBSPOT | SALESFORCE | ZOHO | OTHER
   autoExportOnCapture  Boolean  @default(true)
+  // HubSpot OAuth fields
+  hubspotAccessToken   String?
+  hubspotRefreshToken  String?
+  hubspotTokenExpiry   DateTime?
+  hubspotPortalId      String?
 
   leads            Lead[]        @relation("AssignedLeads")
   createdLeads     Lead[]        @relation("CreatedLeads")
@@ -54,6 +64,7 @@ model User {
   sentMessages     Message[]     @relation("SentMessages")
   receivedMessages Message[]     @relation("ReceivedMessages")
   voiceDrafts      VoiceDraft[]
+  onboardingDismissed Boolean    @default(false)
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 }

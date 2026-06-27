@@ -327,4 +327,41 @@ const callAI = async (prompt) => {
   return resp.choices[0]?.message?.content?.trim() || '';
 };
 
-module.exports = { extractLeadFromText, summarizeTranscript, analyzeConversation, transcribeAudio, recommendManagementActions, scoreLead, callAI };
+const draftFollowUpEmail = async ({ leadName, company, notes }) => {
+  const provider = getClient();
+  if (!provider) throw Object.assign(new Error('No AI provider configured.'), { status: 503 });
+
+  const prompt = `You are a professional sales assistant. Write a concise follow-up email for the sales rep to send after their meeting.
+
+Lead name: ${leadName}
+Company: ${company || 'N/A'}
+Last conversation notes:
+${notes || '(no notes available)'}
+
+Write a subject line and email body. Keep it under 150 words. Be warm, professional, and specific to the notes. End with a clear next step. Format:
+SUBJECT: <subject line>
+BODY:
+<email body>`;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const completion = await callWithFallback(provider, {
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.4,
+      max_tokens: 400,
+    });
+    const raw = completion.choices[0].message.content.trim();
+    const subjectMatch = raw.match(/SUBJECT:\s*(.+)/i);
+    const bodyMatch = raw.match(/BODY:\s*([\s\S]+)/i);
+    return {
+      subject: subjectMatch ? subjectMatch[1].trim() : 'Follow-up from our meeting',
+      body: bodyMatch ? bodyMatch[1].trim() : raw,
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
+module.exports = { extractLeadFromText, summarizeTranscript, analyzeConversation, transcribeAudio, recommendManagementActions, scoreLead, callAI, draftFollowUpEmail };

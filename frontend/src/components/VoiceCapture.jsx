@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { leadsApi, voiceDraftsApi } from '../services/api';
-import { Mic, MicOff, X, Check, Search, ChevronDown } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { leadsApi, voiceDraftsApi, aiApi } from '../services/api';
+import { Mic, MicOff, X, Check, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
+import posthog from 'posthog-js';
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -12,17 +13,33 @@ const SAVE_MODES = [
   { id: 'none', label: 'Save for later' },
 ];
 
+const MAX_ERROR_RETRIES = 3;
+
+function formatElapsed(secs) {
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${m}m ${String(s).padStart(2, '0')}s`;
+}
+
 export default function VoiceCapture() {
   const [open, setOpen] = useState(false);
   const [recording, setRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [interim, setInterim] = useState('');
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [saveMode, setSaveMode] = useState('existing');
   const [leadQuery, setLeadQuery] = useState('');
   const [selectedLead, setSelectedLead] = useState(null);
   const [newLeadName, setNewLeadName] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Refs for recognition session management
   const recognitionRef = useRef(null);
+  const accumulatedRef = useRef('');       // text confirmed across all completed sessions
+  const shouldRestartRef = useRef(false);  // false = user stopped; true = auto-restart on end
+  const restartCountRef = useRef(0);       // error retry counter
+  const timerRef = useRef(null);
+
   const qc = useQueryClient();
 
   const { data: leadsData } = useQuery({
@@ -32,29 +49,111 @@ export default function VoiceCapture() {
   });
   const leads = Array.isArray(leadsData) ? leadsData : (leadsData?.leads || []);
 
-  const startRecording = () => {
-    if (!SpeechRecognition) { toast.error('Speech recognition not supported in this browser'); return; }
+  // startRecognition is called on each session start (including auto-restarts).
+  // It must be defined with useCallback so stopRecording can safely call the ref version.
+  const startRecognition = useCallback(() => {
+    if (!SpeechRecognition) {
+      toast.error('Speech recognition not supported in this browser');
+      return;
+    }
+
     const rec = new SpeechRecognition();
     rec.continuous = true;
     rec.interimResults = true;
     rec.lang = 'en-US';
+
+    // Track final text accumulated within this single recognition session
+    let sessionFinal = '';
+
     rec.onresult = (e) => {
-      let final = '', interimText = '';
+      let newFinal = '';
+      let interimText = '';
       for (let i = 0; i < e.results.length; i++) {
-        if (e.results[i].isFinal) final += e.results[i][0].transcript + ' ';
-        else interimText += e.results[i][0].transcript;
+        if (e.results[i].isFinal) {
+          newFinal += e.results[i][0].transcript + ' ';
+        } else {
+          interimText += e.results[i][0].transcript;
+        }
       }
-      setTranscript(final);
+      sessionFinal = newFinal;
+      // Display = all previous sessions + this session's finals + live interim
+      setTranscript(accumulatedRef.current + sessionFinal);
       setInterim(interimText);
     };
-    rec.onerror = (e) => { if (e.error !== 'aborted') toast.error(`Mic error: ${e.error}`); setRecording(false); };
-    rec.onend = () => setRecording(false);
+
+    rec.onerror = (e) => {
+      if (e.error === 'no-speech') {
+        // Transient — onend will fire and we auto-restart; nothing to show user
+        return;
+      }
+      if (e.error === 'not-allowed' || e.error === 'service-not-available') {
+        shouldRestartRef.current = false;
+        toast.error('Microphone access denied. Please allow microphone access and try again.');
+        return;
+      }
+      // Other errors: count retries; stop after MAX_ERROR_RETRIES
+      restartCountRef.current += 1;
+      if (restartCountRef.current >= MAX_ERROR_RETRIES) {
+        shouldRestartRef.current = false;
+        toast.error('Recording stopped after repeated errors.');
+      }
+    };
+
+    rec.onend = () => {
+      // Commit this session's finals into the accumulator before any restart
+      if (sessionFinal) {
+        accumulatedRef.current += sessionFinal;
+      }
+      setInterim('');
+
+      if (shouldRestartRef.current) {
+        // 300 ms delay prevents tight loop on iOS when the browser fires onend immediately
+        setTimeout(() => {
+          if (shouldRestartRef.current) {
+            startRecognition();
+          }
+        }, 300);
+      } else {
+        setRecording(false);
+      }
+    };
+
     recognitionRef.current = rec;
     rec.start();
     setRecording(true);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const startRecording = () => {
+    if (!SpeechRecognition) {
+      toast.error('Speech recognition not supported in this browser');
+      return;
+    }
+    // Reset state for a fresh capture session
+    accumulatedRef.current = '';
+    shouldRestartRef.current = true;
+    restartCountRef.current = 0;
+    setElapsedSeconds(0);
+    setTranscript('');
+    setInterim('');
+    startRecognition();
   };
 
-  const stopRecording = () => { recognitionRef.current?.stop(); setRecording(false); setInterim(''); };
+  const stopRecording = () => {
+    shouldRestartRef.current = false;
+    recognitionRef.current?.stop();
+    setRecording(false);
+    setInterim('');
+  };
+
+  // Elapsed-time counter — ticks every second while recording, resets when recording stops
+  useEffect(() => {
+    if (recording) {
+      timerRef.current = setInterval(() => setElapsedSeconds(s => s + 1), 1000);
+    } else {
+      clearInterval(timerRef.current);
+    }
+    return () => clearInterval(timerRef.current);
+  }, [recording]);
 
   const handleSave = async () => {
     const full = (transcript + interim).trim();
@@ -67,15 +166,59 @@ export default function VoiceCapture() {
         toast.success(`Saved to ${selectedLead.name}`);
       } else if (saveMode === 'new') {
         if (!newLeadName.trim()) { toast.error('Enter a lead name'); setSaving(false); return; }
-        const { data: newLead } = await leadsApi.create({ name: newLeadName.trim(), status: 'New' });
-        await leadsApi.addNote(newLead.id, full);
-        qc.invalidateQueries({ queryKey: ['leads'] });
-        toast.success(`New lead "${newLead.name}" created with recording`);
+        // Try AI extract first — it saves locally + syncs to CRM
+        let syncData = null;
+        try {
+          let extractResult;
+          try {
+            const { data } = await aiApi.extract(full);
+            extractResult = data;
+          } catch (err) {
+            if (err.response?.status === 402 && err.response?.data?.code === 'CAPTURE_LIMIT_REACHED') {
+              toast.error('Free plan limit reached (10/month). Upgrade to Pro →', { duration: 6000 });
+              try {
+                const origin = window.location.origin;
+                const checkoutResp = await fetch('/api/stripe/checkout', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${localStorage.getItem('token')}`,
+                  },
+                  body: JSON.stringify({
+                    successUrl: `${origin}/settings?billing=success`,
+                    returnUrl: `${origin}/settings`,
+                  }),
+                });
+                const checkoutData = await checkoutResp.json();
+                if (checkoutData?.url) window.location.href = checkoutData.url;
+              } catch (_) {}
+              setSaving(false);
+              return;
+            }
+            throw err;
+          }
+          syncData = extractResult?._sync ?? null;
+        } catch (_) {
+          // extract failed — fall through to manual create
+        }
+        if (syncData?.localLeadId) {
+          // Backend already saved — no separate create needed
+          qc.invalidateQueries({ queryKey: ['leads'] });
+          const hubSynced = syncData.synced?.includes('hubspot');
+          toast.success(hubSynced ? 'Lead synced to HubSpot + saved locally' : 'Lead saved');
+        } else {
+          // Fallback: manual create
+          const { data: newLead } = await leadsApi.create({ name: newLeadName.trim(), status: 'New' });
+          await leadsApi.addNote(newLead.id, full);
+          qc.invalidateQueries({ queryKey: ['leads'] });
+          toast.success(`New lead "${newLead.name}" created with recording`);
+        }
       } else {
         await voiceDraftsApi.create(full);
         qc.invalidateQueries({ queryKey: ['voice-drafts'] });
         toast.success('Saved to your unresolved recordings');
       }
+      posthog.capture('voice_capture_saved', { saveMode, synced: syncData?.synced ?? [] });
       handleClose();
     } catch (e) {
       toast.error('Save failed');
@@ -89,10 +232,12 @@ export default function VoiceCapture() {
     setOpen(false);
     setTranscript('');
     setInterim('');
+    setElapsedSeconds(0);
     setLeadQuery('');
     setSelectedLead(null);
     setNewLeadName('');
     setSaveMode('existing');
+    accumulatedRef.current = '';
   };
 
   useEffect(() => {
@@ -123,7 +268,13 @@ export default function VoiceCapture() {
               >
                 {recording ? <MicOff size={32} /> : <Mic size={32} />}
               </button>
-              <p className="text-sm text-slate-400">{recording ? 'Recording… tap to stop' : 'Tap to start'}</p>
+              {recording ? (
+                <p className="text-sm text-red-400 font-medium">
+                  Recording · {formatElapsed(elapsedSeconds)}
+                </p>
+              ) : (
+                <p className="text-sm text-slate-400">Tap to start</p>
+              )}
             </div>
 
             {/* Transcript */}

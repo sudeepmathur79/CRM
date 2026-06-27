@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { usersApi, voiceDraftsApi, leadsApi, orgApi } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Modal from '../../components/ui/Modal';
 import { Plus, Edit, UserX, UserCheck, LogOut, Sun, Moon, User, Shield, Smartphone, CheckCircle, XCircle, Camera, Mic, Check, Trash2, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -391,6 +391,38 @@ const CRM_TYPES = [
   { value: 'OTHER', label: 'Other / Generic' },
 ];
 
+function HubSpotSection() {
+  const { data: status } = useQuery({
+    queryKey: ['hubspot-status'],
+    queryFn: () => fetch('/api/hubspot/status', {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+    }).then(r => r.json()),
+  });
+
+  const connected = status?.connected;
+
+  return (
+    <section className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-4">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-base">🟠</span>
+        <h2 className="font-semibold text-sm">HubSpot Direct Sync</h2>
+      </div>
+      <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+        Automatically creates or updates contacts and deals in your HubSpot account after every AI call analysis.
+      </p>
+      {connected ? (
+        <span className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 font-medium">
+          <CheckCircle size={16} /> Connected via Service Key
+        </span>
+      ) : (
+        <p className="text-xs text-amber-600 dark:text-amber-400">
+          Not configured — add <code className="bg-slate-100 dark:bg-slate-700 px-1 rounded">HUBSPOT_ACCESS_TOKEN</code> to your server environment variables.
+        </p>
+      )}
+    </section>
+  );
+}
+
 function CrmIntegrationSection() {
   const { user, refreshUser } = useAuth();
   const [form, setForm] = useState({
@@ -459,6 +491,131 @@ function CrmIntegrationSection() {
           {saveMutation.isPending ? 'Saving…' : 'Save integration'}
         </button>
       </div>
+    </section>
+  );
+}
+
+function BillingSection() {
+  const { user } = useAuth();
+  const [redirecting, setRedirecting] = useState(false);
+
+  const { data: status } = useQuery({
+    queryKey: ['stripe-status'],
+    queryFn: () =>
+      fetch('/api/stripe/status', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      }).then((r) => r.json()),
+  });
+
+  const handleUpgrade = async () => {
+    setRedirecting(true);
+    try {
+      const origin = window.location.origin;
+      const resp = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({
+          successUrl: `${origin}/settings?billing=success`,
+          returnUrl: `${origin}/settings`,
+        }),
+      });
+      const data = await resp.json();
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        toast.error(data?.error || 'Could not start checkout');
+      }
+    } catch {
+      toast.error('Billing redirect failed');
+    } finally {
+      setRedirecting(false);
+    }
+  };
+
+  const handlePortal = async () => {
+    setRedirecting(true);
+    try {
+      const origin = window.location.origin;
+      const resp = await fetch('/api/stripe/portal', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ returnUrl: `${origin}/settings` }),
+      });
+      const data = await resp.json();
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        toast.error(data?.error || 'Could not open billing portal');
+      }
+    } catch {
+      toast.error('Billing redirect failed');
+    } finally {
+      setRedirecting(false);
+    }
+  };
+
+  if (!status?.stripeConfigured) return null;
+
+  const isPro = status?.plan && status.plan !== 'free';
+  const resetDate = status?.resetAt
+    ? new Date(status.resetAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    : null;
+
+  return (
+    <section className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-4">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-base">💳</span>
+        <h2 className="font-semibold text-sm">Billing</h2>
+        <span
+          className={`ml-auto text-xs font-semibold px-2 py-0.5 rounded-full ${
+            isPro
+              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+              : 'bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-400'
+          }`}
+        >
+          {isPro ? 'Pro' : 'Free'}
+        </span>
+      </div>
+
+      {!isPro && (
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+          {status.capturesThisMonth ?? 0} / {status.limit} captures used this month
+          {resetDate ? ` · resets ${resetDate}` : ''}
+        </p>
+      )}
+
+      {isPro ? (
+        <div className="space-y-2">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+            Unlimited captures included.
+          </p>
+          {user?.role === 'admin' && (
+            <button
+              onClick={handlePortal}
+              disabled={redirecting}
+              className="w-full py-2 rounded-lg border border-gray-300 dark:border-slate-600 text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors"
+            >
+              {redirecting ? 'Redirecting…' : 'Manage billing'}
+            </button>
+          )}
+        </div>
+      ) : (
+        user?.role === 'admin' && (
+          <button
+            onClick={handleUpgrade}
+            disabled={redirecting}
+            className="w-full py-2 rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white text-sm font-semibold transition-colors"
+          >
+            {redirecting ? 'Redirecting…' : 'Upgrade to Pro — $29/month'}
+          </button>
+        )
+      )}
     </section>
   );
 }
@@ -540,8 +697,19 @@ export default function SettingsPage() {
   const { user, logout } = useAuth();
   const { dark, toggle } = useTheme();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('hubspot') === 'connected') {
+      toast.success('HubSpot connected successfully!');
+      setSearchParams(p => { p.delete('hubspot'); return p; });
+    } else if (searchParams.get('hubspot') === 'error') {
+      toast.error('HubSpot connection failed. Please try again.');
+      setSearchParams(p => { p.delete('hubspot'); return p; });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [editUser, setEditUser] = useState(null);
 
   const { data: users = [] } = useQuery({
@@ -597,8 +765,14 @@ export default function SettingsPage() {
         </button>
       </section>
 
+      {/* Billing */}
+      <BillingSection />
+
       {/* CRM BCC integration */}
       <CrmIntegrationSection />
+
+      {/* HubSpot direct sync */}
+      <HubSpotSection />
 
       {/* Demo mode */}
       <DemoModeSection />

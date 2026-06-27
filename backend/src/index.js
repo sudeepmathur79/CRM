@@ -1,4 +1,8 @@
 require('dotenv').config();
+const Sentry = require('@sentry/node');
+if (process.env.SENTRY_DSN) {
+  Sentry.init({ dsn: process.env.SENTRY_DSN, environment: process.env.NODE_ENV || 'development', tracesSampleRate: 0.1 });
+}
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -22,6 +26,12 @@ const voiceDraftRoutes = require('./routes/voicedraft.routes');
 const agentRoutes = require('./routes/agent.routes');
 const orgRoutes = require('./routes/org.routes');
 const geoRoutes = require('./routes/geo.routes');
+const hubspotRoutes = require('./routes/hubspot.routes');
+const stripeRoutes = require('./routes/stripe.routes');
+const onboardingRoutes = require('./routes/onboarding.routes');
+
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 const { startAgents } = require('./services/agents');
 const { startReminderScheduler } = require('./services/reminders');
@@ -65,6 +75,10 @@ const io = new Server(server, { cors: corsOptions });
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors(corsOptions));
+
+// Stripe webhook needs raw body — must be registered BEFORE express.json()
+app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
@@ -97,8 +111,18 @@ app.use('/api/voice-drafts', voiceDraftRoutes);
 app.use('/api/agents', agentRoutes);
 app.use('/api/org', orgRoutes);
 app.use('/api/geo', geoRoutes);
+app.use('/api/hubspot', hubspotRoutes);
+app.use('/api/stripe', stripeRoutes);
+app.use('/api/onboarding', onboardingRoutes);
 
-app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date() }));
+app.get('/api/health', async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: 'ok', db: 'ok', time: new Date() });
+  } catch (e) {
+    res.status(503).json({ status: 'degraded', db: 'error', time: new Date() });
+  }
+});
 
 // Serve React frontend in production
 if (isProd) {
@@ -115,6 +139,10 @@ if (isProd) {
     const injected = html.replace('</head>', `<script>window.__APP_CONFIG__ = ${config};</script></head>`);
     res.send(injected);
   });
+}
+
+if (process.env.SENTRY_DSN) {
+  app.use(Sentry.expressErrorHandler());
 }
 
 app.use((err, req, res, next) => {
