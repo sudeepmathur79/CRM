@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import { format } from 'date-fns';
-import { Building2, Users, ChevronRight, ArrowLeft, Shield, CheckCircle, Clock } from 'lucide-react';
+import { Building2, Users, ChevronRight, ArrowLeft, Shield, CheckCircle, Clock, Plus, Trash2, UserCog } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -161,8 +161,111 @@ function OrgDetail({ orgId, onBack, canRequestAccess }) {
   );
 }
 
+function SupportUsersTab() {
+  const qc = useQueryClient();
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState({ name: '', email: '', password: '' });
+
+  const { data: supportUsers = [], isLoading } = useQuery({
+    queryKey: ['superadmin-support-users'],
+    queryFn: () => api.get('/superadmin/support-users').then(r => r.data),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: () => api.post('/superadmin/support-users', form).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['superadmin-support-users'] });
+      setShowCreate(false);
+      setForm({ name: '', email: '', password: '' });
+      toast.success('Support user created');
+    },
+    onError: (e) => toast.error(e.response?.data?.error || 'Failed'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => api.delete(`/superadmin/support-users/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['superadmin-support-users'] }); toast.success('Deleted'); },
+    onError: (e) => toast.error(e.response?.data?.error || 'Failed'),
+  });
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+          <UserCog size={16} /> Support Users <span className="text-sm text-gray-400 font-normal">({supportUsers.length})</span>
+        </h2>
+        <button onClick={() => setShowCreate(v => !v)}
+          className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors">
+          <Plus size={14} /> New support user
+        </button>
+      </div>
+
+      {showCreate && (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-5 mb-4">
+          <h3 className="font-medium text-gray-900 dark:text-white mb-4 text-sm">Create support user</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+            {[['Name', 'name', 'text', 'Jane Smith'], ['Email', 'email', 'email', 'jane@salesflow.io'], ['Password', 'password', 'password', 'min 8 chars']].map(([label, key, type, ph]) => (
+              <div key={key}>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{label}</label>
+                <input type={type} value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                  placeholder={ph}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => createMutation.mutate()} disabled={createMutation.isPending || !form.name || !form.email || !form.password}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-lg text-sm font-medium">
+              {createMutation.isPending ? 'Creating…' : 'Create'}
+            </button>
+            <button onClick={() => setShowCreate(false)} className="px-4 py-2 border border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-300 rounded-lg text-sm">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="flex items-center justify-center h-32"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500" /></div>
+      ) : supportUsers.length === 0 ? (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-10 text-center text-gray-400">
+          <UserCog size={28} className="mx-auto mb-2 opacity-40" />
+          <p className="text-sm">No support users yet.</p>
+        </div>
+      ) : (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
+              <tr>
+                <th className="p-4 text-left font-medium text-gray-500">Name</th>
+                <th className="p-4 text-left font-medium text-gray-500">Email</th>
+                <th className="p-4 text-left font-medium text-gray-500 hidden sm:table-cell">Created</th>
+                <th className="p-4 w-10"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50 dark:divide-slate-700">
+              {supportUsers.map(u => (
+                <tr key={u.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/30">
+                  <td className="p-4 font-medium text-gray-900 dark:text-white">{u.name}</td>
+                  <td className="p-4 text-gray-500">{u.email}</td>
+                  <td className="p-4 text-gray-400 text-xs hidden sm:table-cell">{format(new Date(u.createdAt), 'MMM d, yyyy')}</td>
+                  <td className="p-4">
+                    <button onClick={() => { if (confirm(`Delete ${u.name}?`)) deleteMutation.mutate(u.id); }}
+                      className="text-gray-400 hover:text-red-500 transition-colors">
+                      <Trash2 size={15} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SuperAdminPage() {
   const { user } = useAuth();
+  const [tab, setTab] = useState('orgs');
   const [selectedOrgId, setSelectedOrgId] = useState(null);
 
   const { data: orgs = [], isLoading } = useQuery({
@@ -196,7 +299,6 @@ export default function SuperAdminPage() {
           </div>
         </div>
 
-        {/* Active support sessions */}
         {activeSessions.length > 0 && (
           <div className="mt-4 space-y-2">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Active support sessions</p>
@@ -214,7 +316,21 @@ export default function SuperAdminPage() {
         )}
       </div>
 
-      {selectedOrgId ? (
+      {/* Tabs — only superadmin sees Support Users tab */}
+      {user.role === 'superadmin' && !selectedOrgId && (
+        <div className="flex gap-1 mb-5 border-b border-gray-200 dark:border-slate-700">
+          {[['orgs', Building2, 'Organisations'], ['support', UserCog, 'Support Users']].map(([id, Icon, label]) => (
+            <button key={id} onClick={() => setTab(id)}
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${tab === id ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+              <Icon size={14} /> {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {tab === 'support' && user.role === 'superadmin' ? (
+        <SupportUsersTab />
+      ) : selectedOrgId ? (
         <OrgDetail
           orgId={selectedOrgId}
           onBack={() => setSelectedOrgId(null)}
@@ -222,7 +338,7 @@ export default function SuperAdminPage() {
         />
       ) : (
         <>
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4">
             <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <Building2 size={16} /> All Organisations <span className="text-sm text-gray-400 font-normal">({orgs.length})</span>
             </h2>

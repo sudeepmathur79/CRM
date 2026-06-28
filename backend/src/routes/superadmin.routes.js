@@ -2,6 +2,7 @@ const router = require('express').Router();
 const { PrismaClient } = require('@prisma/client');
 const { authenticate } = require('../middleware/auth.middleware');
 const { sendMail } = require('../services/mailer');
+const { register } = require('../services/auth.service');
 const crypto = require('crypto');
 
 const prisma = new PrismaClient();
@@ -47,6 +48,46 @@ router.get('/orgs/:orgId', async (req, res, next) => {
     });
     if (!org) return res.status(404).json({ error: 'Org not found' });
     res.json(org);
+  } catch (e) { next(e); }
+});
+
+// ── Superadmin: list support users ───────────────────────────────────────────
+router.get('/support-users', async (req, res, next) => {
+  if (req.user.role !== 'superadmin') return res.status(403).json({ error: 'Forbidden' });
+  try {
+    const users = await prisma.user.findMany({
+      where: { role: 'support' },
+      select: { id: true, name: true, email: true, role: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(users);
+  } catch (e) { next(e); }
+});
+
+// ── Superadmin: create a support user ────────────────────────────────────────
+router.post('/support-users', async (req, res, next) => {
+  if (req.user.role !== 'superadmin') return res.status(403).json({ error: 'Forbidden' });
+  try {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) return res.status(400).json({ error: 'name, email and password are required' });
+    if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    const user = await register({ name, email, password, role: 'support', orgId: null });
+    res.status(201).json({ id: user.id, name: user.name, email: user.email, role: user.role });
+  } catch (e) {
+    if (e.code === 'P2002') return res.status(409).json({ error: 'An account with that email already exists' });
+    next(e);
+  }
+});
+
+// ── Superadmin: delete a support user ────────────────────────────────────────
+router.delete('/support-users/:id', async (req, res, next) => {
+  if (req.user.role !== 'superadmin') return res.status(403).json({ error: 'Forbidden' });
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+    if (!user || user.role !== 'support') return res.status(404).json({ error: 'Support user not found' });
+    await prisma.supportSession.deleteMany({ where: { supportId: user.id } });
+    await prisma.user.delete({ where: { id: user.id } });
+    res.json({ ok: true });
   } catch (e) { next(e); }
 });
 
