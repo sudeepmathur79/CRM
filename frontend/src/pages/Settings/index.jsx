@@ -9,6 +9,7 @@ import Modal from '../../components/ui/Modal';
 import { Plus, Edit, UserX, UserCheck, LogOut, Sun, Moon, User, Shield, Smartphone, CheckCircle, XCircle, Camera, Mic, Check, Trash2, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { authApi } from '../../services/api';
+import BrandingSection from './BrandingSection';
 
 const ROLES = ['admin', 'agent', 'viewer'];
 
@@ -776,6 +777,9 @@ export default function SettingsPage() {
 
       {/* Demo mode */}
       <DemoModeSection />
+
+      {/* White-label branding — admin only */}
+      {user?.role === 'admin' && <BrandingSection />}
 
       {/* Unresolved voice recordings */}
       <VoiceDraftsSection />

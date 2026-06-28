@@ -24,6 +24,13 @@ model Organisation {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
+  // White-label branding
+  brandPrimary     String?   // hex e.g. "#4F46E5"
+  brandAccent      String?   // hex
+  brandBg          String?   // hex – sidebar/topbar bg
+  brandLogoUrl     String?   // uploaded logo path
+  brandFaviconUrl  String?
+
   users           User[]
   leads           Lead[]
   tags            Tag[]

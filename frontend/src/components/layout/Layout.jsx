@@ -12,6 +12,7 @@ import { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
 import VoiceCapture from '../VoiceCapture';
+import { useBranding } from '../../hooks/useBranding';
 
 // Inline style applied only on mobile via JS — avoids needing a Tailwind plugin for safe-area
 const mobileMainStyle = {
@@ -158,6 +159,7 @@ export default function Layout() {
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
+  useBranding();
   const isAdmin = user?.role === 'admin';
   const isSuperRole = ['superadmin', 'support'].includes(user?.role);
 
