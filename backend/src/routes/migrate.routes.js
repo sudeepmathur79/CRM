@@ -201,12 +201,17 @@ router.get('/list-users', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// Delete a user by ID (admin tool)
+// Delete a user by ID (admin tool) — cascades activity/message records first
 router.delete('/users/:id', async (req, res, next) => {
   const secret = req.headers['x-migrate-secret'];
   if (!secret || secret !== process.env.MIGRATE_SECRET) return res.status(403).json({ error: 'Forbidden' });
   try {
-    await prisma.user.delete({ where: { id: req.params.id } });
+    const id = req.params.id;
+    await prisma.$transaction([
+      prisma.activity.deleteMany({ where: { userId: id } }),
+      prisma.message.deleteMany({ where: { senderId: id } }),
+      prisma.user.delete({ where: { id } }),
+    ]);
     res.json({ ok: true });
   } catch (e) { next(e); }
 });
