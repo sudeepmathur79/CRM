@@ -207,11 +207,10 @@ router.delete('/users/:id', async (req, res, next) => {
   if (!secret || secret !== process.env.MIGRATE_SECRET) return res.status(403).json({ error: 'Forbidden' });
   try {
     const id = req.params.id;
-    await prisma.$transaction([
-      prisma.activity.deleteMany({ where: { userId: id } }),
-      prisma.message.deleteMany({ where: { senderId: id } }),
-      prisma.user.delete({ where: { id } }),
-    ]);
+    await prisma.activity.deleteMany({ where: { userId: id } });
+    await prisma.message.deleteMany({ where: { fromId: id } });
+    await prisma.message.deleteMany({ where: { toId: id } });
+    await prisma.user.delete({ where: { id } });
     res.json({ ok: true });
   } catch (e) { next(e); }
 });
