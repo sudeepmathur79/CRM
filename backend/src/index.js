@@ -116,6 +116,23 @@ app.use('/api/hubspot', hubspotRoutes);
 if (stripeRoutes) app.use('/api/stripe', stripeRoutes);
 app.use('/api/onboarding', onboardingRoutes);
 
+// ── Feedback endpoint ──────────────────────────────────────────────────────
+app.post('/api/feedback', require('./middleware/auth.middleware').authenticate, async (req, res, next) => {
+  try {
+    const { message, rating } = req.body;
+    if (!message?.trim()) return res.status(400).json({ error: 'Message is required' });
+    const { sendMail } = require('./services/mailer');
+    const user = req.user;
+    await sendMail({
+      to: process.env.FEEDBACK_EMAIL || 'hello@aussieinnovationfactory.com',
+      subject: `SalesFlow Feedback${rating ? ` (${rating}/5 ⭐)` : ''} from ${user.name}`,
+      html: `<h3>Feedback from ${user.name} (${user.email})</h3>${rating ? `<p><strong>Rating:</strong> ${rating}/5</p>` : ''}<p>${message.replace(/\n/g, '<br>')}</p>`,
+      text: `Feedback from ${user.name} (${user.email})\n\n${message}`,
+    });
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
 app.get('/api/health', async (req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;

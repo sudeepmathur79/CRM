@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "SalesFlow CRM",
+    "slug": "salesflow-crm",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#4f46e5"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.aussieinnovationfactory.salesflowcrm",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "SalesFlow needs the microphone to record voice notes for leads.",
+        "NSSpeechRecognitionUsageDescription": "SalesFlow uses speech recognition to transcribe your voice notes."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#4f46e5"
+      },
+      "package": "com.aussieinnovationfactory.salesflowcrm",
+      "permissions": [
+        "RECORD_AUDIO",
+        "INTERNET"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow SalesFlow CRM to access your microphone to capture voice notes."
+        }
+      ]
+    ]
+  }
+}

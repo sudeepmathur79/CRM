@@ -1,4 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import FeedbackWidget from '../FeedbackWidget';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -250,6 +251,9 @@ export default function Layout() {
 
       {/* Voice capture sheet — available to all authenticated users */}
       {user && <VoiceCapture />}
+
+      {/* Feedback widget — trial and demo orgs only */}
+      <FeedbackWidget />
 
       {/* Bottom tab bar — mobile only */}
       <nav
