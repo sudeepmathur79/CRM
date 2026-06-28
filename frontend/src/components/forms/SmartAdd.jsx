@@ -100,6 +100,7 @@ export default function SmartAdd({ onClose, onSuccess }) {
       setExtracted(data);
       reset({
         name: data.name || '',
+        contactName: data.contactName || '',
         company: data.company || '',
         email: data.email || '',
         phone: data.phone || '',
@@ -137,6 +138,7 @@ export default function SmartAdd({ onClose, onSuccess }) {
     if (!payload.assignedToId) delete payload.assignedToId;
     if (!payload.nextFollowUp) delete payload.nextFollowUp;
     if (!payload.source) delete payload.source;
+    if (!payload.contactName) delete payload.contactName;
     createMutation.mutate(payload);
   };
 
@@ -235,12 +237,17 @@ export default function SmartAdd({ onClose, onSuccess }) {
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Name *</label>
-                  <input {...register('name', { required: true })} className={inputCls} />
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Deal name *</label>
+                  <input {...register('name', { required: true })} placeholder="e.g. Apex Roofing — New Install Q3" className={inputCls} />
+                  <p className="text-[10px] text-gray-400 mt-0.5">Format: Company — Intent</p>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Company</label>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Contact name</label>
+                  <input {...register('contactName')} placeholder="e.g. James O'Brien" className={inputCls} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Company / Account</label>
                   <input {...register('company')} className={inputCls} />
                 </div>
                 <div>
