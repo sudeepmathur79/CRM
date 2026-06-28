@@ -161,16 +161,14 @@ export default function Layout() {
   const isAdmin = user?.role === 'admin';
   const isSuperRole = ['superadmin', 'support'].includes(user?.role);
 
-  const desktopNavItems = isSuperRole ? [
-    { to: '/console', icon: Shield, label: 'Console' },
-    { to: '/settings', icon: Settings, label: 'Settings' },
-  ] : [
+  const desktopNavItems = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
     { to: '/leads', icon: Users, label: 'Leads' },
-    ...(isAdmin ? [{ to: '/kanban', icon: Columns, label: 'Kanban' }] : []),
+    ...(isAdmin || isSuperRole ? [{ to: '/kanban', icon: Columns, label: 'Kanban' }] : []),
     { to: '/agents', icon: Bot, label: 'AI Agents' },
     { to: '/recordings', icon: Mic, label: 'Files' },
     { to: '/inbox', icon: MessageSquare, label: 'Messages', badge: unread },
+    ...(isSuperRole ? [{ to: '/console', icon: Shield, label: 'Console' }] : []),
     { to: '/settings', icon: Settings, label: 'Settings' },
   ];
 
