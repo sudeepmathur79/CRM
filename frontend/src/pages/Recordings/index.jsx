@@ -1,13 +1,119 @@
-import { useQuery } from '@tanstack/react-query';
-import { recordingsApi } from '../../services/api';
+import { useState, useRef } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { recordingsApi, leadsApi } from '../../services/api';
 import { useNavigate } from 'react-router-dom';
-import { Mic, FileText, ChevronRight } from 'lucide-react';
+import { Mic, FileText, ChevronRight, Upload, X } from 'lucide-react';
 import { format } from 'date-fns';
+import toast from 'react-hot-toast';
+import api from '../../services/api';
 
 const safeFormat = (val, fmt) => { try { return val ? format(new Date(val), fmt) : '—'; } catch { return '—'; } };
 
+function UploadModal({ onClose }) {
+  const qc = useQueryClient();
+  const [leadSearch, setLeadSearch] = useState('');
+  const [selectedLead, setSelectedLead] = useState(null);
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef();
+
+  const { data: leads = [] } = useQuery({
+    queryKey: ['leads-upload-search', leadSearch],
+    queryFn: () => leadsApi.list({ search: leadSearch || undefined, take: 20 }).then(r => r.data),
+    enabled: leadSearch.length > 0,
+  });
+
+  const handleUpload = async () => {
+    if (!selectedLead) { toast.error('Select a lead first'); return; }
+    if (!file) { toast.error('Choose a file'); return; }
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      await api.post(`/recordings/upload/${selectedLead.id}`, form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      qc.invalidateQueries({ queryKey: ['recordings'] });
+      toast.success('File uploaded');
+      onClose();
+    } catch (e) {
+      toast.error(e.response?.data?.error || 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="font-semibold text-gray-900 dark:text-white">Upload file to lead</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"><X size={18} /></button>
+        </div>
+
+        <div className="space-y-4">
+          {/* Lead search */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Lead</label>
+            {selectedLead ? (
+              <div className="flex items-center justify-between px-3 py-2 rounded-lg border border-primary-300 dark:border-primary-600 bg-primary-50 dark:bg-primary-900/20 text-sm">
+                <span className="font-medium text-primary-700 dark:text-primary-300">{selectedLead.name}</span>
+                <button onClick={() => setSelectedLead(null)} className="text-primary-400 hover:text-primary-600"><X size={14} /></button>
+              </div>
+            ) : (
+              <div className="relative">
+                <input
+                  type="text"
+                  value={leadSearch}
+                  onChange={e => setLeadSearch(e.target.value)}
+                  placeholder="Search leads…"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                {leads.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                    {leads.map(l => (
+                      <button key={l.id} onClick={() => { setSelectedLead(l); setLeadSearch(''); }}
+                        className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-slate-700 text-sm">
+                        <div className="font-medium text-gray-900 dark:text-white">{l.name}</div>
+                        {l.company && <div className="text-xs text-gray-400">{l.company}</div>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* File picker */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">File</label>
+            <input ref={fileRef} type="file" className="hidden" onChange={e => setFile(e.target.files[0])} />
+            {file ? (
+              <div className="flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-sm">
+                <span className="truncate text-gray-700 dark:text-gray-200">{file.name}</span>
+                <button onClick={() => setFile(null)} className="text-gray-400 hover:text-gray-600 flex-shrink-0 ml-2"><X size={14} /></button>
+              </div>
+            ) : (
+              <button onClick={() => fileRef.current?.click()}
+                className="w-full flex items-center justify-center gap-2 px-3 py-6 rounded-lg border-2 border-dashed border-gray-300 dark:border-slate-600 text-gray-400 hover:border-primary-400 hover:text-primary-500 text-sm transition-colors">
+                <Upload size={16} /> Choose file
+              </button>
+            )}
+          </div>
+
+          <button onClick={handleUpload} disabled={uploading || !selectedLead || !file}
+            className="w-full py-2.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white font-medium rounded-lg text-sm transition-colors">
+            {uploading ? 'Uploading…' : 'Upload'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function RecordingsPage() {
   const navigate = useNavigate();
+  const [showUpload, setShowUpload] = useState(false);
 
   const { data: recordings = [], isLoading } = useQuery({
     queryKey: ['recordings'],
@@ -16,7 +122,16 @@ export default function RecordingsPage() {
 
   return (
     <div className="p-4 md:p-6">
-      <h1 className="text-xl md:text-2xl font-bold mb-4">Recordings & Files</h1>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold">Recordings & Files</h1>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{recordings.length} file{recordings.length !== 1 ? 's' : ''}</p>
+        </div>
+        <button onClick={() => setShowUpload(true)}
+          className="flex items-center gap-1.5 px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors">
+          <Upload size={15} /> <span className="hidden sm:inline">Upload</span>
+        </button>
+      </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center h-40">
@@ -25,7 +140,11 @@ export default function RecordingsPage() {
       ) : recordings.length === 0 ? (
         <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-12 text-center text-gray-400">
           <Mic size={32} className="mx-auto mb-3 opacity-40" />
-          <p>No recordings yet. Open a lead to record or upload files.</p>
+          <p className="mb-4">No recordings yet. Open a lead to record, or upload a file.</p>
+          <button onClick={() => setShowUpload(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium">
+            <Upload size={14} /> Upload file
+          </button>
         </div>
       ) : (
         <>
@@ -92,6 +211,8 @@ export default function RecordingsPage() {
           </div>
         </>
       )}
+
+      {showUpload && <UploadModal onClose={() => setShowUpload(false)} />}
     </div>
   );
 }

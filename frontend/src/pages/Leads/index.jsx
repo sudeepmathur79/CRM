@@ -14,14 +14,16 @@ import CsvImportModal from '../../components/csv/CsvImportModal';
 import api from '../../services/api';
 
 const STATUSES = ['', 'New', 'Contacted', 'Qualified', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
+const SOURCES = ['', 'Website', 'Referral', 'LinkedIn', 'Cold Call', 'Email Campaign', 'Event', 'Other'];
 
 export default function LeadsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [sourceFilter, setSourceFilter] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [showSmartAdd, setShowSmartAdd] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
@@ -31,16 +33,20 @@ export default function LeadsPage() {
   // Support ?stale=1, ?unassigned=1, ?status=X from dashboard deep-links
   const staleFilter = searchParams.get('stale') === '1';
   const unassignedFilter = searchParams.get('unassigned') === '1';
+
+  const toggleStale = () => setSearchParams(p => { const n = new URLSearchParams(p); n.get('stale') === '1' ? n.delete('stale') : (n.set('stale', '1'), n.delete('unassigned')); return n; });
+  const toggleUnassigned = () => setSearchParams(p => { const n = new URLSearchParams(p); n.get('unassigned') === '1' ? n.delete('unassigned') : (n.set('unassigned', '1'), n.delete('stale')); return n; });
   useEffect(() => {
     const s = searchParams.get('status');
     if (s) setStatusFilter(s);
   }, []);
 
   const { data: leads = [], isLoading } = useQuery({
-    queryKey: ['leads', search, statusFilter, showArchived, staleFilter, unassignedFilter],
+    queryKey: ['leads', search, statusFilter, sourceFilter, showArchived, staleFilter, unassignedFilter],
     queryFn: () => leadsApi.list({
       search: search || undefined,
       status: statusFilter || undefined,
+      source: sourceFilter || undefined,
       archived: showArchived ? 'true' : 'false',
       stale: staleFilter ? '1' : undefined,
       unassigned: unassignedFilter ? '1' : undefined,
@@ -142,17 +148,10 @@ export default function LeadsPage() {
         </div>
       </div>
 
-      {/* Active filter banner */}
-      {(staleFilter || unassignedFilter) && (
-        <div className="flex items-center justify-between mb-3 px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-300">
-          <span>{staleFilter ? '⏱ Showing stale leads (no activity in 14+ days)' : '👤 Showing unassigned leads'}</span>
-          <button onClick={() => navigate('/leads')} className="text-xs underline ml-2">Clear</button>
-        </div>
-      )}
 
       {/* Filters */}
-      <div className="flex gap-2 mb-4">
-        <div className="relative flex-1">
+      <div className="flex flex-wrap gap-2 mb-4">
+        <div className="relative flex-1 min-w-[160px]">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             value={search} onChange={e => setSearch(e.target.value)}
@@ -162,8 +161,20 @@ export default function LeadsPage() {
         </div>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
           className="px-2 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 max-w-[130px]">
-          {STATUSES.map(s => <option key={s} value={s}>{s || 'All'}</option>)}
+          {STATUSES.map(s => <option key={s} value={s}>{s || 'All status'}</option>)}
         </select>
+        <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)}
+          className="px-2 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 max-w-[140px]">
+          {SOURCES.map(s => <option key={s} value={s}>{s || 'All sources'}</option>)}
+        </select>
+        <button onClick={toggleStale}
+          className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${staleFilter ? 'bg-orange-100 border-orange-300 text-orange-700 dark:bg-orange-900/30 dark:border-orange-700 dark:text-orange-300' : 'bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'}`}>
+          ⏱ Stale
+        </button>
+        <button onClick={toggleUnassigned}
+          className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${unassignedFilter ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/30 dark:border-blue-700 dark:text-blue-300' : 'bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'}`}>
+          👤 Unassigned
+        </button>
       </div>
 
       {/* Bulk actions */}

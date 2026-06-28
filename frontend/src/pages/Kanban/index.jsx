@@ -9,6 +9,9 @@ import { CSS } from '@dnd-kit/utilities';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
+import { Plus } from 'lucide-react';
+import Modal from '../../components/ui/Modal';
+import LeadForm from '../../components/forms/LeadForm';
 
 const STATUSES = ['New', 'Contacted', 'Qualified', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
 const STATUS_COLORS = {
@@ -82,6 +85,13 @@ export default function KanbanPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [activeId, setActiveId] = useState(null);
+  const [showCreate, setShowCreate] = useState(false);
+
+  const createMutation = useMutation({
+    mutationFn: (data) => leadsApi.create(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['leads-kanban'] }); setShowCreate(false); toast.success('Lead created'); },
+    onError: (e) => toast.error(e.response?.data?.error || 'Failed'),
+  });
 
   if (user?.role === 'agent') {
     navigate('/leads', { replace: true });
@@ -122,9 +132,15 @@ export default function KanbanPage() {
 
   return (
     <div className="p-4 md:p-6">
-      <div className="mb-4">
-        <h1 className="text-xl md:text-2xl font-bold">Kanban Board</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">Drag cards to update lead status</p>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold">Kanban Board</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Drag cards to update lead status</p>
+        </div>
+        <button onClick={() => setShowCreate(true)}
+          className="flex items-center gap-1.5 px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors">
+          <Plus size={15} /> <span className="hidden sm:inline">New Lead</span>
+        </button>
       </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter}
         onDragStart={({ active }) => setActiveId(active.id)}
@@ -145,6 +161,10 @@ export default function KanbanPage() {
           )}
         </DragOverlay>
       </DndContext>
+
+      <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="New Lead">
+        <LeadForm onSubmit={createMutation.mutate} loading={createMutation.isPending} />
+      </Modal>
     </div>
   );
 }
