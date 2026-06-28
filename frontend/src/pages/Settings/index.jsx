@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import posthog from 'posthog-js';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { usersApi, voiceDraftsApi, leadsApi, orgApi } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -509,6 +510,7 @@ function BillingSection() {
   });
 
   const handleUpgrade = async () => {
+    posthog.capture('checkout_started');
     setRedirecting(true);
     try {
       const origin = window.location.origin;

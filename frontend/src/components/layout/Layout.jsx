@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { messagesApi, voiceDraftsApi } from '../../services/api';
+import posthog from 'posthog-js';
 import {
   LayoutDashboard, Users, Columns, Mic, Settings, LogOut, Sun, Moon, ChevronLeft, ChevronRight, MessageSquare, Bot, Shield,
 } from 'lucide-react';
@@ -24,6 +25,9 @@ function TopBanners({ org }) {
   if (!org) return null;
   const daysLeft = org.plan === 'trial' ? Math.max(0, Math.ceil((new Date(org.trialEndsAt) - Date.now()) / 86400000)) : null;
   const showTrial = daysLeft !== null && daysLeft <= 25;
+  useEffect(() => {
+    if (showTrial) posthog.capture('upgrade_modal_opened', { days_left: daysLeft, trial_ended: daysLeft <= 0 });
+  }, [showTrial]);
   return (
     <>
       {org.demoMode && (

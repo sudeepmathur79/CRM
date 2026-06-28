@@ -1,5 +1,6 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import posthog from 'posthog-js';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { leadsApi, recordingsApi } from '../../services/api';
 import { StatusBadge, TagBadge } from '../../components/ui/Badge';
@@ -125,6 +126,12 @@ export default function LeadDetailPage() {
     mutationFn: (noteId) => leadsApi.deleteNote(id, noteId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['lead', id] }); toast.success('Note deleted'); },
   });
+
+  useEffect(() => {
+    if (lead?.aiScore) {
+      posthog.capture('ai_score_viewed', { lead_id: id, score: lead.aiScore });
+    }
+  }, [lead?.aiScore, id]);
 
   const startRecording = async () => {
     try {

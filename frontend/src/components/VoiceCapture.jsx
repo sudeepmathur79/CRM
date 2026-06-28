@@ -133,6 +133,7 @@ export default function VoiceCapture() {
 
   const startRecording = () => {
     if (!SpeechRecognition) { toast.error('Speech recognition not supported in this browser'); return; }
+    posthog.capture('voice_capture_attempted');
     accumulatedRef.current = '';
     shouldRestartRef.current = true;
     restartCountRef.current = 0;

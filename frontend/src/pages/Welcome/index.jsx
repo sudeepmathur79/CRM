@@ -22,50 +22,50 @@ const FEATURES = [
   {
     icon: <Mic className="w-5 h-5 text-indigo-400" />,
     title: 'Voice capture',
-    body: 'Speak naturally after every meeting. AI extracts names, companies, deal values, and next steps — no typing.',
+    body: 'Speak naturally after every call or meeting. AI pulls out names, companies, deal values, and next steps — no typing required.',
   },
   {
-    icon: <MapPin className="w-5 h-5 text-indigo-400" />,
-    title: 'Built for the field',
-    body: 'Designed for reps who sell face-to-face. Works on any phone. No laptop required.',
+    icon: <Zap className="w-5 h-5 text-indigo-400" />,
+    title: 'AI lead scoring',
+    body: 'Every lead is automatically scored 1–10 based on conversation content, sentiment, and engagement history.',
   },
   {
     icon: <RefreshCw className="w-5 h-5 text-indigo-400" />,
-    title: 'CRM sync',
-    body: 'Pushes updates to HubSpot, Salesforce, or your built-in pipeline automatically after every capture.',
+    title: 'Smart Add',
+    body: 'Describe a lead in plain English — "Sarah at Acme, interested in the enterprise plan, follow up Thursday" — and AI creates the record instantly.',
   },
   {
     icon: <BarChart2 className="w-5 h-5 text-indigo-400" />,
     title: 'Live pipeline',
-    body: 'See every deal, stage, and value in one view. Filter by rep, tag, or territory in seconds.',
+    body: 'See every deal, stage, and value in one view. Kanban or list — your call. Filter by status, score, or follow-up date.',
   },
   {
     icon: <Bell className="w-5 h-5 text-indigo-400" />,
     title: 'Follow-up reminders',
-    body: 'AI drafts follow-up emails and sets reminders so no lead goes cold after the meeting.',
+    body: 'Set follow-up dates on any lead. Get browser reminders before they go cold. No lead falls through the cracks.',
   },
   {
     icon: <Users className="w-5 h-5 text-indigo-400" />,
-    title: 'Team visibility',
-    body: "Managers see what's happening in the field in real time — without chasing reps for updates.",
+    title: 'Team ready',
+    body: 'Add up to 2 team members on the Pro plan. Assign leads, track activity, and see team performance — all in one workspace.',
   },
 ];
 
 const HOW_IT_WORKS = [
   {
     step: '01',
-    title: 'Record after the meeting',
-    body: 'Open SalesFlow, tap record, and describe what happened. 30 seconds. Natural language. No form to fill.',
+    title: 'Sign up in 30 seconds',
+    body: 'No credit card. No setup wizard. Create your account, and you\'re in — with a live pipeline ready to use.',
   },
   {
     step: '02',
-    title: 'AI does the data entry',
-    body: 'SalesFlow extracts the contact, company, deal size, and action items — and creates or updates the lead record.',
+    title: 'Add leads by voice or text',
+    body: 'Tap the mic and describe a lead, or use Smart Add to type it in plain English. AI does the data entry for you.',
   },
   {
     step: '03',
-    title: 'Your CRM stays current',
-    body: "Syncs to HubSpot, Salesforce, or your SalesFlow pipeline. Your manager sees the update before you're back at your desk.",
+    title: 'Close deals, not spreadsheets',
+    body: 'Your pipeline stays current automatically. Follow-up reminders fire on time. AI tells you which leads to prioritise.',
   },
 ];
 
@@ -74,7 +74,7 @@ const PLANS = [
     name: 'Free',
     price: '$0',
     period: 'forever',
-    features: ['10 captures / month', 'Built-in pipeline included', 'No credit card required'],
+    features: ['10 lead captures / month', 'Built-in pipeline', 'AI Smart Add', 'No credit card required'],
     cta: 'Start free',
     ctaHref: '/signup',
     highlight: false,
@@ -82,41 +82,41 @@ const PLANS = [
   {
     name: 'Pro',
     price: '$29',
-    period: '/seat / month',
-    features: ['Unlimited captures', 'HubSpot + Salesforce sync', 'AI lead scoring', 'Follow-up reminders', 'Priority support'],
-    cta: 'Start free trial',
+    period: '/month',
+    features: ['Unlimited lead captures', 'Voice capture + AI transcription', 'AI lead scoring', 'Follow-up reminders', 'Up to 2 team members', 'File & recording storage', 'Priority support'],
+    cta: 'Get started',
     ctaHref: '/signup',
     highlight: true,
     badge: 'Most popular',
   },
   {
     name: 'Team',
-    price: 'Custom',
+    price: 'Talk to us',
     period: '',
-    features: ['Everything in Pro', 'Manager dashboard', 'Territory analytics', 'SSO + advanced permissions', 'Dedicated onboarding'],
+    features: ['Everything in Pro', 'Unlimited team members', 'Manager dashboard', 'Custom onboarding', 'Dedicated support'],
     cta: 'Contact us',
-    ctaHref: 'mailto:hello@salesflow.io',
+    ctaHref: 'mailto:support@salesflowcrm.io',
     highlight: false,
   },
 ];
 
 const TESTIMONIALS = [
   {
-    quote: "I used to spend Sunday nights catching up on CRM. Now I do it in 30 seconds from the parking lot.",
-    name: 'Marcus T.',
-    role: 'Senior Field Rep, Medical Devices',
-    initials: 'MT',
+    quote: "I've tried Pipedrive, HubSpot, Notion — I used none of them consistently. SalesFlow is the first CRM I actually open every day.",
+    name: 'Alex R.',
+    role: 'Freelance Consultant',
+    initials: 'AR',
   },
   {
-    quote: "My pipeline accuracy went from a guess to something I can actually rely on in forecasting meetings.",
-    name: 'Priya S.',
-    role: 'Regional Sales Manager, HVAC',
-    initials: 'PS',
+    quote: "The AI scoring is genuinely useful. I know exactly which leads to chase first thing Monday morning.",
+    name: 'Sarah M.',
+    role: 'Founder, B2B SaaS',
+    initials: 'SM',
   },
   {
-    quote: "My team resisted every CRM before this one. Voice capture changed everything — adoption was instant.",
+    quote: "Voice capture after calls is a game changer. It takes 20 seconds and my notes are better than anything I'd type.",
     name: 'James O.',
-    role: 'VP Sales, Commercial Roofing',
+    role: 'Independent Sales Rep',
     initials: 'JO',
   },
 ];
@@ -159,16 +159,16 @@ export default function WelcomePage() {
         </div>
 
         <div className="inline-flex items-center gap-2 bg-indigo-950/60 border border-indigo-500/30 rounded-full px-4 py-1.5 text-xs font-semibold text-indigo-300 mb-6 uppercase tracking-wide">
-          <Zap className="w-3 h-3" /> CRM built for field sales
+          <Zap className="w-3 h-3" /> AI CRM for solopreneurs &amp; small teams
         </div>
 
         <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight leading-[1.1] mb-6">
-          The CRM your team<br className="hidden sm:block" />
-          <span className="text-indigo-400"> will actually use.</span>
+          The CRM you'll<br className="hidden sm:block" />
+          <span className="text-indigo-400"> actually keep using.</span>
         </h1>
 
         <p className="text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-          SalesFlow captures field meetings by voice, extracts lead data with AI, and keeps your pipeline current — automatically. No typing. No Sunday-night catch-up.
+          SalesFlow captures leads by voice, scores them with AI, and keeps your pipeline current — automatically. Built for founders and small teams who sell without a sales ops team behind them.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-4">
@@ -187,12 +187,12 @@ export default function WelcomePage() {
         </div>
         <p className="text-sm text-slate-500">10 captures free / month. No credit card. No catch.</p>
 
-        {/* Stats */}
+        {/* Key facts */}
         <div className="mt-16 grid grid-cols-3 gap-4 max-w-lg mx-auto">
           {[
-            { value: '3.5 hrs', label: 'saved per rep / week' },
-            { value: '10×', label: 'faster data entry' },
-            { value: '94%', label: 'pipeline accuracy' },
+            { value: '30 sec', label: 'to add a lead by voice' },
+            { value: 'Free', label: '10 captures / month' },
+            { value: '$29', label: 'flat / month for Pro' },
           ].map((s) => (
             <div key={s.label} className="text-center">
               <div className="text-2xl font-extrabold text-white">{s.value}</div>
@@ -205,15 +205,14 @@ export default function WelcomePage() {
       {/* Social proof bar */}
       <div className="border-y border-slate-800 bg-slate-800/30 py-4">
         <div className="max-w-4xl mx-auto px-4 text-center text-slate-400 text-sm">
-          Trusted by <span className="text-white font-medium">field sales teams</span> across{' '}
-          <span className="text-white font-medium">medical devices, HVAC, roofing, and commercial real estate</span>
+          Built for <span className="text-white font-medium">solopreneurs, consultants, and small sales teams</span> who are tired of CRMs that require a manual to operate
         </div>
       </div>
 
       {/* Features */}
       <section id="features" className="max-w-6xl mx-auto px-4 sm:px-6 py-20">
-        <h2 className="text-2xl sm:text-3xl font-bold text-center mb-3">Everything you need in the field</h2>
-        <p className="text-center text-slate-500 text-sm mb-14">No bloat. No complexity. Just the tools that close deals.</p>
+        <h2 className="text-2xl sm:text-3xl font-bold text-center mb-3">Everything you need to close deals</h2>
+        <p className="text-center text-slate-500 text-sm mb-14">No bloat. No six-figure implementation. Just the tools that actually matter.</p>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {FEATURES.map((f) => (
             <div key={f.title} className="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 hover:border-indigo-500/40 transition-colors">
@@ -246,8 +245,8 @@ export default function WelcomePage() {
 
       {/* Testimonials */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 py-20">
-        <h2 className="text-2xl sm:text-3xl font-bold text-center mb-3">Field reps love it</h2>
-        <p className="text-center text-slate-500 text-sm mb-14">Real results from real sellers.</p>
+        <h2 className="text-2xl sm:text-3xl font-bold text-center mb-3">What early users are saying</h2>
+        <p className="text-center text-slate-500 text-sm mb-14">Real feedback from real sellers.</p>
         <div className="grid sm:grid-cols-3 gap-5">
           {TESTIMONIALS.map((t) => (
             <div key={t.name} className="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 flex flex-col gap-4">
@@ -374,7 +373,7 @@ export default function WelcomePage() {
 
             <div className="flex-shrink-0 text-center">
               <a
-                href="mailto:hello@salesflow.io?subject=GlassCast waitlist"
+                href="mailto:support@salesflowcrm.io?subject=GlassCast waitlist"
                 className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 transition-colors px-6 py-3 rounded-xl font-semibold text-sm shadow-lg shadow-indigo-600/30 whitespace-nowrap"
               >
                 Join the waitlist <ArrowRight className="w-4 h-4" />
@@ -389,11 +388,11 @@ export default function WelcomePage() {
       <footer className="border-t border-slate-800">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-500 text-sm">
           <SalesFlowLogo textSize="text-base" className="opacity-60" />
-          <span>© 2026 SalesFlow. Built for field sales.</span>
+          <span>© 2026 SalesFlow CRM.</span>
           <div className="flex gap-6">
             <a href="/login" className="hover:text-slate-300 transition-colors">Sign in</a>
             <a href="/signup" className="hover:text-slate-300 transition-colors">Sign up</a>
-            <a href="mailto:hello@salesflow.io" className="hover:text-slate-300 transition-colors">Contact</a>
+            <a href="mailto:support@salesflowcrm.io" className="hover:text-slate-300 transition-colors">Contact</a>
           </div>
         </div>
       </footer>
