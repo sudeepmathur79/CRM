@@ -210,6 +210,7 @@ router.delete('/users/:id', async (req, res, next) => {
     await prisma.activity.deleteMany({ where: { userId: id } });
     await prisma.message.deleteMany({ where: { fromId: id } });
     await prisma.message.deleteMany({ where: { toId: id } });
+    await prisma.voiceDraft.deleteMany({ where: { userId: id } });
     await prisma.user.delete({ where: { id } });
     res.json({ ok: true });
   } catch (e) { next(e); }
