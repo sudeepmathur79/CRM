@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Glasscast — Wear it. Meet it. Sync it.</title>
+  <meta name="description" content="Glasscast captures every field meeting through your smart glasses and syncs lead data straight to your CRM. No notes. No phone. No data entry." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0A0F1E;
+      --surface: #111827;
+      --surface-2: #1a2236;
+      --accent: #6366F1;
+      --accent-light: #A5B4FC;
+      --accent-dim: rgba(99,102,241,0.12);
+      --text: #F9FAFB;
+      --text-2: #9CA3AF;
+      --text-3: #6B7280;
+      --border: rgba(255,255,255,0.07);
+      --border-accent: rgba(99,102,241,0.3);
+    }
+
+    html { scroll-behavior: smooth; }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── LAYOUT ── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+    .container--narrow { max-width: 720px; margin: 0 auto; padding: 0 24px; }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(10,15,30,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 60px; max-width: 1100px; margin: 0 auto; padding: 0 24px;
+    }
+    .nav-logo {
+      font-size: 1.1rem; font-weight: 800; letter-spacing: -0.02em; color: var(--text);
+      text-decoration: none;
+    }
+    .nav-logo span { color: var(--accent-light); }
+    .nav-cta {
+      background: var(--accent); color: #fff;
+      padding: 8px 20px; border-radius: 8px;
+      font-size: 0.875rem; font-weight: 600;
+      text-decoration: none; border: none; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .nav-cta:hover { background: #4f46e5; }
+
+    /* ── HERO ── */
+    .hero {
+      padding: 120px 0 100px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; top: -200px; left: 50%; transform: translateX(-50%);
+      width: 800px; height: 800px;
+      background: radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--accent-dim); border: 1px solid var(--border-accent);
+      color: var(--accent-light); font-size: 0.8rem; font-weight: 600;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      padding: 6px 14px; border-radius: 100px; margin-bottom: 32px;
+    }
+    .hero-eyebrow-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+    h1 {
+      font-size: clamp(2.5rem, 6vw, 4.5rem);
+      font-weight: 900; letter-spacing: -0.03em; line-height: 1.05;
+      margin-bottom: 24px; color: var(--text);
+    }
+    .hero-sub {
+      font-size: clamp(1rem, 2vw, 1.2rem); color: var(--text-2);
+      max-width: 560px; margin: 0 auto 44px; line-height: 1.65;
+    }
+    .hero-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn-primary {
+      background: var(--accent); color: #fff;
+      padding: 14px 32px; border-radius: 10px;
+      font-size: 0.95rem; font-weight: 600;
+      text-decoration: none; border: none; cursor: pointer;
+      box-shadow: 0 0 0 0 rgba(99,102,241,0.4);
+      transition: background 0.15s, box-shadow 0.2s;
+    }
+    .btn-primary:hover { background: #4f46e5; box-shadow: 0 0 24px rgba(99,102,241,0.35); }
+    .btn-secondary {
+      background: transparent; color: var(--text-2);
+      padding: 14px 32px; border-radius: 10px;
+      font-size: 0.95rem; font-weight: 600;
+      text-decoration: none; border: 1px solid var(--border);
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-secondary:hover { border-color: rgba(255,255,255,0.2); color: var(--text); }
+
+    /* ── HERO VISUAL ── */
+    .hero-visual {
+      margin-top: 72px;
+      display: flex; justify-content: center; align-items: center;
+    }
+    .glasses-diagram {
+      position: relative; width: 480px; max-width: 100%; height: 160px;
+    }
+    .glasses-diagram svg { width: 100%; height: 100%; overflow: visible; }
+
+    /* ── SECTION BASE ── */
+    section { padding: 100px 0; }
+    .section-label {
+      font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--accent-light);
+      margin-bottom: 16px;
+    }
+    h2 {
+      font-size: clamp(1.75rem, 4vw, 2.75rem);
+      font-weight: 800; letter-spacing: -0.025em; line-height: 1.15;
+      color: var(--text); margin-bottom: 16px;
+    }
+    .section-sub {
+      font-size: 1.05rem; color: var(--text-2); line-height: 1.65;
+      max-width: 560px;
+    }
+
+    /* ── PAIN ── */
+    .pain { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .pain-header { text-align: center; margin-bottom: 60px; }
+    .pain-header .section-sub { margin: 0 auto; }
+    .pain-body { font-size: 1rem; color: var(--text-2); max-width: 600px; margin: 48px auto 0; text-align: center; line-height: 1.75; }
+    .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    @media (max-width: 680px) { .stats-grid { grid-template-columns: 1fr; } }
+    .stat-card {
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 14px; padding: 32px 28px;
+    }
+    .stat-number {
+      font-size: 2.5rem; font-weight: 900; letter-spacing: -0.04em;
+      color: var(--accent-light); line-height: 1; margin-bottom: 12px;
+    }
+    .stat-label { font-size: 0.9rem; color: var(--text-2); line-height: 1.5; }
+
+    /* ── HOW IT WORKS ── */
+    .how-header { text-align: center; margin-bottom: 80px; }
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; position: relative; }
+    .steps::before {
+      content: '';
+      position: absolute; top: 32px; left: calc(16.67% + 16px); right: calc(16.67% + 16px);
+      height: 1px; background: linear-gradient(90deg, var(--border-accent), var(--accent), var(--border-accent));
+      z-index: 0;
+    }
+    @media (max-width: 680px) {
+      .steps { grid-template-columns: 1fr; }
+      .steps::before { display: none; }
+    }
+    .step { text-align: center; padding: 0 24px; position: relative; z-index: 1; }
+    .step-icon {
+      width: 64px; height: 64px; border-radius: 16px;
+      background: var(--surface-2); border: 1px solid var(--border-accent);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 24px; position: relative; z-index: 1;
+    }
+    .step-num {
+      position: absolute; top: -8px; right: -8px;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--accent); color: #fff;
+      font-size: 0.7rem; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .step-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 10px; }
+    .step-body { font-size: 0.9rem; color: var(--text-2); line-height: 1.65; }
+
+    /* Flow animation */
+    .flow-dot {
+      animation: flowRight 2.4s ease-in-out infinite;
+      opacity: 0;
+    }
+    .flow-dot:nth-child(2) { animation-delay: 0.8s; }
+    .flow-dot:nth-child(3) { animation-delay: 1.6s; }
+    @keyframes flowRight {
+      0% { opacity: 0; transform: translateX(-12px); }
+      20% { opacity: 1; }
+      80% { opacity: 1; }
+      100% { opacity: 0; transform: translateX(12px); }
+    }
+
+    /* ── PRIVACY ── */
+    .privacy { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .privacy-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; }
+    @media (max-width: 768px) { .privacy-inner { grid-template-columns: 1fr; gap: 48px; } }
+    .privacy-body { font-size: 1rem; color: var(--text-2); line-height: 1.8; margin-top: 20px; }
+    .trust-badges { display: flex; flex-direction: column; gap: 14px; }
+    .badge {
+      display: flex; align-items: center; gap: 14px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px 20px;
+    }
+    .badge-icon {
+      width: 36px; height: 36px; border-radius: 9px;
+      background: var(--accent-dim); border: 1px solid var(--border-accent);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .badge-text { font-size: 0.875rem; font-weight: 600; color: var(--text); }
+    .badge-sub { font-size: 0.8rem; color: var(--text-3); margin-top: 2px; }
+
+    /* ── INTEGRATIONS ── */
+    .integrations-header { text-align: center; margin-bottom: 60px; }
+    .integrations-header .section-sub { margin: 0 auto; }
+    .crm-grid { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; margin-bottom: 40px; }
+    .crm-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 28px 40px;
+      display: flex; align-items: center; justify-content: center;
+      min-width: 160px;
+      transition: border-color 0.2s;
+    }
+    .crm-card:hover { border-color: var(--border-accent); }
+    .crm-name { font-size: 1.1rem; font-weight: 800; letter-spacing: -0.02em; }
+    .crm-hubspot { color: #FF7A59; }
+    .crm-salesforce { color: #00A1E0; }
+    .crm-zoho { color: #E42527; }
+    .integrations-body { text-align: center; font-size: 0.95rem; color: var(--text-2); max-width: 480px; margin: 0 auto; line-height: 1.7; }
+
+    /* ── WAITLIST ── */
+    .waitlist {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+    }
+    .waitlist-inner { text-align: center; }
+    .waitlist h2 { margin-bottom: 12px; }
+    .waitlist-sub { font-size: 1rem; color: var(--text-2); margin-bottom: 40px; }
+    .waitlist-form { display: flex; gap: 10px; max-width: 440px; margin: 0 auto 16px; }
+    @media (max-width: 500px) { .waitlist-form { flex-direction: column; } }
+    .waitlist-input {
+      flex: 1; padding: 13px 16px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text);
+      font-size: 0.95rem; font-family: inherit;
+      outline: none; transition: border-color 0.15s;
+    }
+    .waitlist-input:focus { border-color: var(--accent); }
+    .waitlist-input::placeholder { color: var(--text-3); }
+    .waitlist-small { font-size: 0.8rem; color: var(--text-3); }
+    .waitlist-success {
+      display: none; background: rgba(16,185,129,0.1);
+      border: 1px solid rgba(16,185,129,0.3); border-radius: 10px;
+      padding: 14px 20px; color: #34d399;
+      font-size: 0.9rem; font-weight: 500;
+      max-width: 440px; margin: 0 auto;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      padding: 40px 0;
+      border-top: 1px solid var(--border);
+    }
+    .footer-inner {
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px;
+    }
+    .footer-logo { font-size: 1rem; font-weight: 800; color: var(--text); letter-spacing: -0.02em; }
+    .footer-logo span { color: var(--accent-light); }
+    .footer-tagline { font-size: 0.8rem; color: var(--text-3); margin-top: 4px; }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { font-size: 0.85rem; color: var(--text-3); text-decoration: none; transition: color 0.15s; }
+    .footer-links a:hover { color: var(--text-2); }
+    .footer-copy { font-size: 0.8rem; color: var(--text-3); }
+
+    /* ── DIVIDER ── */
+    .divider { height: 1px; background: var(--border); }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <a href="#" class="nav-logo"><span>Glass</span>cast</a>
+    <a href="#waitlist" class="nav-cta">Join the waitlist</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="container--narrow">
+    <div class="hero-eyebrow">
+      <span class="hero-eyebrow-dot"></span>
+      Early access — limited beta
+    </div>
+    <h1>Your next meeting<br>updates itself.</h1>
+    <p class="hero-sub">Glasscast captures every field meeting through your smart glasses and syncs the lead data straight to your CRM. No notes. No phone. No data entry.</p>
+    <div class="hero-actions">
+      <a href="#waitlist" class="btn-primary">Join the waitlist</a>
+      <a href="#how-it-works" class="btn-secondary">See how it works</a>
+    </div>
+  </div>
+
+  <!-- Hero diagram -->
+  <div class="hero-visual">
+    <div class="glasses-diagram">
+      <svg viewBox="0 0 480 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Glasses frame -->
+        <rect x="60" y="50" width="140" height="70" rx="18" fill="#111827" stroke="#6366F1" stroke-width="1.5"/>
+        <rect x="220" y="50" width="140" height="70" rx="18" fill="#111827" stroke="#6366F1" stroke-width="1.5"/>
+        <!-- Bridge -->
+        <path d="M200 85 Q210 80 220 85" stroke="#6366F1" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <!-- Arms -->
+        <path d="M60 85 Q30 85 16 72" stroke="#6366F1" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <path d="M360 85 Q390 85 464 72" stroke="#6366F1" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+
+        <!-- Left lens: audio waveform -->
+        <rect x="94" y="70" width="6" height="20" rx="3" fill="#A5B4FC" opacity="0.5"/>
+        <rect x="106" y="63" width="6" height="34" rx="3" fill="#A5B4FC"/>
+        <rect x="118" y="68" width="6" height="24" rx="3" fill="#A5B4FC" opacity="0.8"/>
+        <rect x="130" y="72" width="6" height="16" rx="3" fill="#A5B4FC" opacity="0.6"/>
+        <rect x="142" y="66" width="6" height="28" rx="3" fill="#A5B4FC" opacity="0.7"/>
+        <rect x="154" y="71" width="6" height="18" rx="3" fill="#A5B4FC" opacity="0.5"/>
+        <rect x="166" y="74" width="6" height="12" rx="3" fill="#A5B4FC" opacity="0.4"/>
+
+        <!-- Right lens: structured data lines -->
+        <rect x="240" y="67" width="80" height="8" rx="4" fill="#6366F1" opacity="0.8"/>
+        <rect x="240" y="81" width="60" height="8" rx="4" fill="#6366F1" opacity="0.5"/>
+        <rect x="240" y="95" width="70" height="8" rx="4" fill="#6366F1" opacity="0.6"/>
+        <rect x="240" y="109" width="45" height="8" rx="4" fill="#6366F1" opacity="0.35"/>
+
+        <!-- Flow dots (animated) -->
+        <circle class="flow-dot" cx="416" cy="85" r="4" fill="#6366F1"/>
+        <circle class="flow-dot" cx="430" cy="80" r="3" fill="#A5B4FC" opacity="0.7"/>
+        <circle class="flow-dot" cx="444" cy="76" r="2.5" fill="#A5B4FC" opacity="0.4"/>
+
+        <!-- Label: glasses -->
+        <text x="130" y="140" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" fill="#6B7280" font-weight="500">Smart glasses</text>
+        <!-- Label: crm -->
+        <text x="350" y="140" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" fill="#6B7280" font-weight="500">Your CRM</text>
+        <!-- Arrow label -->
+        <text x="242" y="26" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#A5B4FC" font-weight="600" letter-spacing="0.06em">STRUCTURED DATA ONLY</text>
+        <!-- Arrow -->
+        <path d="M200 32 L282 32" stroke="#6366F1" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+        <defs>
+          <marker id="arr" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 Z" fill="#6366F1"/>
+          </marker>
+        </defs>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- PAIN -->
+<section class="pain">
+  <div class="container">
+    <div class="pain-header">
+      <div class="section-label">The problem</div>
+      <h2>Reps forget. CRMs go stale. Deals slip.</h2>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-number">20%</div>
+        <div class="stat-label">of a rep's day is lost to manual CRM data entry</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">63%</div>
+        <div class="stat-label">of CRM data is incomplete or out of date within 6 months</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">40%</div>
+        <div class="stat-label">of meeting details forgotten by the average rep within an hour</div>
+      </div>
+    </div>
+    <p class="pain-body">Your CRM is only as good as what goes in. And what goes in depends on a rep who just drove 45 minutes to their next meeting.</p>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how-it-works">
+  <div class="container">
+    <div class="how-header">
+      <div class="section-label">How it works</div>
+      <h2>Three steps. Zero friction.</h2>
+    </div>
+    <div class="steps">
+
+      <div class="step">
+        <div class="step-icon">
+          <span class="step-num">1</span>
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <!-- Glasses icon -->
+            <rect x="2" y="9" width="10" height="10" rx="3" stroke="#A5B4FC" stroke-width="1.5"/>
+            <rect x="16" y="9" width="10" height="10" rx="3" stroke="#A5B4FC" stroke-width="1.5"/>
+            <path d="M12 14 Q14 12 16 14" stroke="#A5B4FC" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+            <path d="M2 14 Q0 14 0 12" stroke="#A5B4FC" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+            <path d="M26 14 Q28 14 28 12" stroke="#A5B4FC" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="step-title">Wear</div>
+        <p class="step-body">Put on your smart glasses before the meeting. That's it. Glasscast pairs via Bluetooth automatically.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-icon">
+          <span class="step-num">2</span>
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <!-- Waveform icon -->
+            <rect x="2" y="11" width="3" height="6" rx="1.5" fill="#A5B4FC" opacity="0.5"/>
+            <rect x="7" y="7" width="3" height="14" rx="1.5" fill="#A5B4FC"/>
+            <rect x="12" y="9" width="3" height="10" rx="1.5" fill="#A5B4FC" opacity="0.8"/>
+            <rect x="17" y="6" width="3" height="16" rx="1.5" fill="#A5B4FC"/>
+            <rect x="22" y="10" width="3" height="8" rx="1.5" fill="#A5B4FC" opacity="0.6"/>
+          </svg>
+        </div>
+        <div class="step-title">Meet</div>
+        <p class="step-body">Have the meeting naturally. Glasscast captures conversation in real time via Bluetooth. Audio never leaves your phone.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-icon">
+          <span class="step-num">3</span>
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <!-- Sync / arrows icon -->
+            <path d="M6 10 A8 8 0 0 1 22 10" stroke="#A5B4FC" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+            <path d="M22 18 A8 8 0 0 1 6 18" stroke="#A5B4FC" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+            <path d="M22 7 L22 11 L18 11" stroke="#A5B4FC" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <path d="M6 21 L6 17 L10 17" stroke="#A5B4FC" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          </svg>
+        </div>
+        <div class="step-title">Sync</div>
+        <p class="step-body">Name, company, deal value, next steps — structured and pushed to your CRM the moment the meeting ends. Automatically.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- PRIVACY -->
+<section class="privacy">
+  <div class="container">
+    <div class="privacy-inner">
+      <div>
+        <div class="section-label">Privacy by design</div>
+        <h2>Audio never stored. Ever.</h2>
+        <p class="privacy-body">Glasscast transcribes in real time using your phone's native speech recognition. The moment text is extracted, the audio is gone. Only structured lead data — names, companies, values, actions — is transmitted to your CRM. Your conversations stay private.</p>
+      </div>
+      <div class="trust-badges">
+        <div class="badge">
+          <div class="badge-icon">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <rect x="2" y="7" width="14" height="10" rx="3" stroke="#A5B4FC" stroke-width="1.5"/>
+              <path d="M5 7V5a4 4 0 0 1 8 0v2" stroke="#A5B4FC" stroke-width="1.5" stroke-linecap="round"/>
+              <circle cx="9" cy="12" r="1.5" fill="#A5B4FC"/>
+            </svg>
+          </div>
+          <div>
+            <div class="badge-text">On-device processing</div>
+            <div class="badge-sub">Transcription runs locally on your phone</div>
+          </div>
+        </div>
+        <div class="badge">
+          <div class="badge-icon">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <circle cx="9" cy="9" r="7" stroke="#A5B4FC" stroke-width="1.5"/>
+              <path d="M6 9l2 2 4-4" stroke="#A5B4FC" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div>
+            <div class="badge-text">No audio transmission</div>
+            <div class="badge-sub">Audio bytes never leave the device</div>
+          </div>
+        </div>
+        <div class="badge">
+          <div class="badge-icon">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <path d="M9 2L3 5v5c0 3.5 2.5 6.5 6 7.5C12.5 16.5 15 13.5 15 10V5L9 2z" stroke="#A5B4FC" stroke-width="1.5" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div>
+            <div class="badge-text">GDPR-friendly architecture</div>
+            <div class="badge-sub">Designed for enterprise compliance</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- INTEGRATIONS -->
+<section>
+  <div class="container">
+    <div class="integrations-header">
+      <div class="section-label">Integrations</div>
+      <h2>Works with the CRM you already use.</h2>
+      <p class="section-sub">Glasscast doesn't replace your CRM — it makes it work the way it always should have.</p>
+    </div>
+    <div class="crm-grid">
+      <div class="crm-card">
+        <span class="crm-name crm-hubspot">HubSpot</span>
+      </div>
+      <div class="crm-card">
+        <span class="crm-name crm-salesforce">Salesforce</span>
+      </div>
+      <div class="crm-card">
+        <span class="crm-name crm-zoho">Zoho</span>
+      </div>
+    </div>
+    <p class="integrations-body">Connect once. Never log a meeting manually again.</p>
+  </div>
+</section>
+
+<!-- WAITLIST -->
+<section class="waitlist" id="waitlist">
+  <div class="container--narrow">
+    <div class="waitlist-inner">
+      <div class="section-label">Early access</div>
+      <h2>Be first in the field.</h2>
+      <p class="waitlist-sub">Glasscast is in early build. Join the waitlist and we'll be in touch when we're ready for beta users.</p>
+      <form class="waitlist-form" id="waitlist-form">
+        <input type="email" class="waitlist-input" placeholder="your@email.com" required id="waitlist-email" />
+        <button type="submit" class="btn-primary">Join waitlist</button>
+      </form>
+      <div class="waitlist-success" id="waitlist-success">
+        You're on the list. We'll be in touch when beta opens.
+      </div>
+      <p class="waitlist-small">No spam. Just updates when it matters.</p>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="container">
+    <div class="footer-inner">
+      <div>
+        <div class="footer-logo"><span>Glass</span>cast</div>
+        <div class="footer-tagline">Wear it. Meet it. Sync it.</div>
+      </div>
+      <div class="footer-links">
+        <a href="#">Privacy Policy</a>
+        <a href="mailto:hello@salesflow.app">Contact</a>
+      </div>
+      <div class="footer-copy">© 2026 Salesflow CRM</div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  document.getElementById('waitlist-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const email = document.getElementById('waitlist-email').value.trim();
+    if (!email) return;
+    const existing = JSON.parse(localStorage.getItem('glasscast_waitlist') || '[]');
+    if (!existing.includes(email)) {
+      existing.push(email);
+      localStorage.setItem('glasscast_waitlist', JSON.stringify(existing));
+    }
+    this.style.display = 'none';
+    document.getElementById('waitlist-success').style.display = 'block';
+  });
+</script>
+
+</body>
+</html>

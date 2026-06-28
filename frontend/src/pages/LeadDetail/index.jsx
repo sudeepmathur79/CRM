@@ -6,7 +6,7 @@ import { StatusBadge, TagBadge } from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
 import LeadForm from '../../components/forms/LeadForm';
 import { format } from 'date-fns';
-import { ArrowLeft, Edit, Mic, Upload, Play, Pause, Trash2, FileText, Clock, Plus, ChevronDown, ChevronUp, MessageSquare, Sparkles, Mail } from 'lucide-react';
+import { ArrowLeft, Edit, Mic, Upload, Play, Pause, Trash2, FileText, Clock, Plus, ChevronDown, ChevronUp, MessageSquare, Sparkles, Mail, AlignLeft, Brain } from 'lucide-react';
 import toast from 'react-hot-toast';
 import MentionTextarea, { MentionText } from '../../components/ui/MentionTextarea';
 import { useAuth } from '../../contexts/AuthContext';
@@ -71,6 +71,7 @@ export default function LeadDetailPage() {
   const [chunks, setChunks] = useState([]);
   const [newNote, setNewNote] = useState('');
   const [expandedNotes, setExpandedNotes] = useState({});
+  const [recView, setRecView] = useState({}); // { [recId]: 'summary' | 'transcript' }
   const fileInputRef = useRef(null);
 
   const { data: lead, isLoading } = useQuery({
@@ -174,6 +175,16 @@ export default function LeadDetailPage() {
                 {lead.company && <p className="text-gray-500 dark:text-gray-400">{lead.company}</p>}
                 <div className="flex flex-wrap items-center gap-3 mt-2">
                   <StatusBadge status={lead.status} />
+                  {lead.leadType && (
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                      lead.leadType === 'VC' ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300' :
+                      lead.leadType === 'Startup' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' :
+                      lead.leadType === 'Partner' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
+                      'bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-gray-300'
+                    }`}>
+                      {lead.leadType}
+                    </span>
+                  )}
                   {lead.source && <span className="text-xs text-gray-400">📍 {lead.source}</span>}
                 </div>
               </div>
@@ -377,7 +388,7 @@ export default function LeadDetailPage() {
               {lead.recordings?.map(rec => (
                 <div key={rec.id} className="p-3 bg-gray-50 dark:bg-slate-700/50 rounded-xl">
                   <div className="flex items-start justify-between">
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <FileText size={14} className="text-gray-400" />
                         <span className="text-sm font-medium truncate max-w-xs">{rec.fileName}</span>
@@ -385,38 +396,57 @@ export default function LeadDetailPage() {
                       </div>
                       <p className="text-xs text-gray-400 mt-0.5">{safeFormat(rec.createdAt, 'MMM d, yyyy HH:mm')}</p>
                       <AudioPlayer recording={rec} />
-                      {rec.transcript && (
-                        <details className="mt-2">
-                          <summary className="text-xs text-primary-500 cursor-pointer">View transcript</summary>
-                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 whitespace-pre-wrap">{rec.transcript}</p>
-                        </details>
-                      )}
-                      {rec.nextSteps && (
-                        <div className="mt-2 p-2 bg-green-50 dark:bg-green-900/20 rounded-lg text-xs text-green-800 dark:text-green-300 border border-green-100 dark:border-green-800">
-                          <p className="font-semibold mb-1">🎯 Next Steps</p>
-                          <p className="whitespace-pre-line">{rec.nextSteps}</p>
-                        </div>
-                      )}
-                      {rec.summary && (
-                        <div className="mt-2 p-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg text-xs text-primary-700 dark:text-primary-300">
-                          <p className="font-semibold mb-1">AI Summary</p>
-                          <div className="space-y-1">
-                            {rec.summary.split(/(?=\[\d{2}\/\d{2}\/\d{4}\]|\[\d+\s\w+\]|\[\w{3}\s\d+\])/g).filter(Boolean).map((entry, i) => (
-                              <p key={i} className="leading-relaxed">{entry.trim()}</p>
-                            ))}
+
+                      {/* Transcript / Summary toggle */}
+                      {(rec.transcript || rec.summary) && (
+                        <div className="mt-3">
+                          <div className="flex gap-1 mb-2">
+                            {rec.summary && (
+                              <button
+                                onClick={() => setRecView(v => ({ ...v, [rec.id]: v[rec.id] === 'summary' ? null : 'summary' }))}
+                                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${recView[rec.id] === 'summary' ? 'bg-primary-600 text-white' : 'bg-gray-100 dark:bg-slate-600 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}
+                              >
+                                <Brain size={11} /> AI Summary
+                              </button>
+                            )}
+                            {rec.transcript && (
+                              <button
+                                onClick={() => setRecView(v => ({ ...v, [rec.id]: v[rec.id] === 'transcript' ? null : 'transcript' }))}
+                                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${recView[rec.id] === 'transcript' ? 'bg-slate-700 text-white' : 'bg-gray-100 dark:bg-slate-600 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}
+                              >
+                                <AlignLeft size={11} /> Transcript
+                              </button>
+                            )}
                           </div>
+
+                          {recView[rec.id] === 'summary' && rec.summary && (
+                            <div className="p-3 bg-primary-50 dark:bg-primary-900/20 rounded-xl text-xs text-primary-800 dark:text-primary-200 border border-primary-100 dark:border-primary-800">
+                              {rec.nextSteps && (
+                                <div className="mb-3 pb-3 border-b border-primary-100 dark:border-primary-800">
+                                  <p className="font-semibold text-green-700 dark:text-green-400 mb-1">🎯 Next Steps</p>
+                                  <p className="whitespace-pre-line leading-relaxed">{rec.nextSteps}</p>
+                                </div>
+                              )}
+                              <p className="font-semibold mb-1 text-primary-600 dark:text-primary-400">Summary</p>
+                              <div className="space-y-1.5 leading-relaxed whitespace-pre-wrap">{rec.summary}</div>
+                            </div>
+                          )}
+
+                          {recView[rec.id] === 'transcript' && rec.transcript && (
+                            <div className="p-3 bg-gray-50 dark:bg-slate-700/50 rounded-xl text-xs text-gray-600 dark:text-gray-300 border border-gray-100 dark:border-slate-600 max-h-48 overflow-y-auto">
+                              <p className="whitespace-pre-wrap leading-relaxed">{rec.transcript}</p>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
                     <div className="flex gap-1 ml-2">
-                      {!rec.summary && (
-                        <button onClick={() => analyzeMutation.mutate(rec.id)}
-                          disabled={analyzeMutation.isPending}
-                          title="Analyze with AI"
-                          className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-slate-600 text-xs text-gray-500">
-                          <FileText size={13} />
-                        </button>
-                      )}
+                      <button onClick={() => analyzeMutation.mutate(rec.id)}
+                        disabled={analyzeMutation.isPending}
+                        title={rec.summary ? 'Re-analyse with AI' : 'Analyse with AI'}
+                        className="p-1.5 rounded hover:bg-violet-100 dark:hover:bg-violet-900/20 text-gray-400 hover:text-violet-600">
+                        <Sparkles size={13} />
+                      </button>
                       <button onClick={() => { if (confirm('Delete?')) deleteRecMutation.mutate(rec.id); }}
                         className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500">
                         <Trash2 size={13} />

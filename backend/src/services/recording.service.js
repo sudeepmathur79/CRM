@@ -131,7 +131,34 @@ const analyzeRecording = async (id) => {
 
   if (!transcript) throw Object.assign(new Error('No transcript available. Upload a text file or enable Whisper for audio.'), { status: 400 });
 
-  const analysis = await analyzeConversation(transcript);
+  // Build full historical context: all prior notes + other recording summaries for this lead
+  const [priorNotes, priorRecordings] = await Promise.all([
+    prisma.leadNote.findMany({
+      where: { leadId: rec.leadId },
+      orderBy: { createdAt: 'asc' },
+      select: { content: true, type: true, createdAt: true },
+    }),
+    prisma.recording.findMany({
+      where: { leadId: rec.leadId, id: { not: id } },
+      orderBy: { createdAt: 'asc' },
+      select: { summary: true, transcript: true, fileName: true, createdAt: true },
+    }),
+  ]);
+
+  const historyParts = [];
+  priorRecordings.forEach(r => {
+    if (r.summary) historyParts.push(`[Prior recording: ${r.fileName}]\n${r.summary}`);
+    else if (r.transcript) historyParts.push(`[Prior transcript: ${r.fileName}]\n${r.transcript.slice(0, 600)}`);
+  });
+  priorNotes.forEach(n => {
+    if (n.type !== 'ai_summary') historyParts.push(`[Note ${new Date(n.createdAt).toLocaleDateString()}]\n${n.content}`);
+  });
+
+  const fullContext = historyParts.length
+    ? `=== HISTORICAL CONTEXT ===\n${historyParts.join('\n\n')}\n\n=== NEW TRANSCRIPT ===\n${transcript}`
+    : transcript;
+
+  const analysis = await analyzeConversation(fullContext);
   const updated = await prisma.recording.update({
     where: { id },
     data: { transcript, summary: analysis.summary, nextSteps: analysis.nextSteps }

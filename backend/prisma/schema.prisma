@@ -82,6 +82,7 @@ model Lead {
   value          Float?
   nextFollowUp   DateTime?
   reminderSentAt DateTime?
+  leadType       String?   // "VC" | "Startup" | "Partner" | "Other"
   aiScore        Int?
   aiScoreReason  String?
   aiNextAction   String?

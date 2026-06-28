@@ -220,7 +220,19 @@ export default function LeadsPage() {
                     {!lead.contactName && <div className="text-xs text-gray-400">{lead.email || lead.phone}</div>}
                   </td>
                   <td className="p-4 text-gray-600 dark:text-gray-400">{lead.company || '—'}</td>
-                  <td className="p-4"><StatusBadge status={lead.status} /></td>
+                  <td className="p-4">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <StatusBadge status={lead.status} />
+                      {lead.leadType && (
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                          lead.leadType === 'VC' ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300' :
+                          lead.leadType === 'Startup' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' :
+                          lead.leadType === 'Partner' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
+                          'bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-gray-300'
+                        }`}>{lead.leadType}</span>
+                      )}
+                    </div>
+                  </td>
                   <td className="p-4 hidden lg:table-cell">
                     {lead.aiScore ? (
                       <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full text-white ${

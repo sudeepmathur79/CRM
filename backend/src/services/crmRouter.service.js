@@ -63,7 +63,7 @@ async function routeExtractedLead(userId, leadData, options = {}) {
 }
 
 async function upsertLeadLocally(userId, orgId, leadData) {
-  const { name, contactName, company, email, phone, value, nextFollowUp, nextAction, summary } = leadData;
+  const { name, contactName, company, email, phone, value, nextFollowUp, nextAction, summary, leadType } = leadData;
 
   let lead = null;
 
@@ -90,6 +90,7 @@ async function upsertLeadLocally(userId, orgId, leadData) {
         ...(value !== undefined ? { value } : {}),
         ...(nextFollowUp ? { nextFollowUp: new Date(nextFollowUp) } : {}),
         ...(nextAction !== undefined ? { aiNextAction: nextAction } : {}),
+        ...(leadType !== undefined ? { leadType } : {}),
       },
     });
   } else {
@@ -104,6 +105,7 @@ async function upsertLeadLocally(userId, orgId, leadData) {
         value,
         nextFollowUp: nextFollowUp ? new Date(nextFollowUp) : undefined,
         aiNextAction: nextAction,
+        leadType,
         status: 'New',
         ...(orgId ? { orgId } : {}),
         createdById: userId,

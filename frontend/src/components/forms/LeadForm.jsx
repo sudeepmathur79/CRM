@@ -4,6 +4,7 @@ import { usersApi } from '../../services/api';
 
 const STATUSES = ['New', 'Contacted', 'Qualified', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
 const SOURCES = ['Website', 'Referral', 'LinkedIn', 'Cold Call', 'Email Campaign', 'Event', 'Other'];
+const LEAD_TYPES = ['VC', 'Startup', 'Partner', 'Other'];
 
 export default function LeadForm({ onSubmit, defaultValues = {}, loading }) {
   const { register, handleSubmit, watch, formState: { errors } } = useForm({ defaultValues });
@@ -87,6 +88,14 @@ export default function LeadForm({ onSubmit, defaultValues = {}, loading }) {
             className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
             <option value="">— Select —</option>
             {SOURCES.map(s => <option key={s}>{s}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Lead type</label>
+          <select {...register('leadType')}
+            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+            <option value="">— None —</option>
+            {LEAD_TYPES.map(t => <option key={t}>{t}</option>)}
           </select>
         </div>
         <div>
