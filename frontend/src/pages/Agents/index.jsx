@@ -38,6 +38,7 @@ function RunModal({ agent, onClose }) {
   const { data: leadsData } = useQuery({
     queryKey: ['leads-agent-picker', leadQuery],
     queryFn: () => leadsApi.list({ search: leadQuery || undefined, take: 8, archived: 'false' }).then(r => r.data),
+    enabled: true,
   });
   const leads = Array.isArray(leadsData) ? leadsData : (leadsData?.leads || []);
 

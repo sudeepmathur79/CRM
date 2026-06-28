@@ -217,6 +217,22 @@ export default function LeadDetailPage() {
                 <div className="font-medium">{safeFormat(lead.createdAt, 'MMM d, yyyy')}</div></div>
             </div>
 
+            {/* VC / Startup specific fields */}
+            {(lead.leadType === 'VC' || lead.leadType === 'Startup') && (lead.fundingStage || lead.valuation || lead.investmentSize || lead.targetMarket || lead.founderNames) && (
+              <div className={`mt-4 p-3 rounded-xl border ${lead.leadType === 'VC' ? 'bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-800' : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800'}`}>
+                <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${lead.leadType === 'VC' ? 'text-violet-600 dark:text-violet-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                  {lead.leadType === 'VC' ? '🏦 VC Details' : '🚀 Startup Details'}
+                </p>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  {lead.fundingStage && <div><span className="text-xs text-gray-400">Stage</span><div className="font-medium">{lead.fundingStage}</div></div>}
+                  {lead.valuation && <div><span className="text-xs text-gray-400">Valuation</span><div className="font-medium text-green-600 dark:text-green-400">${(lead.valuation/1000000).toFixed(1)}M</div></div>}
+                  {lead.investmentSize && <div><span className="text-xs text-gray-400">Cheque size</span><div className="font-medium text-green-600 dark:text-green-400">${(lead.investmentSize/1000).toFixed(0)}K</div></div>}
+                  {lead.targetMarket && <div><span className="text-xs text-gray-400">Market</span><div className="font-medium">{lead.targetMarket}</div></div>}
+                  {lead.founderNames && <div className="col-span-2"><span className="text-xs text-gray-400">{lead.leadType === 'VC' ? 'Partners' : 'Founders'}</span><div className="font-medium">{lead.founderNames}</div></div>}
+                </div>
+              </div>
+            )}
+
             {lead.tags?.length > 0 && (
               <div className="mt-4 flex flex-wrap gap-1">
                 {lead.tags.map(t => <TagBadge key={t.id} tag={t} />)}

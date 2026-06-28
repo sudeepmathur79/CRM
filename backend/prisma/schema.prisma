@@ -83,6 +83,12 @@ model Lead {
   nextFollowUp   DateTime?
   reminderSentAt DateTime?
   leadType       String?   // "VC" | "Startup" | "Partner" | "Other"
+  // VC / Startup specific fields
+  fundingStage   String?   // "Pre-seed" | "Seed" | "Series A" | "Series B" | "Series C+" | "Growth" | "IPO"
+  valuation      Float?    // Company valuation in USD
+  targetMarket   String?   // e.g. "B2B SaaS" | "Healthcare" | "FinTech"
+  founderNames   String?   // comma-separated founder names
+  investmentSize Float?    // deal-specific investment size / cheque size
   aiScore        Int?
   aiScoreReason  String?
   aiNextAction   String?

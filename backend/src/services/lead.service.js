@@ -63,11 +63,18 @@ const createLead = async (data, userId) => {
     throw Object.assign(new Error('Either email or phone number is required'), { status: 400 });
   const lead = await prisma.lead.create({
     data: {
-      name: data.name, company: data.company, email: data.email, phone: data.phone,
+      name: data.name, company: data.company, contactName: data.contactName ?? null,
+      email: data.email, phone: data.phone,
       status: data.status || 'New', source: data.source, notes: data.notes,
       value: data.value ? parseFloat(data.value) : null,
       nextFollowUp: data.nextFollowUp ? new Date(data.nextFollowUp) : null,
       assignedToId: data.assignedToId || null,
+      leadType: data.leadType || null,
+      fundingStage: data.fundingStage || null,
+      valuation: data.valuation ? parseFloat(data.valuation) : null,
+      investmentSize: data.investmentSize ? parseFloat(data.investmentSize) : null,
+      targetMarket: data.targetMarket || null,
+      founderNames: data.founderNames || null,
       orgId: data.orgId ?? null,
       createdById: userId,
     },
@@ -84,6 +91,7 @@ const updateLead = async (id, data, userId, user) => {
     data: {
       name: data.name ?? existing.name,
       company: data.company ?? existing.company,
+      contactName: data.contactName !== undefined ? (data.contactName || null) : existing.contactName,
       email: data.email ?? existing.email,
       phone: data.phone ?? existing.phone,
       status: data.status ?? existing.status,
@@ -92,6 +100,12 @@ const updateLead = async (id, data, userId, user) => {
       value: data.value !== undefined ? (data.value ? parseFloat(data.value) : null) : existing.value,
       nextFollowUp: data.nextFollowUp !== undefined ? (data.nextFollowUp ? new Date(data.nextFollowUp) : null) : existing.nextFollowUp,
       assignedToId: data.assignedToId !== undefined ? data.assignedToId : existing.assignedToId,
+      leadType: data.leadType !== undefined ? (data.leadType || null) : existing.leadType,
+      fundingStage: data.fundingStage !== undefined ? (data.fundingStage || null) : existing.fundingStage,
+      valuation: data.valuation !== undefined ? (data.valuation ? parseFloat(data.valuation) : null) : existing.valuation,
+      investmentSize: data.investmentSize !== undefined ? (data.investmentSize ? parseFloat(data.investmentSize) : null) : existing.investmentSize,
+      targetMarket: data.targetMarket !== undefined ? (data.targetMarket || null) : existing.targetMarket,
+      founderNames: data.founderNames !== undefined ? (data.founderNames || null) : existing.founderNames,
     },
     include: { assignedTo: { select: { id: true, name: true } }, tags: true }
   });
