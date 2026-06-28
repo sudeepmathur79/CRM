@@ -188,4 +188,27 @@ router.post('/test-email', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// List all users (admin tool)
+router.get('/list-users', async (req, res, next) => {
+  const secret = req.headers['x-migrate-secret'];
+  if (!secret || secret !== process.env.MIGRATE_SECRET) return res.status(403).json({ error: 'Forbidden' });
+  try {
+    const users = await prisma.user.findMany({
+      select: { id: true, email: true, name: true, role: true, emailVerifiedAt: true, createdAt: true, orgId: true, org: { select: { name: true, plan: true } } },
+      orderBy: { createdAt: 'asc' },
+    });
+    res.json(users);
+  } catch (e) { next(e); }
+});
+
+// Delete a user by ID (admin tool)
+router.delete('/users/:id', async (req, res, next) => {
+  const secret = req.headers['x-migrate-secret'];
+  if (!secret || secret !== process.env.MIGRATE_SECRET) return res.status(403).json({ error: 'Forbidden' });
+  try {
+    await prisma.user.delete({ where: { id: req.params.id } });
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
 module.exports = router;
