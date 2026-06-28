@@ -13,7 +13,12 @@ export const AuthProvider = ({ children }) => {
     if (token) {
       authApi.me()
         .then(r => { setUser(r.data); setOrg(r.data.org || null); })
-        .catch(() => localStorage.clear())
+        .catch((err) => {
+          // Only clear token on explicit auth rejection — not network errors or server cold starts
+          const status = err?.response?.status;
+          if (status === 401 || status === 403) localStorage.clear();
+          // else: keep token, user stays logged in — they'll hit the error again if it persists
+        })
         .finally(() => setLoading(false));
     } else {
       setLoading(false);
