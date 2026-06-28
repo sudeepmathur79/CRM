@@ -21,6 +21,7 @@ import ResetPassword from './pages/ResetPassword';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import SuperAdminPage from './pages/SuperAdmin';
+import DevPortal from './pages/Dev';
 
 const Protected = ({ children }) => {
   const { user, loading } = useAuth();
@@ -32,6 +33,7 @@ const AppRoutes = () => {
   const { user } = useAuth();
   return (
     <Routes>
+      <Route path="/dev" element={<DevPortal />} />
       <Route path="/welcome" element={<WelcomePage />} />
       <Route path="/setup" element={<SetupPage />} />
       <Route path="/hud" element={<Protected><GlassesHud /></Protected>} />

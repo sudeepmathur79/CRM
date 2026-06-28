@@ -116,6 +116,7 @@ app.use('/api/hubspot', hubspotRoutes);
 if (stripeRoutes) app.use('/api/stripe', stripeRoutes);
 app.use('/api/onboarding', onboardingRoutes);
 app.use('/api/superadmin', require('./routes/superadmin.routes'));
+app.use('/api/dev', require('./routes/dev.routes'));
 
 // ── Feedback endpoint ──────────────────────────────────────────────────────
 app.post('/api/feedback', require('./middleware/auth.middleware').authenticate, async (req, res, next) => {

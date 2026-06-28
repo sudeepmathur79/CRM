@@ -10,6 +10,23 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org):
 
 ---
 
+## [1.4.0] — 2026-06-29 — *Developer Portal*
+
+### Added
+- **Developer Portal at `/dev`** — password-gated with `DEV_SECRET` env var, completely separate from CRM auth
+- Kanban board: Backlog → Ready → In Progress → Review → Done
+- Drag-and-drop cards between columns and within columns (powered by `@dnd-kit`)
+- Click any card to open full edit modal (title, description, epic, priority, effort, status, tags)
+- Quick-add cards inline per column
+- Filter by epic and effort
+- Progress bar showing % of items done
+- **AI Prioritise** — sends backlog to Llama 3.3 70B, returns ranked order with per-item reasoning; one-click to apply priorities
+- AI suggestions shown inline on cards as indigo callouts
+- Pre-seeded with all 16 backlog items from `docs/BACKLOG.md`
+- `BacklogItem` Prisma model for persistence
+
+---
+
 ## [1.3.0] — 2026-06-29 — *White-label Branding*
 
 ### Added
