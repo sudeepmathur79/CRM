@@ -216,4 +216,16 @@ router.delete('/users/:id', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Update a user's role (admin tool)
+router.patch('/users/:id/role', async (req, res, next) => {
+  const secret = req.headers['x-migrate-secret'];
+  if (!secret || secret !== process.env.MIGRATE_SECRET) return res.status(403).json({ error: 'Forbidden' });
+  try {
+    const { role } = req.body;
+    if (!role) return res.status(400).json({ error: 'role is required' });
+    const user = await prisma.user.update({ where: { id: req.params.id }, data: { role } });
+    res.json({ ok: true, id: user.id, email: user.email, role: user.role });
+  } catch (e) { next(e); }
+});
+
 module.exports = router;

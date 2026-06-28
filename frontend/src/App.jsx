@@ -20,6 +20,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
+import SuperAdminPage from './pages/SuperAdmin';
 
 const Protected = ({ children }) => {
   const { user, loading } = useAuth();
@@ -50,6 +51,7 @@ const AppRoutes = () => {
         <Route path="settings" element={<SettingsPage />} />
         <Route path="inbox" element={<InboxPage />} />
         <Route path="agents" element={<AgentsPage />} />
+        <Route path="console" element={<SuperAdminPage />} />
       </Route>
     </Routes>
   );

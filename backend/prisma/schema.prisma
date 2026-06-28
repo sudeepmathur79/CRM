@@ -24,10 +24,11 @@ model Organisation {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  users        User[]
-  leads        Lead[]
-  tags         Tag[]
-  messages     Message[]
+  users           User[]
+  leads           Lead[]
+  tags            Tag[]
+  messages        Message[]
+  supportSessions SupportSession[]
   voiceDrafts  VoiceDraft[]
   agentConfigs AgentConfig[]
   agentRuns    AgentRun[]
@@ -216,6 +217,18 @@ model AgentConfig {
   runs           AgentRun[]
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+}
+
+model SupportSession {
+  id          String    @id @default(cuid())
+  supportId   String                          // support user id
+  orgId       String                          // org they want access to
+  code        String                          // 6-digit code
+  confirmed   Boolean   @default(false)
+  confirmedAt DateTime?
+  expiresAt   DateTime                        // 1 hour from creation
+  createdAt   DateTime  @default(now())
+  org         Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
 }
 
 model AgentRun {

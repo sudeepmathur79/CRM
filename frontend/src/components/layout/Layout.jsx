@@ -5,7 +5,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { messagesApi, voiceDraftsApi } from '../../services/api';
 import {
-  LayoutDashboard, Users, Columns, Mic, Settings, LogOut, Sun, Moon, ChevronLeft, ChevronRight, MessageSquare, Bot,
+  LayoutDashboard, Users, Columns, Mic, Settings, LogOut, Sun, Moon, ChevronLeft, ChevronRight, MessageSquare, Bot, Shield,
 } from 'lucide-react';
 
 import { useState, useEffect } from 'react';
@@ -159,8 +159,12 @@ export default function Layout() {
   const handleLogout = () => { logout(); navigate('/login'); };
 
   const isAdmin = user?.role === 'admin';
+  const isSuperRole = ['superadmin', 'support'].includes(user?.role);
 
-  const desktopNavItems = [
+  const desktopNavItems = isSuperRole ? [
+    { to: '/console', icon: Shield, label: 'Console' },
+    { to: '/settings', icon: Settings, label: 'Settings' },
+  ] : [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
     { to: '/leads', icon: Users, label: 'Leads' },
     ...(isAdmin ? [{ to: '/kanban', icon: Columns, label: 'Kanban' }] : []),
