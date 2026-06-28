@@ -4,7 +4,6 @@
  */
 const router = require('express').Router();
 const prisma = new (require('@prisma/client').PrismaClient)();
-const Groq = require('groq-sdk');
 
 const DEV_SECRET = process.env.DEV_SECRET || 'dev-change-me';
 
@@ -123,7 +122,6 @@ router.post('/ai-prioritise', async (req, res, next) => {
       orderBy: { position: 'asc' },
     });
 
-    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
     const prompt = `You are a senior product manager for SalesFlow CRM — a B2B SaaS CRM for sales teams.
 
 Here is the current backlog (JSON):
@@ -139,19 +137,23 @@ Return ONLY valid JSON in this exact shape, nothing else:
 {
   "reasoning": "2-3 sentence summary of your prioritisation logic",
   "items": [
-    { "id": "<id>", "suggestedPriority": 0|1|2|3, "reason": "<one line why>" }
+    { "id": "<id>", "suggestedPriority": 0, "reason": "<one line why>" }
   ]
 }`;
 
-    const chat = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.3,
-      max_tokens: 1500,
-      response_format: { type: 'json_object' },
+    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.3,
+        max_tokens: 1500,
+        response_format: { type: 'json_object' },
+      }),
     });
-
-    const result = JSON.parse(chat.choices[0].message.content);
+    const json = await resp.json();
+    const result = JSON.parse(json.choices[0].message.content);
     res.json(result);
   } catch (e) { next(e); }
 });
