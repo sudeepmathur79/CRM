@@ -49,6 +49,8 @@ export const authApi = {
   enable2FA: (data) => api.post('/auth/2fa/enable', data),
   disable2FA: (data) => api.post('/auth/2fa/disable', data),
   resendVerification: (email) => api.post('/auth/resend-verification', { email }),
+  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
+  resetPassword: ({ token, password }) => api.post('/auth/reset-password', { token, password }),
 };
 
 export const leadsApi = {

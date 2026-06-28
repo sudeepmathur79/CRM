@@ -16,6 +16,10 @@ import AgentsPage from './pages/Agents';
 import GlassesHud from './views/GlassesHud';
 import VerifyEmailPage from './pages/VerifyEmail';
 import WelcomePage from './pages/Welcome';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import Terms from './pages/Terms';
+import Privacy from './pages/Privacy';
 
 const Protected = ({ children }) => {
   const { user, loading } = useAuth();
@@ -33,6 +37,10 @@ const AppRoutes = () => {
       <Route path="/login" element={user ? <Navigate to="/" /> : <LoginPage />} />
       <Route path="/signup" element={user ? <Navigate to="/" /> : <SignupPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
+      <Route path="/forgot-password" element={user ? <Navigate to="/" /> : <ForgotPassword />} />
+      <Route path="/reset-password" element={user ? <Navigate to="/" /> : <ResetPassword />} />
+      <Route path="/terms" element={<Terms />} />
+      <Route path="/privacy" element={<Privacy />} />
       <Route path="/" element={user ? <Protected><Layout /></Protected> : <Navigate to="/welcome" />}>
         <Route index element={<DashboardPage />} />
         <Route path="leads" element={<LeadsPage />} />

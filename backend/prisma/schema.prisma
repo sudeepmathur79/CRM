@@ -44,7 +44,9 @@ model User {
   twoFactorSecret  String?
   twoFactorEnabled Boolean       @default(false)
   emailVerifiedAt  DateTime?
-  emailVerifyToken String?
+  emailVerifyToken      String?
+  passwordResetToken    String?
+  passwordResetExpiry   DateTime?
   avatar               String?
   orgId                String?
   org                  Organisation? @relation(fields: [orgId], references: [id])

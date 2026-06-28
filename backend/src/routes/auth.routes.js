@@ -124,6 +124,57 @@ router.post('/resend-verification', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// ── Forgot password ──────────────────────────────────────────────────────────
+router.post('/forgot-password', async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+    const user = await prisma.user.findUnique({ where: { email } });
+    // Always return ok to prevent email enumeration
+    if (!user) return res.json({ ok: true });
+
+    const crypto = require('crypto');
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiry = new Date(Date.now() + 3600 * 1000); // 1 hour
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordResetToken: token, passwordResetExpiry: expiry },
+    });
+
+    const appUrl = process.env.APP_PUBLIC_URL || 'https://crm-mjky.onrender.com';
+    const resetUrl = `${appUrl}/reset-password?token=${token}`;
+    await sendMail({
+      to: email,
+      subject: 'Reset your SalesFlow CRM password',
+      html: `<h2>Password reset</h2><p>Click the link below to reset your password. This link expires in 1 hour.</p><p><a href="${resetUrl}">${resetUrl}</a></p>`,
+      text: `Reset your SalesFlow CRM password:\n\n${resetUrl}\n\nThis link expires in 1 hour.`,
+    });
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
+router.post('/reset-password', async (req, res, next) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) return res.status(400).json({ error: 'Token and password are required' });
+    if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+
+    const user = await prisma.user.findFirst({
+      where: { passwordResetToken: token, passwordResetExpiry: { gt: new Date() } },
+    });
+    if (!user) return res.status(400).json({ error: 'Invalid or expired reset link' });
+
+    const bcrypt = require('bcryptjs');
+    const hashed = await bcrypt.hash(password, 10);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashed, passwordResetToken: null, passwordResetExpiry: null },
+    });
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
 router.post('/refresh', async (req, res, next) => {
   try {
     const tokens = await refresh(req.body.refreshToken);
