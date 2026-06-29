@@ -593,6 +593,79 @@ router.delete('/takeover/:sessionId', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// POST /api/dev/push-to-production — open a GitHub PR from dev → main
+router.post('/push-to-production', async (req, res, next) => {
+  try {
+    const { title, body } = req.body;
+    const token = process.env.GITHUB_TOKEN;
+    const repo = process.env.GITHUB_REPO || 'sudeepmathur79/CRM';
+
+    if (!token) return res.status(503).json({ error: 'GITHUB_TOKEN not configured on server' });
+
+    // Get done items since last push for auto-generated PR body
+    const doneItems = await prisma.backlogItem.findMany({
+      where: { status: 'done' },
+      orderBy: { updatedAt: 'desc' },
+      take: 20,
+      select: { title: true, epic: true, priority: true },
+    });
+
+    const autoBody = body || [
+      '## What\'s in this release\n',
+      doneItems.length > 0
+        ? doneItems.map(i => `- [P${i.priority}] [${i.epic || 'General'}] ${i.title}`).join('\n')
+        : '_No done items tracked_',
+      '\n\n---\n_Merged from dev portal_',
+    ].join('');
+
+    // Check if a PR already exists
+    const listResp = await fetch(`https://api.github.com/repos/${repo}/pulls?head=sudeepmathur79:dev&base=main&state=open`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
+    });
+    const existing = await listResp.json();
+
+    if (existing.length > 0) {
+      return res.json({ exists: true, pr: existing[0], url: existing[0].html_url });
+    }
+
+    // Create the PR
+    const createResp = await fetch(`https://api.github.com/repos/${repo}/pulls`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: title || `Release: dev → main (${new Date().toISOString().slice(0, 10)})`,
+        body: autoBody,
+        head: 'dev',
+        base: 'main',
+      }),
+    });
+    const pr = await createResp.json();
+    if (!createResp.ok) return res.status(400).json({ error: pr.message || 'GitHub API error', detail: pr });
+
+    res.json({ created: true, pr, url: pr.html_url });
+  } catch (e) { next(e); }
+});
+
+// GET /api/dev/branch-status — compare dev vs main
+router.get('/branch-status', async (req, res, next) => {
+  try {
+    const token = process.env.GITHUB_TOKEN;
+    const repo = process.env.GITHUB_REPO || 'sudeepmathur79/CRM';
+    if (!token) return res.json({ ahead: null, error: 'No GitHub token' });
+
+    const resp = await fetch(`https://api.github.com/repos/${repo}/compare/main...dev`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
+    });
+    const data = await resp.json();
+    res.json({
+      ahead: data.ahead_by ?? 0,
+      behind: data.behind_by ?? 0,
+      status: data.status,
+      commits: (data.commits || []).slice(0, 10).map(c => ({ sha: c.sha.slice(0, 7), message: c.commit.message.split('\n')[0] })),
+    });
+  } catch (e) { next(e); }
+});
+
 // GET /api/dev/stats — quick summary for portal header
 router.get('/stats', async (req, res, next) => {
   try {

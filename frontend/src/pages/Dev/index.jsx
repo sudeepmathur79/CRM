@@ -13,7 +13,8 @@ import { Toaster } from 'react-hot-toast';
 import {
   Plus, Trash2, Sparkles, LogOut, GripVertical, X, ChevronDown, ChevronUp,
   Zap, Clock, Send, Bot, User, Hammer, Loader,
-  MessageSquare, Play, CheckCircle, AlertCircle, Timer, Code, Copy, Layers,
+  MessageSquare, Play, CheckCircle, AlertCircle, Code, Copy, Layers,
+  GitMerge, GitBranch, ExternalLink, ArrowUpCircle,
 } from 'lucide-react';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -532,6 +533,127 @@ function ChatPanel({ onAddItem, onClose }) {
   );
 }
 
+// ── Push to Production ────────────────────────────────────────────────────────
+
+function PushToProductionModal({ onClose }) {
+  const [status, setStatus] = useState(null);   // branch status from API
+  const [loading, setLoading] = useState(true);
+  const [pushing, setPushing] = useState(false);
+  const [result, setResult] = useState(null);
+  const [prTitle, setPrTitle] = useState('');
+
+  useEffect(() => {
+    devApi.branchStatus()
+      .then(s => setStatus(s))
+      .catch(() => setStatus({ error: 'Could not fetch branch status' }))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const push = async () => {
+    setPushing(true);
+    try {
+      const r = await devApi.pushToProduction({ title: prTitle || undefined });
+      setResult(r);
+    } catch (e) {
+      toast.error('Failed to create PR');
+    } finally {
+      setPushing(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-800">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-700 to-teal-700 flex items-center justify-center flex-shrink-0">
+            <GitMerge size={17} className="text-white" />
+          </div>
+          <div className="flex-1">
+            <h2 className="font-bold text-white">Push to Production</h2>
+            <p className="text-xs text-slate-500">Open a PR from <code className="text-emerald-400">dev</code> → <code className="text-slate-300">main</code></p>
+          </div>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-300"><X size={18} /></button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* Branch status */}
+          <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <GitBranch size={14} className="text-slate-400" />
+              <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Branch status: dev vs main</span>
+            </div>
+            {loading ? (
+              <div className="flex items-center gap-2 text-slate-500 text-sm"><Loader size={13} className="animate-spin" /> Checking…</div>
+            ) : status?.error ? (
+              <p className="text-sm text-red-400">{status.error}</p>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex gap-4 text-sm">
+                  <span className={`font-semibold ${status.ahead > 0 ? 'text-emerald-400' : 'text-slate-500'}`}>
+                    ↑ {status.ahead ?? 0} ahead
+                  </span>
+                  <span className={`font-semibold ${status.behind > 0 ? 'text-amber-400' : 'text-slate-500'}`}>
+                    ↓ {status.behind ?? 0} behind
+                  </span>
+                </div>
+                {status.commits?.length > 0 && (
+                  <div className="space-y-1 mt-2">
+                    {status.commits.map(c => (
+                      <div key={c.sha} className="flex items-start gap-2 text-xs">
+                        <code className="text-slate-600 flex-shrink-0">{c.sha}</code>
+                        <span className="text-slate-400 leading-snug">{c.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {status.ahead === 0 && (
+                  <p className="text-xs text-slate-500">dev is up to date with main — nothing to merge.</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {!result ? (
+            <>
+              <div>
+                <label className="text-xs font-medium text-slate-500 block mb-1.5">PR title (optional)</label>
+                <input value={prTitle} onChange={e => setPrTitle(e.target.value)}
+                  placeholder={`Release: dev → main (${new Date().toISOString().slice(0, 10)})`}
+                  className="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+              </div>
+              <div className="bg-amber-950/40 border border-amber-800/40 rounded-xl p-3 text-xs text-amber-300 leading-relaxed">
+                ⚠️ This opens a GitHub PR — you still need to approve and merge it on GitHub. Render will then auto-deploy <code>main</code>.
+              </div>
+              <div className="flex gap-2">
+                <button onClick={onClose} className="flex-1 py-2 border border-slate-700 text-slate-400 rounded-xl text-sm hover:text-slate-200 transition-colors">Cancel</button>
+                <button onClick={push} disabled={pushing || status?.ahead === 0 || loading}
+                  className="flex-1 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-40 text-white rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2">
+                  {pushing ? <><Loader size={14} className="animate-spin" /> Creating PR…</> : <><ArrowUpCircle size={14} /> Open PR</>}
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-3">
+              <div className="bg-emerald-950/60 border border-emerald-800/50 rounded-xl p-4 text-center">
+                <CheckCircle size={24} className="text-emerald-400 mx-auto mb-2" />
+                <p className="text-sm font-semibold text-emerald-300">
+                  {result.exists ? 'PR already open' : 'Pull request created!'}
+                </p>
+                <p className="text-xs text-slate-400 mt-1">{result.pr?.title}</p>
+              </div>
+              <a href={result.url} target="_blank" rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 rounded-xl text-sm font-medium transition-colors">
+                <ExternalLink size={14} /> View on GitHub
+              </a>
+              <button onClick={onClose} className="w-full py-2 text-slate-500 hover:text-slate-300 text-sm">Close</button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Take Over modal ───────────────────────────────────────────────────────────
 
 const PRIORITY_LABEL = { 0: 'P0', 1: 'P1', 2: 'P2', 3: 'P3' };
@@ -920,6 +1042,7 @@ export default function DevPortal() {
   const [buildResult, setBuildResult] = useState(null); // { item, plan }
   const [building, setBuilding] = useState(null); // itemId being built
   const [showTakeover, setShowTakeover] = useState(false);
+  const [showPush, setShowPush] = useState(false);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -1100,6 +1223,11 @@ export default function DevPortal() {
             <Play size={13} /> Take Over
           </button>
 
+          <button onClick={() => setShowPush(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 rounded-lg text-xs font-semibold transition-all shadow-md shadow-emerald-900/40 border border-emerald-600/30">
+            <GitMerge size={13} /> Push to Production
+          </button>
+
           <button onClick={() => setShowChat(c => !c)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
               showChat ? 'bg-slate-700 border-slate-600 text-white' : 'border-slate-700 text-slate-400 hover:text-white'
@@ -1157,6 +1285,9 @@ export default function DevPortal() {
       )}
       {showTakeover && (
         <TakeOverModal onClose={() => setShowTakeover(false)} onRefreshBoard={load} />
+      )}
+      {showPush && (
+        <PushToProductionModal onClose={() => setShowPush(false)} />
       )}
     </div>
   );

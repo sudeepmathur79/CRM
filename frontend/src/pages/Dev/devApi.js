@@ -45,4 +45,10 @@ export const devApi = {
 
   cancelTakeover: (sessionId, revert = false) =>
     axios.delete(`${BASE}/takeover/${sessionId}?revert=${revert}`, { headers: headers() }).then(r => r.data),
+
+  pushToProduction: (data = {}) =>
+    axios.post(`${BASE}/push-to-production`, data, { headers: headers() }).then(r => r.data),
+
+  branchStatus: () =>
+    axios.get(`${BASE}/branch-status`, { headers: headers() }).then(r => r.data),
 };
