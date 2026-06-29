@@ -58,7 +58,7 @@ const getLead = async (id, user) => {
   return lead;
 };
 
-const createLead = async (data, userId) => {
+const createLead = async (data, userId, userRole) => {
   if (!data.email && !data.phone)
     throw Object.assign(new Error('Either email or phone number is required'), { status: 400 });
   const lead = await prisma.lead.create({
@@ -68,7 +68,7 @@ const createLead = async (data, userId) => {
       status: data.status || 'New', source: data.source, notes: data.notes,
       value: data.value ? parseFloat(data.value) : null,
       nextFollowUp: data.nextFollowUp ? new Date(data.nextFollowUp) : null,
-      assignedToId: data.assignedToId || null,
+      assignedToId: data.assignedToId || (userRole === 'agent' ? userId : null),
       leadType: data.leadType || null,
       fundingStage: data.fundingStage || null,
       valuation: data.valuation ? parseFloat(data.valuation) : null,

@@ -21,7 +21,7 @@ router.get('/', async (req, res, next) => {
 
 router.post('/', async (req, res, next) => {
   try {
-    const lead = await createLead({ ...req.body, orgId: req.orgId }, req.user.id);
+    const lead = await createLead({ ...req.body, orgId: req.orgId }, req.user.id, req.user.role);
     // Trigger on_lead_created agents
     triggerAgents('on_lead_created', lead, req.orgId, req.app.get('io'));
     req.app.get('io')?.emit('lead:created', lead);
