@@ -31,9 +31,18 @@ export const devApi = {
 
   getStats: () => axios.get(`${BASE}/stats`, { headers: headers() }).then(r => r.data),
 
-  // Returns an EventSource. Caller attaches .onmessage / .addEventListener handlers.
+  // Returns an EventSource. Caller attaches event listeners.
   takeover: () => {
     const token = sessionStorage.getItem('devToken');
     return new EventSource(`${BASE}/takeover?token=${encodeURIComponent(token)}`);
   },
+
+  pauseTakeover: (sessionId) =>
+    axios.post(`${BASE}/takeover/${sessionId}/pause`, {}, { headers: headers() }).then(r => r.data),
+
+  resumeTakeover: (sessionId) =>
+    axios.post(`${BASE}/takeover/${sessionId}/resume`, {}, { headers: headers() }).then(r => r.data),
+
+  cancelTakeover: (sessionId, revert = false) =>
+    axios.delete(`${BASE}/takeover/${sessionId}?revert=${revert}`, { headers: headers() }).then(r => r.data),
 };

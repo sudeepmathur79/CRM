@@ -537,14 +537,15 @@ function ChatPanel({ onAddItem, onClose }) {
 const PRIORITY_LABEL = { 0: 'P0', 1: 'P1', 2: 'P2', 3: 'P3' };
 
 function TakeOverModal({ onClose, onRefreshBoard }) {
-  const [phase, setPhase] = useState('idle'); // idle | running | done | error
-  const [log, setLog] = useState([]);          // array of log entries
+  const [phase, setPhase] = useState('idle'); // idle | running | paused | done | error | cancelled
+  const [log, setLog] = useState([]);
   const [waves, setWaves] = useState([]);
   const [activeWave, setActiveWave] = useState(null);
   const [itemStates, setItemStates] = useState({}); // id → 'running'|'done'|'error'
-  const [results, setResults] = useState({});        // id → { code, model }
+  const [results, setResults] = useState({});        // id → { code, model, title, tokensEstimate }
   const [selectedResult, setSelectedResult] = useState(null);
   const [totalItems, setTotalItems] = useState(0);
+  const [sessionId, setSessionId] = useState(null);
   const esRef = useRef(null);
   const logRef = useRef(null);
 
@@ -567,6 +568,11 @@ function TakeOverModal({ onClose, onRefreshBoard }) {
 
     const es = devApi.takeover();
     esRef.current = es;
+
+    es.addEventListener('session', e => {
+      const d = JSON.parse(e.data);
+      setSessionId(d.sessionId);
+    });
 
     es.addEventListener('start', e => {
       const d = JSON.parse(e.data);
@@ -631,25 +637,55 @@ function TakeOverModal({ onClose, onRefreshBoard }) {
       onRefreshBoard();
     });
 
+    es.addEventListener('cancelled', e => {
+      const d = JSON.parse(e.data);
+      addLog('info', `Session stopped — ${d.reason}`);
+      setPhase('cancelled');
+      es.close();
+      onRefreshBoard();
+    });
+
     es.addEventListener('error', e => {
       try {
         const d = JSON.parse(e.data);
         addLog('error', `Error: ${d.message}`);
-        setPhase('error');
-      } catch {
-        addLog('error', 'Connection error');
-        setPhase('error');
-      }
+      } catch {}
+      setPhase('error');
       es.close();
     });
 
     es.onerror = () => {
-      if (phase === 'running') {
-        addLog('error', 'Stream disconnected');
-        setPhase('error');
-      }
+      // Only flag as error if we haven't already ended cleanly
+      setPhase(p => p === 'running' || p === 'paused' ? 'error' : p);
       es.close();
     };
+  };
+
+  const handlePause = async () => {
+    if (!sessionId) return;
+    await devApi.pauseTakeover(sessionId);
+    setPhase('paused');
+    addLog('wait', '⏸ Paused — current wave will finish, then AI will hold');
+  };
+
+  const handleResume = async () => {
+    if (!sessionId) return;
+    await devApi.resumeTakeover(sessionId);
+    setPhase('running');
+    addLog('info', '▶ Resumed');
+  };
+
+  const handleCancel = async (revert = false) => {
+    if (!sessionId) { esRef.current?.close(); setPhase('cancelled'); return; }
+    esRef.current?.close();
+    try {
+      const res = await devApi.cancelTakeover(sessionId, revert);
+      if (revert && res.revertedIds?.length > 0) {
+        addLog('info', `↩ Reverted ${res.revertedIds.length} item(s) back to Ready`);
+      }
+    } catch {}
+    setPhase('cancelled');
+    onRefreshBoard();
   };
 
   const doneCount = Object.values(itemStates).filter(s => s === 'done').length;
@@ -669,10 +705,49 @@ function TakeOverModal({ onClose, onRefreshBoard }) {
             <p className="text-xs text-slate-500">Groq autonomously builds your P0/P1 backlog — parallel where safe, sequential where shared</p>
           </div>
           {phase !== 'idle' && (
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <Layers size={13} />
-              {doneCount}/{totalItems} built
-              {waves.length > 0 && <span>· {waves.length} waves</span>}
+            <div className="flex items-center gap-2">
+              {/* Status pill */}
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                phase === 'running'   ? 'bg-violet-900/60 text-violet-300 border border-violet-700/50' :
+                phase === 'paused'    ? 'bg-amber-900/60 text-amber-300 border border-amber-700/50' :
+                phase === 'done'      ? 'bg-emerald-900/60 text-emerald-300 border border-emerald-700/50' :
+                phase === 'cancelled' ? 'bg-slate-700 text-slate-400 border border-slate-600' :
+                'bg-red-900/60 text-red-300 border border-red-700/50'
+              }`}>
+                {phase === 'running' && '● Running'}
+                {phase === 'paused'  && '⏸ Paused'}
+                {phase === 'done'    && '✓ Complete'}
+                {phase === 'cancelled' && '◼ Stopped'}
+                {phase === 'error'   && '✕ Error'}
+              </span>
+              <span className="text-xs text-slate-500">{doneCount}/{totalItems} built</span>
+
+              {/* Controls */}
+              {phase === 'running' && (
+                <button onClick={handlePause}
+                  className="flex items-center gap-1 px-2 py-1 bg-amber-900/40 hover:bg-amber-900/60 border border-amber-700/50 text-amber-300 rounded-lg text-xs font-medium transition-colors">
+                  ⏸ Pause
+                </button>
+              )}
+              {phase === 'paused' && (
+                <button onClick={handleResume}
+                  className="flex items-center gap-1 px-2 py-1 bg-violet-900/40 hover:bg-violet-900/60 border border-violet-700/50 text-violet-300 rounded-lg text-xs font-medium transition-colors">
+                  ▶ Resume
+                </button>
+              )}
+              {(phase === 'running' || phase === 'paused') && (
+                <>
+                  <button onClick={() => handleCancel(false)}
+                    className="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-xs font-medium transition-colors">
+                    Stop
+                  </button>
+                  <button onClick={() => handleCancel(true)}
+                    className="px-2 py-1 bg-red-900/40 hover:bg-red-900/60 border border-red-700/50 text-red-300 rounded-lg text-xs font-medium transition-colors"
+                    title="Stop and move all touched items back to Ready">
+                    ↩ Take Back
+                  </button>
+                </>
+              )}
             </div>
           )}
           <button onClick={onClose} className="text-slate-500 hover:text-slate-300 ml-2"><X size={18} /></button>
@@ -817,6 +892,19 @@ function TakeOverModal({ onClose, onRefreshBoard }) {
 // ── Main portal ───────────────────────────────────────────────────────────────
 
 export default function DevPortal() {
+  // Set a distinct browser tab title so it doesn't show "SalesFlow CRM"
+  useEffect(() => {
+    const prev = document.title;
+    document.title = '⚡ Dev Portal · SalesFlow';
+    const link = document.querySelector("link[rel~='icon']");
+    const prevHref = link?.href;
+    if (link) link.href = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>";
+    return () => {
+      document.title = prev;
+      if (link && prevHref) link.href = prevHref;
+    };
+  }, []);
+
   const [authed, setAuthed] = useState(devApi.isLoggedIn());
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);

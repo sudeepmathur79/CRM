@@ -404,6 +404,10 @@ function planWaves(items) {
   return waves;
 }
 
+// ── Session registry for cancellation ────────────────────────────────────────
+// Maps sessionId → { cancelled: bool, paused: bool, touchedIds: Set<string> }
+const activeSessions = new Map();
+
 // GET /api/dev/takeover — SSE stream of autonomous AI build session
 router.get('/takeover', async (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
@@ -412,17 +416,30 @@ router.get('/takeover', async (req, res) => {
   res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders?.();
 
+  const sessionId = `to_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  const session = { cancelled: false, paused: false, touchedIds: new Set() };
+  activeSessions.set(sessionId, session);
+
   const send = (event, data) => {
-    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    try { res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`); } catch {}
   };
 
-  // Groq rate-limit: ~6000 tokens/min on free tier — pace between waves
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+  // Check abort state; sleep respects pause
+  const checkAbort = async () => {
+    while (session.paused && !session.cancelled) await sleep(500);
+    return session.cancelled;
+  };
+
+  // Clean up on client disconnect
+  req.on('close', () => { session.cancelled = true; });
+
   try {
-    // 1. Fetch prioritised items (P0+P1 ready/backlog, not done/build)
+    send('session', { sessionId });
+
     const rawItems = await prisma.backlogItem.findMany({
-      where: { status: { in: ['backlog', 'ready', 'in_progress'] }, priority: { lte: 1 } },
+      where: { status: { in: ['backlog', 'ready'] }, priority: { lte: 1 } },
       orderBy: [{ priority: 'asc' }, { position: 'asc' }],
       take: 12,
     });
@@ -434,7 +451,8 @@ router.get('/takeover', async (req, res) => {
 
     send('start', { total: rawItems.length, items: rawItems.map(i => ({ id: i.id, title: i.title, priority: i.priority, effort: i.effort, epic: i.epic })) });
 
-    // 2. Ask Groq to validate/adjust the wave plan
+    if (await checkAbort()) { send('cancelled', { reason: 'Cancelled before planning' }); res.end(); return; }
+
     const planPrompt = `You are a senior engineering manager for SalesFlow CRM — a React/Express/Prisma/Flutter B2B SaaS.
 
 These backlog items need to be built (ordered by priority):
@@ -445,59 +463,49 @@ Also estimate actual implementation complexity: simple|moderate|complex.
 
 Return ONLY valid JSON:
 {
-  "analysis": [
-    { "id": "<id>", "domain": "frontend|backend|mobile|shared", "complexity": "simple|moderate|complex", "parallelSafe": true|false, "reason": "one line" }
-  ],
+  "analysis": [{ "id": "<id>", "domain": "frontend|backend|mobile|shared", "complexity": "simple|moderate|complex", "parallelSafe": true|false, "reason": "one line" }],
   "overallStrategy": "one sentence on approach"
 }`;
 
-    let planAnalysis = null;
     try {
       const planJson = await groqChat([{ role: 'user', content: planPrompt }], { json: true, maxTokens: 1000 });
-      planAnalysis = JSON.parse(planJson);
-      send('plan', planAnalysis);
+      send('plan', JSON.parse(planJson));
     } catch (e) {
       send('log', { message: `Plan analysis failed, using heuristics: ${e.message}` });
     }
 
-    // 3. Build execution waves
     const waves = planWaves(rawItems);
     send('waves', { count: waves.length, waves: waves.map((w, i) => ({ wave: i+1, parallel: w.length > 1, items: w.map(x => x.title) })) });
 
     let totalTokensUsed = 0;
-    const TOKEN_BUDGET_PER_MIN = 5000; // conservative for free Groq tier
+    const TOKEN_BUDGET_PER_MIN = 5000;
     let waveStartTime = Date.now();
 
-    // 4. Execute each wave
     for (let waveIdx = 0; waveIdx < waves.length; waveIdx++) {
+      if (await checkAbort()) { send('cancelled', { reason: 'Cancelled between waves', completedWaves: waveIdx }); break; }
+
       const wave = waves[waveIdx];
       const isParallel = wave.length > 1;
-
       send('wave_start', { wave: waveIdx + 1, parallel: isParallel, items: wave.map(i => i.title) });
 
-      // Rate limit: if we've used a lot of tokens, wait before next wave
       const elapsed = (Date.now() - waveStartTime) / 1000;
       if (totalTokensUsed > TOKEN_BUDGET_PER_MIN * 0.7 && elapsed < 60) {
         const waitMs = Math.ceil((60 - elapsed) * 1000) + 2000;
-        send('rate_limit', { waitSeconds: Math.ceil(waitMs / 1000), message: `Pacing to stay within Groq rate limits (${totalTokensUsed} tokens used this minute)` });
+        send('rate_limit', { waitSeconds: Math.ceil(waitMs / 1000), message: `Pacing Groq rate limits (${totalTokensUsed} tokens this minute)` });
         await sleep(waitMs);
         totalTokensUsed = 0;
         waveStartTime = Date.now();
       }
 
       const buildItem = async (item) => {
+        if (session.cancelled) return;
         send('item_start', { id: item.id, title: item.title });
+        session.touchedIds.add(item.id);
 
         const relevantFiles = getRelevantFiles(item);
-        const fileContext = Object.entries(relevantFiles)
-          .map(([path, content]) => `// === ${path} ===\n${content}`)
-          .join('\n\n');
-
+        const fileContext = Object.entries(relevantFiles).map(([p, c]) => `// === ${p} ===\n${c}`).join('\n\n');
         const expectedTokens = EFFORT_TOKENS[item.effort] || 1500;
-        // Use faster smaller model for simple XS/S items in parallel
-        const model = (isParallel && ['XS', 'S'].includes(item.effort))
-          ? 'llama-3.1-8b-instant'
-          : 'llama-3.3-70b-versatile';
+        const model = (isParallel && ['XS', 'S'].includes(item.effort)) ? 'llama-3.1-8b-instant' : 'llama-3.3-70b-versatile';
 
         const itemPrompt = `You are a senior full-stack engineer implementing a feature for SalesFlow CRM.
 
@@ -507,46 +515,18 @@ Description: ${item.description || 'No description provided'}
 Tags: ${(item.tags || []).join(', ')}
 
 RELEVANT EXISTING CODE:
-${fileContext || '(No specific files identified — use your knowledge of the stack: React+Vite+Tailwind, Express+Prisma+Neon, Flutter)'}
+${fileContext || '(No specific files — stack: React+Vite+Tailwind, Express+Prisma+Neon, Flutter)'}
 
-STACK:
-- Frontend: React 18, Vite, Tailwind CSS, @tanstack/react-query, react-hook-form, @dnd-kit, lucide-react
-- Backend: Express.js, Prisma ORM, Neon Postgres, Resend (email), Cloudflare R2 (files)
-- Mobile: Flutter with provider, http, flutter_secure_storage, record
-- Auth: JWT (access 15min + refresh 7d), roles: agent/admin/superadmin/support
+STACK: React 18, Vite, Tailwind CSS, @tanstack/react-query | Express.js, Prisma, Neon Postgres | Flutter
+Auth: JWT roles: agent/admin/superadmin/support
 
-Provide a complete, production-ready implementation. Include:
-
-## Summary
-One paragraph on what this implements and the approach.
-
-## Files to Create/Modify
-List every file with its full relative path.
-
-## Implementation
-
-For each file, write the COMPLETE file content (or the specific functions/sections that change, clearly marked):
-
-\`\`\`
-// File: <path>
-<complete code>
-\`\`\`
-
-## Migration (if needed)
-Any Prisma schema changes and the migration SQL.
-
-## Verification
-3-5 specific things to test to confirm this works.
-
-Be concrete and complete. A developer should be able to copy-paste this and it works.`;
+Provide a production-ready implementation with:
+## Summary, ## Files to Create/Modify, ## Implementation (complete code per file in \`\`\` blocks), ## Migration (if needed), ## Verification (4-6 test steps)`;
 
         try {
           const code = await groqChat([{ role: 'user', content: itemPrompt }], { model, maxTokens: expectedTokens });
           totalTokensUsed += expectedTokens;
-
-          // Update item status to in_progress
           await prisma.backlogItem.update({ where: { id: item.id }, data: { status: 'in_progress' } });
-
           send('item_done', { id: item.id, title: item.title, code, model, tokensEstimate: expectedTokens });
         } catch (e) {
           send('item_error', { id: item.id, title: item.title, error: e.message });
@@ -554,24 +534,63 @@ Be concrete and complete. A developer should be able to copy-paste this and it w
       };
 
       if (isParallel) {
-        // Fire all items in this wave concurrently
         await Promise.all(wave.map(buildItem));
       } else {
         await buildItem(wave[0]);
       }
 
       send('wave_done', { wave: waveIdx + 1 });
-
-      // Brief pause between waves
       if (waveIdx < waves.length - 1) await sleep(1500);
     }
 
-    send('complete', { totalItems: rawItems.length, totalWaves: waves.length });
+    if (!session.cancelled) {
+      send('complete', { totalItems: rawItems.length, totalWaves: waves.length, sessionId });
+    }
   } catch (e) {
     send('error', { message: e.message });
   } finally {
+    activeSessions.delete(sessionId);
     res.end();
   }
+});
+
+// POST /api/dev/takeover/:sessionId/pause — pause between waves
+router.post('/takeover/:sessionId/pause', (req, res) => {
+  const s = activeSessions.get(req.params.sessionId);
+  if (!s) return res.status(404).json({ error: 'Session not found or already complete' });
+  s.paused = true;
+  res.json({ ok: true, paused: true });
+});
+
+// POST /api/dev/takeover/:sessionId/resume — resume from pause
+router.post('/takeover/:sessionId/resume', (req, res) => {
+  const s = activeSessions.get(req.params.sessionId);
+  if (!s) return res.status(404).json({ error: 'Session not found or already complete' });
+  s.paused = false;
+  res.json({ ok: true, paused: false });
+});
+
+// DELETE /api/dev/takeover/:sessionId — cancel + optionally revert touched items
+router.delete('/takeover/:sessionId', async (req, res, next) => {
+  try {
+    const s = activeSessions.get(req.params.sessionId);
+    if (!s) return res.status(404).json({ error: 'Session not found or already complete' });
+
+    s.cancelled = true;
+    s.paused = false; // unblock any sleep so it exits cleanly
+
+    const { revert } = req.query; // ?revert=true → move touched items back to ready
+    let revertedIds = [];
+    if (revert === 'true' && s.touchedIds.size > 0) {
+      await prisma.backlogItem.updateMany({
+        where: { id: { in: [...s.touchedIds] }, status: 'in_progress' },
+        data: { status: 'ready' },
+      });
+      revertedIds = [...s.touchedIds];
+    }
+
+    res.json({ ok: true, cancelled: true, revertedIds });
+  } catch (e) { next(e); }
 });
 
 // GET /api/dev/stats — quick summary for portal header
