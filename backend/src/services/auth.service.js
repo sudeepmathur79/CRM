@@ -13,9 +13,11 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // ── Cloudflare Turnstile token verification ───────────────────────────────────
 async function verifyTurnstile(token) {
-  // If no secret is configured, skip verification (dev/test environments)
   const secret = process.env.TURNSTILE_SECRET_KEY;
   if (!secret || !token) return;
+  // Allow k6/CI bypass tokens — only valid when TEST_BYPASS_TOKEN env var is set
+  const bypass = process.env.TEST_BYPASS_TOKEN;
+  if (bypass && token === bypass) return;
 
   const body = new URLSearchParams({ secret, response: token });
   const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {

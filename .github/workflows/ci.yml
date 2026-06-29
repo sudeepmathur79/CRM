@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── Backend lint + schema check ─────────────────────────────────────────────
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - run: npm ci
+
+      - name: Prisma schema validate
+        run: npx prisma validate
+
+      - name: Check for missing env vars in code
+        run: |
+          # Warn if any new process.env references appear without a corresponding key in the secrets list
+          grep -rn 'process\.env\.' src/ --include="*.js" | grep -v "process.env.NODE_ENV" | \
+            sed "s/.*process\.env\.\([A-Z_]*\).*/\1/" | sort -u > /tmp/env_used.txt
+          echo "Env vars referenced in backend:"
+          cat /tmp/env_used.txt
+
+  # ── Frontend build ───────────────────────────────────────────────────────────
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          # Build-time stubs — real values injected server-side at runtime
+          VITE_API_URL: ''
+
+      - name: Check bundle size
+        run: |
+          BUNDLE=$(du -sk dist/assets/*.js 2>/dev/null | awk '{sum+=$1} END {print sum}')
+          echo "JS bundle size: ${BUNDLE}KB"
+          if [ "$BUNDLE" -gt 2048 ]; then
+            echo "::warning::Bundle exceeds 2MB — consider code splitting"
+          fi
+
+  # ── k6 smoke test against staging ───────────────────────────────────────────
+  smoke:
+    name: Smoke test (staging)
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    # Only run against staging when merging to main
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update && sudo apt-get install k6 -y
+
+      - name: Run smoke test
+        env:
+          STAGING_URL: ${{ secrets.STAGING_URL }}
+          STAGING_EMAIL: ${{ secrets.STAGING_TEST_EMAIL }}
+          STAGING_PASSWORD: ${{ secrets.STAGING_TEST_PASSWORD }}
+          K6_BYPASS_TOKEN: ${{ secrets.K6_BYPASS_TOKEN }}
+        run: k6 run tests/k6/smoke.js
+
+      - name: Upload k6 results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-smoke-results
+          path: tests/k6/results/

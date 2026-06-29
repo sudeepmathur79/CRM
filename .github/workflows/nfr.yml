@@ -1,0 +1,54 @@
+name: NFR Tests (on-demand)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target environment URL'
+        required: true
+        default: 'https://crm-staging.onrender.com'
+      scenario:
+        description: 'Test scenario to run'
+        required: true
+        type: choice
+        options:
+          - smoke        # 1 VU, 30s — sanity check
+          - load         # 20 VUs, 5min — normal load
+          - stress       # ramp to 100 VUs — find breaking point
+          - soak         # 10 VUs, 30min — memory/leak check
+          - spike        # 0→200 VUs in 10s — sudden traffic burst
+
+jobs:
+  nfr:
+    name: NFR — ${{ inputs.scenario }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update && sudo apt-get install k6 -y
+
+      - name: Run ${{ inputs.scenario }} scenario
+        env:
+          TARGET_URL: ${{ inputs.target }}
+          TEST_EMAIL: ${{ secrets.STAGING_TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.STAGING_TEST_PASSWORD }}
+          K6_BYPASS_TOKEN: ${{ secrets.K6_BYPASS_TOKEN }}
+        run: k6 run tests/k6/${{ inputs.scenario }}.js --out json=tests/k6/results/output.json
+
+      - name: Generate summary
+        if: always()
+        run: node tests/nfr/summarise.js tests/k6/results/output.json >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nfr-${{ inputs.scenario }}-${{ github.run_id }}
+          path: tests/k6/results/
