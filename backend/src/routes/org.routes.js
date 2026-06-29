@@ -38,6 +38,7 @@ router.get('/', async (req, res, next) => {
         demoMode: true, demoDisabledAt: true, createdAt: true,
         brandPrimary: true, brandAccent: true, brandBg: true,
         brandLogoUrl: true, brandFaviconUrl: true,
+        agentIntervalMinutes: true,
       },
     });
     res.json(org);
@@ -107,6 +108,31 @@ router.delete('/branding', requireRole('admin'), async (req, res, next) => {
       data: { brandPrimary: null, brandAccent: null, brandBg: null, brandLogoUrl: null, brandFaviconUrl: null },
     });
     res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
+// Update agent interval — admin or superadmin
+router.put('/agent-interval', async (req, res, next) => {
+  try {
+    const { agentIntervalMinutes } = req.body;
+    const role = req.user?.role;
+    if (!['admin', 'superadmin', 'support'].includes(role)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    // superadmin can update any org; admin only their own
+    const orgId = req.orgId;
+    if (!orgId) return res.status(400).json({ error: 'No organisation' });
+
+    const val = agentIntervalMinutes === null ? null : parseInt(agentIntervalMinutes, 10);
+    if (val !== null && (isNaN(val) || val < 0 || val > 1440)) {
+      return res.status(400).json({ error: 'agentIntervalMinutes must be 0–1440 or null' });
+    }
+    const org = await prisma.organisation.update({
+      where: { id: orgId },
+      data: { agentIntervalMinutes: val },
+      select: { id: true, agentIntervalMinutes: true },
+    });
+    res.json(org);
   } catch (e) { next(e); }
 });
 

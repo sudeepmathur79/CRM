@@ -7,6 +7,14 @@ const prisma = new (require('@prisma/client').PrismaClient)();
 
 router.use(authenticate);
 
+// Superadmin and support roles have no access to leads — they operate across orgs
+router.use((req, res, next) => {
+  if (['superadmin', 'support'].includes(req.user?.role)) {
+    return res.status(403).json({ error: 'Superadmin accounts cannot access leads.' });
+  }
+  next();
+});
+
 router.get('/', async (req, res, next) => {
   try { res.json(await getLeads(req.user, req.query, req.orgId)); } catch (e) { next(e); }
 });

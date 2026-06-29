@@ -167,9 +167,26 @@ export default function Layout() {
   const isAdmin = user?.role === 'admin';
   const isSuperRole = ['superadmin', 'support'].includes(user?.role);
 
+  // Superadmin must use desktop — redirect mobile visitors
+  if (isSuperRole && isMobile) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 text-white px-8 text-center gap-4">
+        <Shield size={48} className="text-indigo-400" />
+        <h1 className="text-xl font-bold">Desktop only</h1>
+        <p className="text-slate-400 text-sm max-w-xs">
+          Superadmin access is restricted to desktop browsers for security reasons. Please log in from a desktop or laptop.
+        </p>
+        <button onClick={handleLogout} className="mt-4 px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-sm font-medium">
+          Sign out
+        </button>
+      </div>
+    );
+  }
+
   const desktopNavItems = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
-    { to: '/leads', icon: Users, label: 'Leads' },
+    // Superadmin/support never see Leads — they operate across orgs
+    ...(!isSuperRole ? [{ to: '/leads', icon: Users, label: 'Leads' }] : []),
     ...(isAdmin || isSuperRole ? [{ to: '/kanban', icon: Columns, label: 'Kanban' }] : []),
     { to: '/agents', icon: Bot, label: 'AI Agents' },
     { to: '/recordings', icon: Mic, label: 'Files' },
@@ -180,7 +197,7 @@ export default function Layout() {
 
   const mobileNavItems = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
-    { to: '/leads', icon: Users, label: 'Leads' },
+    ...(!isSuperRole ? [{ to: '/leads', icon: Users, label: 'Leads' }] : []),
     { to: '/inbox', icon: MessageSquare, label: 'Messages', badge: unread },
   ];
 

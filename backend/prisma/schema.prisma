@@ -38,6 +38,9 @@ model Organisation {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
+  // Agent scheduling (minutes between runs; 0 = disabled; null = use platform default)
+  agentIntervalMinutes Int?
+
   // White-label branding
   brandPrimary     String?   // hex e.g. "#4F46E5"
   brandAccent      String?   // hex

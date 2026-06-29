@@ -2,20 +2,42 @@ const cron = require('node-cron');
 const { runRoundRobin } = require('./roundRobin.service');
 const { sendFollowUpReminders, sendDailyDigest } = require('./followup.service');
 const { autoTagLeads } = require('./tagging.service');
+const prisma = new (require('@prisma/client').PrismaClient)();
+
+// Platform-level default in minutes (env override). Old AGENT_INTERVAL was ms; new is minutes.
+const PLATFORM_DEFAULT_MINUTES = parseInt(process.env.AGENT_INTERVAL_MINUTES || '30', 10);
 
 const startAgents = (io) => {
-  const interval = process.env.AGENT_INTERVAL || 300000;
-  const intervalMinutes = Math.max(1, Math.floor(interval / 60000));
+  const orgLastRun = new Map(); // orgId → last run timestamp (ms)
 
-  // Every N minutes: round-robin + follow-ups + tagging
-  cron.schedule(`*/${intervalMinutes} * * * *`, async () => {
-    console.log('[Agents] Running scheduled tasks...');
-    await runRoundRobin(io);
-    await sendFollowUpReminders();
-    await autoTagLeads();
+  // Tick every minute; each org fires only when its own interval has elapsed
+  cron.schedule('* * * * *', async () => {
+    try {
+      const orgs = await prisma.organisation.findMany({
+        select: { id: true, agentIntervalMinutes: true },
+      });
+
+      const now = Date.now();
+      for (const org of orgs) {
+        if (org.agentIntervalMinutes === 0) continue; // explicitly disabled for this org
+
+        const intervalMs = (org.agentIntervalMinutes ?? PLATFORM_DEFAULT_MINUTES) * 60 * 1000;
+        const last = orgLastRun.get(org.id) || 0;
+
+        if (now - last >= intervalMs) {
+          orgLastRun.set(org.id, now);
+          console.log(`[Agents] org=${org.id} interval=${org.agentIntervalMinutes ?? PLATFORM_DEFAULT_MINUTES}min`);
+          await runRoundRobin(io, org.id);
+          await sendFollowUpReminders(org.id);
+          await autoTagLeads(org.id);
+        }
+      }
+    } catch (err) {
+      console.error('[Agents] Scheduler error:', err.message);
+    }
   });
 
-  // Daily digest at configured hour
+  // Daily digest
   const digestHour = process.env.DIGEST_HOUR || 8;
   const digestMinute = process.env.DIGEST_MINUTE || 0;
   cron.schedule(`${digestMinute} ${digestHour} * * *`, async () => {
@@ -23,7 +45,7 @@ const startAgents = (io) => {
     await sendDailyDigest();
   });
 
-  console.log(`[Agents] Started - running every ${intervalMinutes} minute(s), digest at ${digestHour}:${String(digestMinute).padStart(2,'0')}`);
+  console.log(`[Agents] Started — per-org scheduling, platform default: ${PLATFORM_DEFAULT_MINUTES}min`);
 };
 
-module.exports = { startAgents };
+module.exports = { startAgents, PLATFORM_DEFAULT_MINUTES };
