@@ -1,0 +1,48 @@
+name: Docs freshness check
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'frontend/src/pages/**'
+      - 'backend/src/routes/**'
+      - 'backend/prisma/schema.prisma'
+
+jobs:
+  check:
+    name: Remind to update USER_MANUAL
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check if manual was updated alongside code
+        id: manual_check
+        run: |
+          CHANGED=$(git diff --name-only HEAD~1 HEAD)
+          MANUAL_CHANGED=$(echo "$CHANGED" | grep -c "docs/USER_MANUAL.md" || true)
+          FEATURES_CHANGED=$(echo "$CHANGED" | grep -cE "^(frontend/src/pages|backend/src/routes|backend/prisma)" || true)
+
+          if [ "$FEATURES_CHANGED" -gt 0 ] && [ "$MANUAL_CHANGED" -eq 0 ]; then
+            echo "needs_update=true" >> "$GITHUB_OUTPUT"
+            echo "changed_files<<EOF" >> "$GITHUB_OUTPUT"
+            echo "$CHANGED" | grep -E "^(frontend/src/pages|backend/src/routes|backend/prisma)" >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
+          else
+            echo "needs_update=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Post reminder summary
+        if: steps.manual_check.outputs.needs_update == 'true'
+        run: |
+          echo "## 📄 USER_MANUAL.md may need updating" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The following feature files changed but \`docs/USER_MANUAL.md\` was not updated:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.manual_check.outputs.changed_files }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "If this change adds or modifies a user-visible feature, update [docs/USER_MANUAL.md](../blob/main/docs/USER_MANUAL.md)." >> $GITHUB_STEP_SUMMARY
+          echo "If not user-facing, this reminder can be ignored." >> $GITHUB_STEP_SUMMARY
