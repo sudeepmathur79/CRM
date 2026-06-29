@@ -38,7 +38,7 @@ const { startAgents } = require('./services/agents');
 const { startReminderScheduler } = require('./services/reminders');
 const { runStuckDealAgents } = require('./services/agent.service');
 
-const isProd = process.env.NODE_ENV === 'production';
+const isProd = process.env.NODE_ENV !== 'development';
 
 // Resolve all permitted origins from env vars, stripping trailing slashes
 function buildAllowedOrigins() {
