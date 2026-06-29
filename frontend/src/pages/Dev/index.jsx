@@ -12,8 +12,8 @@ import toast from 'react-hot-toast';
 import { Toaster } from 'react-hot-toast';
 import {
   Plus, Trash2, Sparkles, LogOut, GripVertical, X, ChevronDown, ChevronUp,
-  Zap, Clock, Send, Bot, User, Hammer, ChevronRight, Loader,
-  MessageSquare, LayoutGrid,
+  Zap, Clock, Send, Bot, User, Hammer, Loader,
+  MessageSquare, Play, CheckCircle, AlertCircle, Timer, Code, Copy, Layers,
 } from 'lucide-react';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -532,6 +532,288 @@ function ChatPanel({ onAddItem, onClose }) {
   );
 }
 
+// ── Take Over modal ───────────────────────────────────────────────────────────
+
+const PRIORITY_LABEL = { 0: 'P0', 1: 'P1', 2: 'P2', 3: 'P3' };
+
+function TakeOverModal({ onClose, onRefreshBoard }) {
+  const [phase, setPhase] = useState('idle'); // idle | running | done | error
+  const [log, setLog] = useState([]);          // array of log entries
+  const [waves, setWaves] = useState([]);
+  const [activeWave, setActiveWave] = useState(null);
+  const [itemStates, setItemStates] = useState({}); // id → 'running'|'done'|'error'
+  const [results, setResults] = useState({});        // id → { code, model }
+  const [selectedResult, setSelectedResult] = useState(null);
+  const [totalItems, setTotalItems] = useState(0);
+  const esRef = useRef(null);
+  const logRef = useRef(null);
+
+  useEffect(() => {
+    logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: 'smooth' });
+  }, [log]);
+
+  // Clean up SSE on unmount
+  useEffect(() => () => { esRef.current?.close(); }, []);
+
+  const addLog = (type, text) => setLog(prev => [...prev, { type, text, ts: Date.now() }]);
+
+  const start = () => {
+    setPhase('running');
+    setLog([]);
+    setWaves([]);
+    setItemStates({});
+    setResults({});
+    setActiveWave(null);
+
+    const es = devApi.takeover();
+    esRef.current = es;
+
+    es.addEventListener('start', e => {
+      const d = JSON.parse(e.data);
+      setTotalItems(d.total);
+      addLog('info', `Found ${d.total} P0/P1 items to build`);
+      d.items.forEach(i => addLog('item', `  · [${PRIORITY_LABEL[i.priority]}] [${i.effort}] ${i.title}`));
+    });
+
+    es.addEventListener('plan', e => {
+      const d = JSON.parse(e.data);
+      addLog('plan', `Strategy: ${d.overallStrategy}`);
+      d.analysis?.forEach(a => addLog('analysis', `  ${a.parallelSafe ? '⇉' : '→'} ${a.domain} · ${a.complexity} — ${a.reason}`));
+    });
+
+    es.addEventListener('waves', e => {
+      const d = JSON.parse(e.data);
+      setWaves(d.waves);
+      addLog('info', `Execution plan: ${d.count} wave${d.count !== 1 ? 's' : ''}`);
+      d.waves.forEach(w => addLog('wave_plan', `  Wave ${w.wave}: ${w.parallel ? '⇉ parallel' : '→ sequential'} — ${w.items.join(', ')}`));
+    });
+
+    es.addEventListener('rate_limit', e => {
+      const d = JSON.parse(e.data);
+      addLog('wait', `⏱ Rate limit pause: ${d.waitSeconds}s — ${d.message}`);
+    });
+
+    es.addEventListener('wave_start', e => {
+      const d = JSON.parse(e.data);
+      setActiveWave(d.wave);
+      addLog('wave', `━━ Wave ${d.wave} ${d.parallel ? '(parallel)' : '(sequential)'}: ${d.items.join(', ')}`);
+    });
+
+    es.addEventListener('wave_done', e => {
+      const d = JSON.parse(e.data);
+      addLog('wave_done', `✓ Wave ${d.wave} complete`);
+    });
+
+    es.addEventListener('item_start', e => {
+      const d = JSON.parse(e.data);
+      setItemStates(prev => ({ ...prev, [d.id]: 'running' }));
+      addLog('item_start', `🔨 Building: ${d.title}`);
+    });
+
+    es.addEventListener('item_done', e => {
+      const d = JSON.parse(e.data);
+      setItemStates(prev => ({ ...prev, [d.id]: 'done' }));
+      setResults(prev => ({ ...prev, [d.id]: { code: d.code, model: d.model, title: d.title, tokensEstimate: d.tokensEstimate } }));
+      addLog('item_done', `✅ Done: ${d.title} (${d.model?.includes('8b') ? 'fast' : 'standard'} · ~${d.tokensEstimate} tokens)`);
+    });
+
+    es.addEventListener('item_error', e => {
+      const d = JSON.parse(e.data);
+      setItemStates(prev => ({ ...prev, [d.id]: 'error' }));
+      addLog('error', `❌ Failed: ${d.title} — ${d.error}`);
+    });
+
+    es.addEventListener('complete', e => {
+      const d = JSON.parse(e.data);
+      setPhase('done');
+      addLog('done', `🎉 All done — ${d.totalItems} items across ${d.totalWaves} waves`);
+      es.close();
+      onRefreshBoard();
+    });
+
+    es.addEventListener('error', e => {
+      try {
+        const d = JSON.parse(e.data);
+        addLog('error', `Error: ${d.message}`);
+        setPhase('error');
+      } catch {
+        addLog('error', 'Connection error');
+        setPhase('error');
+      }
+      es.close();
+    });
+
+    es.onerror = () => {
+      if (phase === 'running') {
+        addLog('error', 'Stream disconnected');
+        setPhase('error');
+      }
+      es.close();
+    };
+  };
+
+  const doneCount = Object.values(itemStates).filter(s => s === 'done').length;
+  const resultKeys = Object.keys(results);
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
+
+        {/* Header */}
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-800">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center flex-shrink-0">
+            <Play size={16} className="text-white" />
+          </div>
+          <div className="flex-1">
+            <h2 className="font-bold text-white">AI Take Over</h2>
+            <p className="text-xs text-slate-500">Groq autonomously builds your P0/P1 backlog — parallel where safe, sequential where shared</p>
+          </div>
+          {phase !== 'idle' && (
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <Layers size={13} />
+              {doneCount}/{totalItems} built
+              {waves.length > 0 && <span>· {waves.length} waves</span>}
+            </div>
+          )}
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-300 ml-2"><X size={18} /></button>
+        </div>
+
+        {/* Idle state */}
+        {phase === 'idle' && (
+          <div className="flex-1 flex flex-col items-center justify-center gap-6 p-10">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-900/60 to-indigo-900/60 border border-violet-700/40 flex items-center justify-center">
+              <Zap size={28} className="text-violet-400" />
+            </div>
+            <div className="text-center max-w-md">
+              <h3 className="text-lg font-semibold text-white mb-2">Hand over the wheel</h3>
+              <p className="text-sm text-slate-400 leading-relaxed">
+                Groq will fetch your highest-priority items (P0 and P1), plan which can run in parallel based on their file domains, and generate complete production-ready implementations for each one — respecting rate limits automatically.
+              </p>
+            </div>
+            <div className="grid grid-cols-3 gap-4 text-center text-xs w-full max-w-sm">
+              {[
+                ['⇉ Parallel', 'Independent frontend, backend & mobile items run simultaneously'],
+                ['→ Sequential', 'Shared-file items wait for each other to avoid conflicts'],
+                ['⏱ Rate-aware', 'Pauses between waves to stay within Groq token limits'],
+              ].map(([label, desc]) => (
+                <div key={label} className="bg-slate-800 rounded-xl p-3 border border-slate-700">
+                  <div className="font-semibold text-slate-200 mb-1">{label}</div>
+                  <div className="text-slate-500 leading-snug">{desc}</div>
+                </div>
+              ))}
+            </div>
+            <button onClick={start}
+              className="px-8 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-xl font-semibold transition-all shadow-lg shadow-violet-900/40 flex items-center gap-2">
+              <Play size={16} /> Start AI Take Over
+            </button>
+          </div>
+        )}
+
+        {/* Running / done state */}
+        {phase !== 'idle' && (
+          <div className="flex flex-1 overflow-hidden">
+
+            {/* Left: live log */}
+            <div className="w-80 flex-shrink-0 border-r border-slate-800 flex flex-col">
+              <div className="px-4 py-2 border-b border-slate-800 flex items-center gap-2">
+                {phase === 'running' && <Loader size={12} className="text-violet-400 animate-spin" />}
+                {phase === 'done' && <CheckCircle size={12} className="text-emerald-400" />}
+                {phase === 'error' && <AlertCircle size={12} className="text-red-400" />}
+                <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">
+                  {phase === 'running' ? 'Building…' : phase === 'done' ? 'Complete' : 'Error'}
+                </span>
+              </div>
+              <div ref={logRef} className="flex-1 overflow-y-auto p-3 space-y-1 font-mono text-xs">
+                {log.map((entry, i) => (
+                  <div key={i} className={`leading-relaxed ${
+                    entry.type === 'done' ? 'text-emerald-400' :
+                    entry.type === 'error' ? 'text-red-400' :
+                    entry.type === 'wave' || entry.type === 'wave_done' ? 'text-violet-300 font-semibold' :
+                    entry.type === 'item_done' ? 'text-emerald-300' :
+                    entry.type === 'item_start' ? 'text-amber-300' :
+                    entry.type === 'wait' ? 'text-amber-400' :
+                    entry.type === 'plan' ? 'text-indigo-300 italic' :
+                    'text-slate-400'
+                  }`}>
+                    {entry.text}
+                  </div>
+                ))}
+                {phase === 'running' && (
+                  <div className="flex items-center gap-1.5 text-slate-600">
+                    <Loader size={10} className="animate-spin" />
+                    <span>working…</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right: results panel */}
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {resultKeys.length === 0 ? (
+                <div className="flex-1 flex items-center justify-center text-slate-600 text-sm">
+                  Results will appear here as each item completes
+                </div>
+              ) : selectedResult ? (
+                /* Code view */
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  <div className="flex items-center gap-3 px-4 py-2 border-b border-slate-800">
+                    <button onClick={() => setSelectedResult(null)} className="text-xs text-slate-500 hover:text-slate-300 flex items-center gap-1">
+                      ← back
+                    </button>
+                    <span className="text-xs font-medium text-slate-300 flex-1 truncate">{results[selectedResult]?.title}</span>
+                    <span className="text-xs text-slate-600">{results[selectedResult]?.model?.includes('8b') ? 'llama-3.1-8b-instant' : 'llama-3.3-70b'}</span>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(results[selectedResult]?.code || '').then(() => toast.success('Copied'))}
+                      className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200 px-2 py-1 bg-slate-800 rounded-lg">
+                      <Copy size={11} /> Copy
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-4">
+                    <pre className="text-xs text-slate-300 whitespace-pre-wrap leading-relaxed font-mono bg-slate-950/60 rounded-xl p-4 border border-slate-800">
+                      {results[selectedResult]?.code}
+                    </pre>
+                  </div>
+                </div>
+              ) : (
+                /* Item list */
+                <div className="flex-1 overflow-y-auto p-4">
+                  <p className="text-xs text-slate-500 mb-3 uppercase tracking-wide font-medium">Generated implementations</p>
+                  <div className="space-y-2">
+                    {Object.entries(results).map(([id, r]) => (
+                      <button key={id} onClick={() => setSelectedResult(id)}
+                        className="w-full text-left bg-slate-800 border border-slate-700 hover:border-emerald-700/60 rounded-xl p-3 transition-colors group">
+                        <div className="flex items-start gap-3">
+                          <CheckCircle size={14} className="text-emerald-400 flex-shrink-0 mt-0.5" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-200 leading-snug">{r.title}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs text-slate-600">{r.model?.includes('8b') ? 'fast model' : 'standard model'}</span>
+                              <span className="text-xs text-slate-600">· ~{r.tokensEstimate} tokens</span>
+                            </div>
+                          </div>
+                          <Code size={14} className="text-slate-600 group-hover:text-slate-400 flex-shrink-0" />
+                        </div>
+                      </button>
+                    ))}
+
+                    {/* Items still in flight */}
+                    {Object.entries(itemStates).filter(([, s]) => s === 'running').map(([id]) => (
+                      <div key={id} className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 flex items-center gap-3">
+                        <Loader size={14} className="text-amber-400 animate-spin flex-shrink-0" />
+                        <p className="text-sm text-slate-500">Building…</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main portal ───────────────────────────────────────────────────────────────
 
 export default function DevPortal() {
@@ -549,6 +831,7 @@ export default function DevPortal() {
   const [showChat, setShowChat] = useState(true);
   const [buildResult, setBuildResult] = useState(null); // { item, plan }
   const [building, setBuilding] = useState(null); // itemId being built
+  const [showTakeover, setShowTakeover] = useState(false);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -724,6 +1007,11 @@ export default function DevPortal() {
             {aiLoading ? 'Thinking…' : 'AI Prioritise'}
           </button>
 
+          <button onClick={() => setShowTakeover(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 rounded-lg text-xs font-semibold transition-all shadow-md shadow-violet-900/40">
+            <Play size={13} /> Take Over
+          </button>
+
           <button onClick={() => setShowChat(c => !c)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
               showChat ? 'bg-slate-700 border-slate-600 text-white' : 'border-slate-700 text-slate-400 hover:text-white'
@@ -778,6 +1066,9 @@ export default function DevPortal() {
       )}
       {buildResult && (
         <BuildDrawer item={buildResult.item} plan={buildResult.plan} onClose={() => setBuildResult(null)} />
+      )}
+      {showTakeover && (
+        <TakeOverModal onClose={() => setShowTakeover(false)} onRefreshBoard={load} />
       )}
     </div>
   );

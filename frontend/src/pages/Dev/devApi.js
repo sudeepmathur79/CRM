@@ -30,4 +30,10 @@ export const devApi = {
   buildItem: (id) => axios.post(`${BASE}/build/${id}`, {}, { headers: headers() }).then(r => r.data),
 
   getStats: () => axios.get(`${BASE}/stats`, { headers: headers() }).then(r => r.data),
+
+  // Returns an EventSource. Caller attaches .onmessage / .addEventListener handlers.
+  takeover: () => {
+    const token = sessionStorage.getItem('devToken');
+    return new EventSource(`${BASE}/takeover?token=${encodeURIComponent(token)}`);
+  },
 };

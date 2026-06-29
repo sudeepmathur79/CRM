@@ -10,7 +10,10 @@ const DEV_SECRET = process.env.DEV_SECRET || 'dev-change-me';
 // ── Auth middleware ───────────────────────────────────────────────────────────
 function devAuth(req, res, next) {
   const auth = req.headers.authorization || '';
-  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  const headerToken = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  // EventSource can't set headers — allow token via query param for SSE routes
+  const queryToken = req.query.token || '';
+  const token = headerToken || queryToken;
   if (token !== DEV_SECRET) return res.status(401).json({ error: 'Unauthorized' });
   next();
 }
@@ -296,6 +299,279 @@ Be specific about file paths and function names. This plan should be detailed en
 
     res.json({ plan, item });
   } catch (e) { next(e); }
+});
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+async function groqChat(messages, { model = 'llama-3.3-70b-versatile', maxTokens = 2000, json = false } = {}) {
+  const body = {
+    model,
+    messages,
+    temperature: 0.3,
+    max_tokens: maxTokens,
+    ...(json ? { response_format: { type: 'json_object' } } : {}),
+  };
+  const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error(`Groq error ${resp.status}: ${err}`);
+  }
+  const data = await resp.json();
+  return data.choices[0].message.content;
+}
+
+// Read relevant source files from the container for context
+const fs = require('fs');
+const path = require('path');
+
+function readSourceFile(relPath) {
+  const base = path.join(__dirname, '../../');
+  const full = path.join(base, relPath);
+  try { return fs.readFileSync(full, 'utf8').slice(0, 3000); } // cap at 3k chars per file
+  catch { return null; }
+}
+
+function getRelevantFiles(item) {
+  const tags = item.tags || [];
+  const files = {};
+
+  if (tags.includes('backend') || tags.includes('security') || tags.includes('infra')) {
+    const routeFiles = ['src/routes/lead.routes.js', 'src/routes/org.routes.js', 'src/routes/auth.routes.js', 'src/routes/user.routes.js'];
+    for (const f of routeFiles) {
+      const content = readSourceFile(f);
+      if (content) files[f] = content;
+    }
+    const schema = readSourceFile('prisma/schema.prisma');
+    if (schema) files['prisma/schema.prisma'] = schema.slice(0, 2000);
+  }
+
+  if (tags.includes('frontend')) {
+    const content = readSourceFile('../frontend/src/App.jsx') || readSourceFile('frontend/dist/index.html');
+    if (content) files['frontend/src/App.jsx'] = content;
+  }
+
+  if (tags.includes('mobile')) {
+    files['flutter_mobile/pubspec.yaml'] = '# Flutter mobile app — provider, http, record, flutter_secure_storage';
+  }
+
+  return files;
+}
+
+// Token estimates per effort size (output tokens for Groq)
+const EFFORT_TOKENS = { XS: 600, S: 1000, M: 1800, L: 2500, XL: 3000 };
+
+// Items that can safely run in parallel: different primary domain (frontend vs backend vs mobile)
+function canParallelize(a, b) {
+  const domain = item => {
+    const t = item.tags || [];
+    if (t.includes('mobile') && !t.includes('backend') && !t.includes('frontend')) return 'mobile';
+    if (t.includes('frontend') && !t.includes('backend')) return 'frontend';
+    if (t.includes('backend') && !t.includes('frontend')) return 'backend';
+    return 'shared';
+  };
+  return domain(a) !== domain(b) && domain(a) !== 'shared' && domain(b) !== 'shared';
+}
+
+// Assign items into execution waves
+function planWaves(items) {
+  const waves = [];
+  const assigned = new Set();
+
+  for (let i = 0; i < items.length; i++) {
+    if (assigned.has(i)) continue;
+    const wave = [items[i]];
+    assigned.add(i);
+
+    // Only batch XS/S into parallel waves; M/L/XL always solo
+    if (['XS', 'S'].includes(items[i].effort)) {
+      for (let j = i + 1; j < items.length; j++) {
+        if (assigned.has(j)) continue;
+        if (!['XS', 'S'].includes(items[j].effort)) continue;
+        if (wave.every(w => canParallelize(w, items[j]))) {
+          wave.push(items[j]);
+          assigned.add(j);
+          if (wave.length >= 3) break; // cap parallel wave at 3
+        }
+      }
+    }
+
+    waves.push(wave);
+  }
+  return waves;
+}
+
+// GET /api/dev/takeover — SSE stream of autonomous AI build session
+router.get('/takeover', async (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders?.();
+
+  const send = (event, data) => {
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  };
+
+  // Groq rate-limit: ~6000 tokens/min on free tier — pace between waves
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+  try {
+    // 1. Fetch prioritised items (P0+P1 ready/backlog, not done/build)
+    const rawItems = await prisma.backlogItem.findMany({
+      where: { status: { in: ['backlog', 'ready', 'in_progress'] }, priority: { lte: 1 } },
+      orderBy: [{ priority: 'asc' }, { position: 'asc' }],
+      take: 12,
+    });
+
+    if (rawItems.length === 0) {
+      send('error', { message: 'No P0/P1 items in backlog or ready. Promote some items to P0/P1 first.' });
+      res.end(); return;
+    }
+
+    send('start', { total: rawItems.length, items: rawItems.map(i => ({ id: i.id, title: i.title, priority: i.priority, effort: i.effort, epic: i.epic })) });
+
+    // 2. Ask Groq to validate/adjust the wave plan
+    const planPrompt = `You are a senior engineering manager for SalesFlow CRM — a React/Express/Prisma/Flutter B2B SaaS.
+
+These backlog items need to be built (ordered by priority):
+${rawItems.map((i, idx) => `${idx+1}. [P${i.priority}] [${i.effort}] [${i.epic}] "${i.title}" tags:${(i.tags||[]).join(',')} — ${(i.description||'').slice(0,100)}`).join('\n')}
+
+For each item, identify the primary domain (frontend|backend|mobile|shared) and whether it can safely run in parallel with items of a different domain.
+Also estimate actual implementation complexity: simple|moderate|complex.
+
+Return ONLY valid JSON:
+{
+  "analysis": [
+    { "id": "<id>", "domain": "frontend|backend|mobile|shared", "complexity": "simple|moderate|complex", "parallelSafe": true|false, "reason": "one line" }
+  ],
+  "overallStrategy": "one sentence on approach"
+}`;
+
+    let planAnalysis = null;
+    try {
+      const planJson = await groqChat([{ role: 'user', content: planPrompt }], { json: true, maxTokens: 1000 });
+      planAnalysis = JSON.parse(planJson);
+      send('plan', planAnalysis);
+    } catch (e) {
+      send('log', { message: `Plan analysis failed, using heuristics: ${e.message}` });
+    }
+
+    // 3. Build execution waves
+    const waves = planWaves(rawItems);
+    send('waves', { count: waves.length, waves: waves.map((w, i) => ({ wave: i+1, parallel: w.length > 1, items: w.map(x => x.title) })) });
+
+    let totalTokensUsed = 0;
+    const TOKEN_BUDGET_PER_MIN = 5000; // conservative for free Groq tier
+    let waveStartTime = Date.now();
+
+    // 4. Execute each wave
+    for (let waveIdx = 0; waveIdx < waves.length; waveIdx++) {
+      const wave = waves[waveIdx];
+      const isParallel = wave.length > 1;
+
+      send('wave_start', { wave: waveIdx + 1, parallel: isParallel, items: wave.map(i => i.title) });
+
+      // Rate limit: if we've used a lot of tokens, wait before next wave
+      const elapsed = (Date.now() - waveStartTime) / 1000;
+      if (totalTokensUsed > TOKEN_BUDGET_PER_MIN * 0.7 && elapsed < 60) {
+        const waitMs = Math.ceil((60 - elapsed) * 1000) + 2000;
+        send('rate_limit', { waitSeconds: Math.ceil(waitMs / 1000), message: `Pacing to stay within Groq rate limits (${totalTokensUsed} tokens used this minute)` });
+        await sleep(waitMs);
+        totalTokensUsed = 0;
+        waveStartTime = Date.now();
+      }
+
+      const buildItem = async (item) => {
+        send('item_start', { id: item.id, title: item.title });
+
+        const relevantFiles = getRelevantFiles(item);
+        const fileContext = Object.entries(relevantFiles)
+          .map(([path, content]) => `// === ${path} ===\n${content}`)
+          .join('\n\n');
+
+        const expectedTokens = EFFORT_TOKENS[item.effort] || 1500;
+        // Use faster smaller model for simple XS/S items in parallel
+        const model = (isParallel && ['XS', 'S'].includes(item.effort))
+          ? 'llama-3.1-8b-instant'
+          : 'llama-3.3-70b-versatile';
+
+        const itemPrompt = `You are a senior full-stack engineer implementing a feature for SalesFlow CRM.
+
+TASK: ${item.title}
+Epic: ${item.epic || 'General'} | Priority: P${item.priority} | Effort: ${item.effort}
+Description: ${item.description || 'No description provided'}
+Tags: ${(item.tags || []).join(', ')}
+
+RELEVANT EXISTING CODE:
+${fileContext || '(No specific files identified — use your knowledge of the stack: React+Vite+Tailwind, Express+Prisma+Neon, Flutter)'}
+
+STACK:
+- Frontend: React 18, Vite, Tailwind CSS, @tanstack/react-query, react-hook-form, @dnd-kit, lucide-react
+- Backend: Express.js, Prisma ORM, Neon Postgres, Resend (email), Cloudflare R2 (files)
+- Mobile: Flutter with provider, http, flutter_secure_storage, record
+- Auth: JWT (access 15min + refresh 7d), roles: agent/admin/superadmin/support
+
+Provide a complete, production-ready implementation. Include:
+
+## Summary
+One paragraph on what this implements and the approach.
+
+## Files to Create/Modify
+List every file with its full relative path.
+
+## Implementation
+
+For each file, write the COMPLETE file content (or the specific functions/sections that change, clearly marked):
+
+\`\`\`
+// File: <path>
+<complete code>
+\`\`\`
+
+## Migration (if needed)
+Any Prisma schema changes and the migration SQL.
+
+## Verification
+3-5 specific things to test to confirm this works.
+
+Be concrete and complete. A developer should be able to copy-paste this and it works.`;
+
+        try {
+          const code = await groqChat([{ role: 'user', content: itemPrompt }], { model, maxTokens: expectedTokens });
+          totalTokensUsed += expectedTokens;
+
+          // Update item status to in_progress
+          await prisma.backlogItem.update({ where: { id: item.id }, data: { status: 'in_progress' } });
+
+          send('item_done', { id: item.id, title: item.title, code, model, tokensEstimate: expectedTokens });
+        } catch (e) {
+          send('item_error', { id: item.id, title: item.title, error: e.message });
+        }
+      };
+
+      if (isParallel) {
+        // Fire all items in this wave concurrently
+        await Promise.all(wave.map(buildItem));
+      } else {
+        await buildItem(wave[0]);
+      }
+
+      send('wave_done', { wave: waveIdx + 1 });
+
+      // Brief pause between waves
+      if (waveIdx < waves.length - 1) await sleep(1500);
+    }
+
+    send('complete', { totalItems: rawItems.length, totalWaves: waves.length });
+  } catch (e) {
+    send('error', { message: e.message });
+  } finally {
+    res.end();
+  }
 });
 
 // GET /api/dev/stats — quick summary for portal header
