@@ -25,5 +25,9 @@ export const devApi = {
 
   aiPrioritise: () => axios.post(`${BASE}/ai-prioritise`, {}, { headers: headers() }).then(r => r.data),
 
+  aiChat: (messages) => axios.post(`${BASE}/ai-chat`, { messages }, { headers: headers() }).then(r => r.data),
+
+  buildItem: (id) => axios.post(`${BASE}/build/${id}`, {}, { headers: headers() }).then(r => r.data),
+
   getStats: () => axios.get(`${BASE}/stats`, { headers: headers() }).then(r => r.data),
 };

@@ -158,6 +158,146 @@ Return ONLY valid JSON in this exact shape, nothing else:
   } catch (e) { next(e); }
 });
 
+// POST /api/dev/ai-chat — conversational AI that classifies asks into backlog items
+router.post('/ai-chat', async (req, res, next) => {
+  try {
+    const { messages } = req.body;
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({ error: 'messages required' });
+    }
+
+    const existingItems = await prisma.backlogItem.findMany({
+      where: { status: { not: 'done' } },
+      select: { title: true, epic: true, status: true },
+      orderBy: { position: 'asc' },
+    });
+
+    const systemPrompt = `You are an AI product assistant for SalesFlow CRM — a B2B SaaS CRM for sales teams built with React, Express, Prisma/Postgres, and Flutter.
+
+Your job is to help the product owner manage the backlog. You can:
+1. Classify natural-language feature requests into structured backlog items
+2. Answer questions about the backlog and prioritisation
+3. Suggest when something is a duplicate of an existing item
+4. Give implementation advice
+
+Current backlog summary (${existingItems.length} open items):
+${existingItems.slice(0, 20).map(i => `- [${i.epic || 'Other'}] ${i.title} (${i.status})`).join('\n')}
+
+When the user describes a feature or bug, respond with:
+- A brief acknowledgement of what you understood
+- If it's a new item: propose a structured card as JSON in a \`\`\`json block like this:
+\`\`\`json
+{
+  "action": "create_item",
+  "title": "...",
+  "description": "...",
+  "epic": "Product|Security|Architecture|Mobile|Developer Portal|What's New|Other",
+  "priority": 0-3,
+  "effort": "XS|S|M|L|XL",
+  "tags": ["frontend", "backend", "mobile", "security", "infra"]
+}
+\`\`\`
+- If it looks like a duplicate, say so and suggest linking to the existing item
+- Always be concise. One paragraph max before the JSON block.
+
+Valid epics: Developer Portal, Architecture, What's New, Mobile, Product, Security, Other
+Priority: 0=Critical/P0, 1=High/P1, 2=Medium/P2, 3=Low/P3
+Effort: XS=<1day, S=1-2days, M=3-5days, L=1-2weeks, XL=2weeks+`;
+
+    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...messages,
+        ],
+        temperature: 0.4,
+        max_tokens: 800,
+      }),
+    });
+    const json = await resp.json();
+    const content = json.choices?.[0]?.message?.content || '';
+
+    // Extract JSON block if present
+    const jsonMatch = content.match(/```json\s*([\s\S]*?)```/);
+    let proposed = null;
+    if (jsonMatch) {
+      try { proposed = JSON.parse(jsonMatch[1]); } catch {}
+    }
+
+    res.json({ content, proposed });
+  } catch (e) { next(e); }
+});
+
+// POST /api/dev/build/:id — trigger Claude to generate implementation plan
+router.post('/build/:id', async (req, res, next) => {
+  try {
+    const item = await prisma.backlogItem.findUnique({ where: { id: req.params.id } });
+    if (!item) return res.status(404).json({ error: 'Item not found' });
+
+    const codebaseContext = `
+SalesFlow CRM codebase structure:
+- frontend/src/pages/ — React pages (Leads, Settings, SuperAdmin, Dev, Login, Signup, Dashboard, Kanban, Agents, Inbox, Recordings)
+- frontend/src/components/ — shared components (Layout, VoiceCapture, FeedbackWidget)
+- frontend/src/hooks/ — useBranding, useAuth, useTheme
+- frontend/src/services/api.js — axios wrappers for all API calls
+- frontend/src/contexts/ — AuthContext, ThemeContext
+- backend/src/routes/ — Express routers: auth, lead, org, user, agent, dev, superadmin, messages, recordings
+- backend/src/services/ — auth.service, lead.service, ai.service, agent.service, agents/ (scheduler, roundRobin, followup, tagging)
+- backend/prisma/schema.prisma — Organisation, User, Lead, Tag, Message, AgentConfig, BacklogItem, VoiceDraft, SupportSession
+- Stack: React + Vite + Tailwind + @tanstack/react-query + @dnd-kit | Express + Prisma + Neon Postgres | Flutter mobile
+- Deployed: Render (Docker), Neon Postgres, Resend (email), Cloudflare R2 (files), Cloudflare Turnstile (captcha)`;
+
+    const prompt = `You are a senior full-stack engineer. The product owner has moved this backlog item to "Build" status and wants a detailed implementation plan.
+
+Item:
+Title: ${item.title}
+Epic: ${item.epic || 'General'}
+Description: ${item.description || 'No description provided'}
+Tags: ${(item.tags || []).join(', ') || 'none'}
+Priority: P${item.priority}, Effort: ${item.effort}
+
+${codebaseContext}
+
+Produce a concrete implementation plan with:
+1. **Summary** — one paragraph on the approach
+2. **Files to change** — list each file with a one-line description of what changes
+3. **New files** — any new files to create
+4. **Database changes** — Prisma schema additions/migrations if needed
+5. **Key code snippets** — the 2-3 most important code blocks (abbreviated, not full files)
+6. **Risks & edge cases** — things to watch out for
+7. **Test checklist** — 4-6 bullet points to verify it works
+
+Be specific about file paths and function names. This plan should be detailed enough for a developer to pick up and implement without further clarification.`;
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+    const json = await resp.json();
+    const plan = json.content?.[0]?.text || '';
+
+    // Mark item as in_progress now that build has been triggered
+    await prisma.backlogItem.update({
+      where: { id: item.id },
+      data: { status: 'in_progress' },
+    });
+
+    res.json({ plan, item });
+  } catch (e) { next(e); }
+});
+
 // GET /api/dev/stats — quick summary for portal header
 router.get('/stats', async (req, res, next) => {
   try {
