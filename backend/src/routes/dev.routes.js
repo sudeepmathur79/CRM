@@ -317,17 +317,35 @@ async function groqChat(messages, { model = 'llama-3.3-70b-versatile', maxTokens
     max_tokens: maxTokens,
     ...(json ? { response_format: { type: 'json_object' } } : {}),
   };
-  const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!resp.ok) {
-    const err = await resp.text();
-    throw new Error(`Groq error ${resp.status}: ${err}`);
+
+  // Retry up to 3 times on 429 — parse the retry-after from Groq's error message
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (resp.status === 429) {
+      const errText = await resp.text();
+      // Extract "Please try again in Xs" from the error message
+      const match = errText.match(/try again in ([\d.]+)s/);
+      const waitSec = match ? Math.ceil(parseFloat(match[1])) + 2 : 60;
+      if (attempt < 2) {
+        await new Promise(r => setTimeout(r, waitSec * 1000));
+        continue;
+      }
+      throw new Error(`Groq error 429: ${errText}`);
+    }
+
+    if (!resp.ok) {
+      const err = await resp.text();
+      throw new Error(`Groq error ${resp.status}: ${err}`);
+    }
+
+    const data = await resp.json();
+    return data.choices[0].message.content;
   }
-  const data = await resp.json();
-  return data.choices[0].message.content;
 }
 
 // Read relevant source files from the container for context
@@ -367,8 +385,9 @@ function getRelevantFiles(item) {
   return files;
 }
 
-// Token estimates per effort size (output tokens for Groq)
-const EFFORT_TOKENS = { XS: 600, S: 1000, M: 1800, L: 2500, XL: 3000 };
+// Token estimates per effort size — kept well under Groq's on-demand TPM limits
+// 70b: 12k TPM, 8b: 6k TPM. One sequential item per wave, so stay under ~4k/call.
+const EFFORT_TOKENS = { XS: 400, S: 700, M: 1200, L: 1800, XL: 2500 };
 
 // Items that can safely run in parallel: different primary domain (frontend vs backend vs mobile)
 function canParallelize(a, b) {
@@ -494,7 +513,8 @@ Return ONLY valid JSON:
     send('waves', { count: waves.length, waves: waves.map((w, i) => ({ wave: i+1, parallel: w.length > 1, items: w.map(x => x.title) })) });
 
     let totalTokensUsed = 0;
-    const TOKEN_BUDGET_PER_MIN = 5000;
+    // Stay well under the 70b 12k TPM limit — pause if we hit 8k in under 60s
+    const TOKEN_BUDGET_PER_MIN = 8000;
     let waveStartTime = Date.now();
 
     for (let waveIdx = 0; waveIdx < waves.length; waveIdx++) {
@@ -573,7 +593,17 @@ Provide a production-ready implementation with:
       }
 
       send('wave_done', { wave: waveIdx + 1 });
-      if (waveIdx < waves.length - 1) await sleep(1500);
+      // Mandatory cooldown between waves — gives Groq TPM bucket time to refill
+      if (waveIdx < waves.length - 1) {
+        const elapsed = (Date.now() - waveStartTime) / 1000;
+        const cooldown = elapsed < 30 ? Math.ceil((30 - elapsed) * 1000) : 3000;
+        if (cooldown > 3000) {
+          send('rate_limit', { waitSeconds: Math.ceil(cooldown / 1000), message: `Cooling down between waves (${Math.ceil(cooldown/1000)}s)` });
+        }
+        await sleep(cooldown);
+        totalTokensUsed = 0;
+        waveStartTime = Date.now();
+      }
     }
 
     if (!session.cancelled) {
