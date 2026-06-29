@@ -130,17 +130,23 @@ router.post('/ai-prioritise', async (req, res, next) => {
 Here is the current backlog (JSON):
 ${JSON.stringify(items.map(i => ({ id: i.id, title: i.title, epic: i.epic, priority: i.priority, effort: i.effort, status: i.status, tags: i.tags })), null, 2)}
 
-Prioritise these items for a small dev team. Consider:
-- User/business impact (higher = first)
-- Effort vs value (quick wins early)
-- Dependencies (infra before features that depend on it)
-- Current status (in_progress items stay, don't demote them)
+Prioritise these items for a small dev team. Priority scale:
+- P0 (0) = Critical: blocks other work, security/data issues, or is actively broken in prod. Assign 1-3 items MAX.
+- P1 (1) = High: significant user/revenue impact, should ship this sprint. Assign 4-8 items.
+- P2 (2) = Medium: valuable but not urgent. Most items land here.
+- P3 (3) = Low: nice-to-have, defer until P0-P2 done.
+
+Rules:
+- You MUST assign at least 1 item as P0 and at least 3 items as P1 — the AI Take Over feature depends on P0/P1 items existing.
+- in_progress items keep their current priority — do not change them.
+- Spread the distribution: roughly 5-10% P0, 20-30% P1, 40-50% P2, 20-30% P3.
+- Do NOT assign P2 to everything — that is a failure mode.
 
 Return ONLY valid JSON in this exact shape, nothing else:
 {
   "reasoning": "2-3 sentence summary of your prioritisation logic",
   "items": [
-    { "id": "<id>", "suggestedPriority": 0, "reason": "<one line why>" }
+    { "id": "<id>", "title": "<item title>", "suggestedPriority": 0, "reason": "<one line why>" }
   ]
 }`;
 
@@ -438,14 +444,23 @@ router.get('/takeover', async (req, res) => {
   try {
     send('session', { sessionId });
 
-    const rawItems = await prisma.backlogItem.findMany({
+    // Prefer P0/P1; fall back to P2 if none exist so Take Over always has work
+    let rawItems = await prisma.backlogItem.findMany({
       where: { status: { in: ['backlog', 'ready'] }, priority: { lte: 1 } },
       orderBy: [{ priority: 'asc' }, { position: 'asc' }],
       take: 12,
     });
 
     if (rawItems.length === 0) {
-      send('error', { message: 'No P0/P1 items in backlog or ready. Promote some items to P0/P1 first.' });
+      rawItems = await prisma.backlogItem.findMany({
+        where: { status: { in: ['backlog', 'ready'] }, priority: { lte: 2 } },
+        orderBy: [{ priority: 'asc' }, { position: 'asc' }],
+        take: 12,
+      });
+    }
+
+    if (rawItems.length === 0) {
+      send('error', { message: 'No actionable items in backlog or ready columns.' });
       res.end(); return;
     }
 

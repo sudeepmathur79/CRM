@@ -289,6 +289,13 @@ function QuickAdd({ status, onAdd, onCancel }) {
 // ── AI Results panel (prioritise) ─────────────────────────────────────────────
 
 function AIResultsPanel({ result, onApply, onClose }) {
+  const [overrides, setOverrides] = useState({});
+
+  const effectiveItems = result.items.map(s => ({
+    ...s,
+    suggestedPriority: overrides[s.id] !== undefined ? overrides[s.id] : s.suggestedPriority,
+  }));
+
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
@@ -298,7 +305,7 @@ function AIResultsPanel({ result, onApply, onClose }) {
           </div>
           <div>
             <h3 className="font-semibold text-white">AI Prioritisation</h3>
-            <p className="text-xs text-slate-500">Llama 3.3 70B</p>
+            <p className="text-xs text-slate-500">Llama 3.3 70B · Override any priority before applying</p>
           </div>
           <button onClick={onClose} className="ml-auto text-slate-500 hover:text-slate-300"><X size={16} /></button>
         </div>
@@ -306,23 +313,29 @@ function AIResultsPanel({ result, onApply, onClose }) {
           <div className="bg-indigo-950/60 border border-indigo-800/30 rounded-xl p-4 mb-4">
             <p className="text-sm text-indigo-200 leading-relaxed">{result.reasoning}</p>
           </div>
-          <div className="space-y-2">
-            {result.items.map((s, i) => (
-              <div key={s.id} className="flex items-start gap-3 py-2 border-b border-slate-800 last:border-0">
-                <span className="text-xs font-bold text-slate-600 w-5 flex-shrink-0 mt-0.5">#{i+1}</span>
+          <div className="space-y-1">
+            {effectiveItems.map((s, i) => (
+              <div key={s.id} className="flex items-center gap-3 py-2 border-b border-slate-800 last:border-0">
+                <span className="text-xs font-bold text-slate-600 w-5 flex-shrink-0">#{i+1}</span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-slate-200 font-medium truncate">{s.id}</p>
+                  <p className="text-sm text-slate-200 font-medium truncate">{s.title || s.id}</p>
                   <p className="text-xs text-slate-500 mt-0.5">{s.reason}</p>
                 </div>
-                <span className={`text-xs px-1.5 py-0.5 rounded font-semibold flex-shrink-0 ${PRIORITY_META[s.suggestedPriority]?.color}`}>
-                  P{s.suggestedPriority}
-                </span>
+                <select
+                  value={s.suggestedPriority}
+                  onChange={e => setOverrides(o => ({ ...o, [s.id]: Number(e.target.value) }))}
+                  className="bg-slate-800 border border-slate-700 text-xs rounded px-1.5 py-1 text-slate-200 flex-shrink-0"
+                >
+                  {[0,1,2,3].map(p => (
+                    <option key={p} value={p}>P{p} — {['Critical','High','Medium','Low'][p]}</option>
+                  ))}
+                </select>
               </div>
             ))}
           </div>
         </div>
         <div className="p-5 border-t border-slate-800 flex gap-2">
-          <button onClick={onApply} className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition-colors">
+          <button onClick={() => onApply(effectiveItems)} className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition-colors">
             Apply priorities
           </button>
           <button onClick={onClose} className="px-4 py-2 border border-slate-700 text-slate-400 rounded-xl text-sm hover:text-slate-200">
@@ -1161,15 +1174,16 @@ export default function DevPortal() {
     finally { setAiLoading(false); }
   };
 
-  const applyAI = async () => {
+  const applyAI = async (effectiveItems) => {
     if (!aiResult) return;
-    await Promise.all(aiResult.items.map(s => devApi.updateItem(s.id, { priority: s.suggestedPriority })));
+    const toApply = effectiveItems || aiResult.items;
+    await Promise.all(toApply.map(s => devApi.updateItem(s.id, { priority: s.suggestedPriority })));
     setItems(prev => prev.map(i => {
-      const s = aiResult.items.find(s => s.id === i.id);
+      const s = toApply.find(s => s.id === i.id);
       return s ? { ...i, priority: s.suggestedPriority } : i;
     }));
     setAiResult(null);
-    toast.success('AI priorities applied');
+    toast.success('Priorities applied');
   };
 
   const done = items.filter(i => i.status === 'done').length;
