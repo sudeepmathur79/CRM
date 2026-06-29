@@ -74,7 +74,24 @@ if (isProd) app.set('trust proxy', 1);
 const server = http.createServer(app);
 const io = new Server(server, { cors: corsOptions });
 
-app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", 'https://challenges.cloudflare.com'],
+      frameSrc: ["'self'", 'https://challenges.cloudflare.com'],
+      connectSrc: ["'self'", 'https://challenges.cloudflare.com'],
+      imgSrc: ["'self'", 'data:', 'https:'],
+      styleSrc: ["'self'", 'https:', "'unsafe-inline'"],
+      fontSrc: ["'self'", 'https:', 'data:'],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+      upgradeInsecureRequests: [],
+    },
+  },
+}));
 app.use(cors(corsOptions));
 
 // Stripe webhook needs raw body — must be registered BEFORE express.json()
