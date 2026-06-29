@@ -751,11 +751,17 @@ function TakeOverModal({ onClose, onRefreshBoard }) {
       addLog('item_start', `🔨 Building: ${d.title}`);
     });
 
+    es.addEventListener('item_pipeline', e => {
+      const d = JSON.parse(e.data);
+      addLog('item_start', `  ${d.label}`);
+    });
+
     es.addEventListener('item_done', e => {
       const d = JSON.parse(e.data);
       setItemStates(prev => ({ ...prev, [d.id]: 'done' }));
       setResults(prev => ({ ...prev, [d.id]: { code: d.code, model: d.model, title: d.title, tokensEstimate: d.tokensEstimate } }));
-      addLog('item_done', `✅ Done: ${d.title} (${d.model?.includes('8b') ? 'fast' : 'standard'} · ~${d.tokensEstimate} tokens)`);
+      const stagingNote = d.stagingOk ? ` · staging ✅` : d.stagingOk === false ? ` · staging ⚠️` : '';
+      addLog('item_done', `✅ Done: ${d.title} (${d.model?.includes('8b') ? 'fast' : 'standard'} · ~${d.tokensEstimate} tokens${stagingNote})`);
     });
 
     es.addEventListener('item_error', e => {
@@ -1056,6 +1062,19 @@ export default function DevPortal() {
   const [building, setBuilding] = useState(null); // itemId being built
   const [showTakeover, setShowTakeover] = useState(false);
   const [showPush, setShowPush] = useState(false);
+  const [deploying, setDeploying] = useState(false);
+
+  const handleDeployNow = async () => {
+    setDeploying(true);
+    try {
+      const r = await devApi.deployNow();
+      toast.success(`Deploy triggered — ${r.deployId?.slice(0, 8) ?? 'queued'}`, { duration: 5000 });
+    } catch (e) {
+      toast.error(e.response?.data?.error || 'Deploy failed');
+    } finally {
+      setDeploying(false);
+    }
+  };
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -1240,6 +1259,12 @@ export default function DevPortal() {
           <button onClick={() => setShowPush(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 rounded-lg text-xs font-semibold transition-all shadow-md shadow-emerald-900/40 border border-emerald-600/30">
             <GitMerge size={13} /> Push to Production
+          </button>
+
+          <button onClick={handleDeployNow} disabled={deploying}
+            title="Deploy current main branch to production immediately (no PR — use for dev portal fixes)"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-700 hover:bg-orange-600 disabled:opacity-50 rounded-lg text-xs font-semibold transition-all border border-orange-600/40">
+            <Zap size={13} /> {deploying ? 'Deploying…' : 'Deploy Now'}
           </button>
 
           <button onClick={() => setShowChat(c => !c)}

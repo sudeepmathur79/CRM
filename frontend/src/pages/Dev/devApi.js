@@ -51,4 +51,7 @@ export const devApi = {
 
   branchStatus: () =>
     axios.get(`${BASE}/branch-status`, { headers: headers() }).then(r => r.data),
+
+  deployNow: () =>
+    axios.post(`${BASE}/deploy-now`, {}, { headers: headers() }).then(r => r.data),
 };

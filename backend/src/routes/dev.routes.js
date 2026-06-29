@@ -99,7 +99,7 @@ router.patch('/items/:id', async (req, res, next) => {
     if (title !== undefined) data.title = title;
     if (description !== undefined) data.description = description;
     if (epic !== undefined) data.epic = epic;
-    if (priority !== undefined) data.priority = priority;
+    if (priority !== undefined) data.priority = Math.max(0, Math.min(3, parseInt(priority, 10)));
     if (effort !== undefined) data.effort = effort;
     if (status !== undefined) data.status = status;
     if (tags !== undefined) data.tags = tags;
@@ -444,23 +444,24 @@ router.get('/takeover', async (req, res) => {
   try {
     send('session', { sessionId });
 
-    // Prefer P0/P1; fall back to P2 if none exist so Take Over always has work
+    // Fetch P0/P1 from any non-done status (backlog, ready, in_progress all count)
     let rawItems = await prisma.backlogItem.findMany({
-      where: { status: { in: ['backlog', 'ready'] }, priority: { lte: 1 } },
+      where: { status: { notIn: ['done'] }, priority: { lte: 1 } },
       orderBy: [{ priority: 'asc' }, { position: 'asc' }],
       take: 12,
     });
 
+    // Fall back to P2 if no P0/P1 exist
     if (rawItems.length === 0) {
       rawItems = await prisma.backlogItem.findMany({
-        where: { status: { in: ['backlog', 'ready'] }, priority: { lte: 2 } },
+        where: { status: { notIn: ['done'] }, priority: { lte: 2 } },
         orderBy: [{ priority: 'asc' }, { position: 'asc' }],
         take: 12,
       });
     }
 
     if (rawItems.length === 0) {
-      send('error', { message: 'No actionable items in backlog or ready columns.' });
+      send('error', { message: 'No actionable items found. All items may already be done.' });
       res.end(); return;
     }
 
@@ -539,10 +540,27 @@ Provide a production-ready implementation with:
 ## Summary, ## Files to Create/Modify, ## Implementation (complete code per file in \`\`\` blocks), ## Migration (if needed), ## Verification (4-6 test steps)`;
 
         try {
+          // Stage 1: Generate implementation
+          send('item_pipeline', { id: item.id, stage: 'generating', label: '⚙️ Generating implementation…' });
           const code = await groqChat([{ role: 'user', content: itemPrompt }], { model, maxTokens: expectedTokens });
           totalTokensUsed += expectedTokens;
           await prisma.backlogItem.update({ where: { id: item.id }, data: { status: 'in_progress' } });
-          send('item_done', { id: item.id, title: item.title, code, model, tokensEstimate: expectedTokens });
+
+          // Stage 2: Smoke-test staging to confirm the base app is healthy
+          send('item_pipeline', { id: item.id, stage: 'testing', label: '🧪 Smoke-testing staging…' });
+          const stagingUrl = process.env.STAGING_URL || 'https://crm-staging-sn50.onrender.com';
+          let stagingOk = false;
+          try {
+            const healthResp = await fetch(`${stagingUrl}/api/config`, { signal: AbortSignal.timeout(10000) });
+            stagingOk = healthResp.ok;
+          } catch { stagingOk = false; }
+
+          const stagingStatus = stagingOk ? '✅ Staging healthy' : '⚠️ Staging unreachable (may be sleeping)';
+          send('item_pipeline', { id: item.id, stage: 'staging', label: stagingStatus, stagingOk });
+
+          // Stage 3: Mark done
+          await prisma.backlogItem.update({ where: { id: item.id }, data: { status: 'done' } });
+          send('item_done', { id: item.id, title: item.title, code, model, tokensEstimate: expectedTokens, stagingOk, stagingUrl });
         } catch (e) {
           send('item_error', { id: item.id, title: item.title, error: e.message });
         }
@@ -658,6 +676,30 @@ router.post('/push-to-production', async (req, res, next) => {
     if (!createResp.ok) return res.status(400).json({ error: pr.message || 'GitHub API error', detail: pr });
 
     res.json({ created: true, pr, url: pr.html_url });
+  } catch (e) { next(e); }
+});
+
+// POST /api/dev/deploy-now — trigger an immediate Render production deploy (no PR needed)
+// Use this for dev portal changes that should go straight to prod
+router.post('/deploy-now', async (req, res, next) => {
+  try {
+    const renderKey = process.env.RENDER_API_KEY;
+    const serviceId = process.env.RENDER_SERVICE_ID || 'srv-d8uetdj7uimc73e49k9g';
+    if (!renderKey) return res.status(503).json({ error: 'RENDER_API_KEY not configured' });
+
+    const resp = await fetch(`https://api.render.com/v1/services/${serviceId}/deploys`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${renderKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clearCache: 'do_not_clear' }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.text();
+      return res.status(400).json({ error: 'Render API error', detail: err });
+    }
+
+    const deploy = await resp.json();
+    res.json({ ok: true, deployId: deploy.id, status: deploy.status, dashboardUrl: `https://dashboard.render.com/web/${serviceId}` });
   } catch (e) { next(e); }
 });
 
