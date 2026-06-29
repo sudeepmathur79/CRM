@@ -118,8 +118,26 @@ export default function LoginPage() {
   const [unverifiedEmail, setUnverifiedEmail] = useState(null);
   const [captchaToken, setCaptchaToken] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [captchaFailed, setCaptchaFailed] = useState(false);
   const turnstileRef = useRef(null);
+  const captchaTimerRef = useRef(null);
   const siteKey = getSiteKey();
+
+  // If CAPTCHA hasn't completed after 12s, show a reload option
+  useEffect(() => {
+    if (!siteKey) return;
+    captchaTimerRef.current = setTimeout(() => {
+      setCaptchaFailed(prev => prev || !captchaToken);
+    }, 12000);
+    return () => clearTimeout(captchaTimerRef.current);
+  }, [siteKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const reloadCaptcha = () => {
+    setCaptchaFailed(false);
+    setCaptchaToken('');
+    turnstileRef.current?.reset();
+    captchaTimerRef.current = setTimeout(() => setCaptchaFailed(true), 12000);
+  };
 
   const justVerified = searchParams.get('verified') === '1';
 
@@ -155,6 +173,7 @@ export default function LoginPage() {
       }
       turnstileRef.current?.reset();
       setCaptchaToken('');
+      setCaptchaFailed(false);
     } finally {
       setLoading(false);
     }
@@ -222,13 +241,25 @@ export default function LoginPage() {
               </div>
 
               {siteKey && (
-                <Turnstile
-                  ref={turnstileRef}
-                  siteKey={siteKey}
-                  onSuccess={setCaptchaToken}
-                  onExpire={() => setCaptchaToken('')}
-                  options={{ theme: 'auto' }}
-                />
+                <div>
+                  <Turnstile
+                    ref={turnstileRef}
+                    siteKey={siteKey}
+                    onSuccess={(token) => { setCaptchaToken(token); setCaptchaFailed(false); clearTimeout(captchaTimerRef.current); }}
+                    onExpire={() => setCaptchaToken('')}
+                    onError={() => setCaptchaFailed(true)}
+                    options={{ theme: 'auto' }}
+                  />
+                  {captchaFailed && !captchaToken && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5 flex items-center gap-1.5">
+                      CAPTCHA didn't load.{' '}
+                      <button type="button" onClick={reloadCaptcha} className="underline font-medium">
+                        Try again
+                      </button>
+                      {' '}or disable browser extensions and refresh.
+                    </p>
+                  )}
+                </div>
               )}
 
               <button type="submit" disabled={loading}
