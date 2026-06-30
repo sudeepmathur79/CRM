@@ -1,0 +1,55 @@
+# SalesFlow CRM — Cursor Rules
+
+Read CLAUDE.md first. This file adds Cursor-specific guidance on top of it.
+
+## Project Type
+Full-stack SaaS CRM. React (Vite) frontend + Express.js backend + Prisma/Neon Postgres. Deployed on Render via Docker.
+
+## Stack at a Glance
+- Frontend: React 18, Vite, Tailwind CSS, @tanstack/react-query, lucide-react, @dnd-kit
+- Backend: Node.js, Express, Prisma ORM
+- DB: Neon Postgres (serverless)
+- AI: Groq (llama-3.3-70b), Anthropic Claude (claude-opus), OpenRouter
+- Auth: JWT (access + refresh), Google OAuth, Cloudflare Turnstile
+- Real-time: Socket.IO
+- Storage: Cloudflare R2 (S3-compatible)
+
+## Code Style
+- No TypeScript — plain JS throughout
+- Tailwind for all styles — no CSS modules, no styled-components
+- Async/await everywhere — no .then() chains except in Prisma one-liners
+- Functional React components only — no class components
+- React Query for all server state — no manual useState for API data
+- No comments unless the WHY is non-obvious
+
+## File Conventions
+- Backend routes: `backend/src/routes/<resource>.routes.js`
+- Backend services: `backend/src/services/<resource>.service.js`
+- Frontend pages: `frontend/src/pages/<PageName>/index.jsx`
+- Frontend shared components: `frontend/src/components/`
+- All API calls through `frontend/src/lib/api.js` (axios with auth interceptor)
+
+## Critical Rules
+- `isProd = process.env.NODE_ENV !== 'development'` — staging uses NODE_ENV=staging
+- All DB queries must include `orgId` for tenant isolation
+- `BacklogItem.priority` is always 0–3 — clamp with `Math.max(0, Math.min(3, parseInt(v,10)))`
+- Never use Render's `PUT /env-vars` API — it wipes all vars; use individual key endpoint
+- Agent-created leads auto-assign to themselves (see `lead.service.js`)
+- Groq 429 errors must be retried with the exact wait time parsed from the error message
+
+## Auth Pattern
+```js
+// Every protected route:
+router.use(authenticate);          // sets req.user, req.orgId
+router.post('/', requireRole('admin'), handler);  // optional role gate
+```
+
+## Adding a New Feature Checklist
+1. Add Prisma model/field in `schema.prisma` → run `npx prisma db push`
+2. Add service function in `backend/src/services/`
+3. Add route in `backend/src/routes/` → mount in `backend/src/index.js`
+4. Add API call in `frontend/src/lib/api.js`
+5. Build page/component in `frontend/src/pages/`
+6. Add route in `frontend/src/App.jsx`
+7. Update `docs/USER_MANUAL.md` if user-facing
+8. Test on staging before merging to main
