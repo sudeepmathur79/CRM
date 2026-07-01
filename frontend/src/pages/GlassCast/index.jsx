@@ -209,6 +209,15 @@ const STATUS_STYLE = {
 };
 
 export default function GlassCastPage() {
+  const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
+
+  const handleBack = (e) => {
+    if (isInIframe) {
+      e.preventDefault();
+      window.parent.postMessage({ type: 'GLASSCAST_CLOSE' }, '*');
+    }
+  };
+
   return (
     <div className="min-h-screen font-sans antialiased" style={{ background: bg, color: ink }}>
 
@@ -217,8 +226,8 @@ export default function GlassCastPage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
           <GlassCastLogo />
           <div className="flex items-center gap-4">
-            <Link to="/welcome" className="text-sm font-medium flex items-center gap-1.5" style={{ color: ink + '80' }}>
-              <ArrowLeft className="w-3.5 h-3.5" /> SalesFlow
+            <Link to="/welcome" onClick={handleBack} className="text-sm font-medium flex items-center gap-1.5" style={{ color: ink + '80' }}>
+              <ArrowLeft className="w-3.5 h-3.5" /> {isInIframe ? 'Close' : 'SalesFlow'}
             </Link>
             <Link
               to="/signup"
@@ -253,10 +262,14 @@ export default function GlassCastPage() {
         </p>
       </section>
 
-      {/* Meeting scene */}
+      {/* Hero image */}
       <section className="max-w-4xl mx-auto px-4 sm:px-6 pb-4">
-        <div className="rounded-3xl p-6 sm:p-10" style={{ background: '#fff', border: `1.5px solid ${inkFaint}` }}>
-          <MeetingScene />
+        <div className="rounded-3xl overflow-hidden" style={{ background: '#fff', border: `1.5px solid ${inkFaint}` }}>
+          <img
+            src="/glasscast-hero.png"
+            alt="GlassCast HUD showing CRM data in smart glasses lens"
+            className="w-full object-cover"
+          />
         </div>
       </section>
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowRight, Check, Mic, BarChart2, Users, Zap, Bell, Glasses, X } from 'lucide-react';
 
 const highlightSignIn = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('signin') === '1';
@@ -157,6 +157,14 @@ export default function WelcomePage() {
   const ink = '#2B2A28';
   const terra = '#c65f2f';
   const [glasscastOpen, setGlasscastOpen] = useState(false);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.data?.type === 'GLASSCAST_CLOSE') setGlasscastOpen(false);
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, []);
 
   return (
     <div className="min-h-screen font-sans antialiased" style={{ background: bg, color: ink }}>
@@ -704,24 +712,14 @@ export default function WelcomePage() {
               </p>
             </div>
 
-            {/* Mini HUD preview */}
-            <div className="px-8 py-6">
-              <svg viewBox="0 0 480 140" className="w-full max-w-lg" xmlns="http://www.w3.org/2000/svg">
-                <rect x="8" y="20" width="200" height="100" rx="46" fill="none" stroke={bg} strokeWidth="6" opacity="0.3"/>
-                <rect x="272" y="20" width="200" height="100" rx="46" fill="none" stroke={bg} strokeWidth="6" opacity="0.3"/>
-                <path d="M208 65 L272 65" stroke={bg} strokeWidth="6" strokeLinecap="round" opacity="0.3"/>
-                <rect x="18" y="30" width="180" height="80" rx="40" fill={bg} opacity="0.06"/>
-                <text x="36" y="56" fontSize="8" fill={terra} fontWeight="700" fontFamily="monospace" letterSpacing="1">TOP LEADS</text>
-                <text x="36" y="71" fontSize="8" fill={bg} fontFamily="monospace" opacity="0.9">Sarah M.  ·  9/10</text>
-                <text x="36" y="83" fontSize="8" fill={bg} fontFamily="monospace" opacity="0.6">Priya S.  ·  8/10</text>
-                <text x="36" y="95" fontSize="8" fill={bg} fontFamily="monospace" opacity="0.4">James O.  ·  7/10</text>
-                <rect x="282" y="30" width="180" height="80" rx="40" fill={bg} opacity="0.06"/>
-                <text x="300" y="56" fontSize="8" fill={terra} fontWeight="700" fontFamily="monospace" letterSpacing="1">FOLLOW-UPS</text>
-                <text x="300" y="71" fontSize="8" fill="#f59e0b" fontFamily="monospace" opacity="0.9">2 overdue  ⚠</text>
-                <text x="300" y="83" fontSize="8" fill={bg} fontFamily="monospace" opacity="0.6">Next: Sarah M.</text>
-                <text x="300" y="95" fontSize="8" fill={bg} fontFamily="monospace" opacity="0.4">Today 3pm</text>
-                <circle cx="458" cy="28" r="4" fill={terra}><animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite"/></circle>
-              </svg>
+            {/* Hero image */}
+            <div className="px-8 pb-6">
+              <img
+                src="/glasscast-hero.png"
+                alt="GlassCast HUD showing CRM data in smart glasses lens"
+                className="w-full rounded-2xl object-cover"
+                style={{ maxHeight: '280px', objectPosition: 'center' }}
+              />
             </div>
 
             {/* Bottom CTA bar */}
