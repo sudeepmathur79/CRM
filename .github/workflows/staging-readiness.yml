@@ -24,7 +24,8 @@ jobs:
         working-directory: tests/playwright
         run: |
           pip install -r requirements.txt
-          playwright install chromium --with-deps
+          python3 -m playwright install chromium
+          python3 -m playwright install-deps chromium
 
       # Wait for Render to finish deploying (up to 5 minutes after the push)
       - name: Wait for staging deploy
