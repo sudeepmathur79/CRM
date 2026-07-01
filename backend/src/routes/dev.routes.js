@@ -753,6 +753,94 @@ router.get('/branch-status', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// GET /api/dev/test-status — latest staging-readiness CI run for dev branch
+router.get('/test-status', async (req, res, next) => {
+  try {
+    const token = process.env.GITHUB_TOKEN;
+    const repo = process.env.GITHUB_REPO || 'sudeepmathur79/CRM';
+    if (!token) return res.json({ status: 'unknown', error: 'No GitHub token' });
+
+    const resp = await fetch(
+      `https://api.github.com/repos/${repo}/actions/workflows/staging-readiness.yml/runs?branch=dev&per_page=1`,
+      { headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' } },
+    );
+    const data = await resp.json();
+    const run = data.workflow_runs?.[0];
+    if (!run) return res.json({ status: 'never_run', message: 'No staging-readiness run found on dev branch' });
+
+    res.json({
+      status: run.conclusion || run.status,  // success | failure | in_progress | queued
+      runId: run.id,
+      url: run.html_url,
+      startedAt: run.run_started_at,
+      updatedAt: run.updated_at,
+      headSha: run.head_sha?.slice(0, 7),
+      headCommit: run.head_commit?.message?.split('\n')[0],
+    });
+  } catch (e) { next(e); }
+});
+
+// POST /api/dev/ship — merge dev→main via GitHub API (only if tests passed)
+router.post('/ship', async (req, res, next) => {
+  try {
+    const token = process.env.GITHUB_TOKEN;
+    const repo = process.env.GITHUB_REPO || 'sudeepmathur79/CRM';
+    if (!token) return res.status(503).json({ error: 'GITHUB_TOKEN not configured' });
+
+    // Verify tests passed before allowing merge
+    const testResp = await fetch(
+      `https://api.github.com/repos/${repo}/actions/workflows/staging-readiness.yml/runs?branch=dev&per_page=1`,
+      { headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' } },
+    );
+    const testData = await testResp.json();
+    const run = testData.workflow_runs?.[0];
+
+    if (!run) return res.status(400).json({ error: 'No test run found — push to dev first to trigger tests' });
+    if (run.status !== 'completed') return res.status(400).json({ error: 'Tests still running — wait for them to finish', status: run.status, url: run.html_url });
+    if (run.conclusion !== 'success') return res.status(400).json({ error: 'Tests did not pass — cannot ship to production', conclusion: run.conclusion, url: run.html_url });
+
+    // Find or create a PR
+    const headers = { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' };
+    const listResp = await fetch(`https://api.github.com/repos/${repo}/pulls?head=sudeepmathur79:dev&base=main&state=open`, { headers });
+    const existing = await listResp.json();
+
+    let pr = existing[0];
+    if (!pr) {
+      const doneItems = await prisma.backlogItem.findMany({
+        where: { status: 'done' }, orderBy: { updatedAt: 'desc' }, take: 20,
+        select: { title: true, epic: true, priority: true },
+      });
+      const prBody = [
+        '## What\'s in this release\n',
+        doneItems.length > 0
+          ? doneItems.map(i => `- [P${i.priority}] [${i.epic || 'General'}] ${i.title}`).join('\n')
+          : '_No done items tracked_',
+        `\n\n---\n✅ All staging readiness tests passed (run [#${run.id}](${run.html_url}))\n_Shipped from dev portal_`,
+      ].join('');
+
+      const createResp = await fetch(`https://api.github.com/repos/${repo}/pulls`, {
+        method: 'POST', headers,
+        body: JSON.stringify({
+          title: `Release: dev → main (${new Date().toISOString().slice(0, 10)})`,
+          body: prBody, head: 'dev', base: 'main',
+        }),
+      });
+      pr = await createResp.json();
+      if (!createResp.ok) return res.status(400).json({ error: pr.message || 'Could not create PR', detail: pr });
+    }
+
+    // Merge the PR
+    const mergeResp = await fetch(`https://api.github.com/repos/${repo}/pulls/${pr.number}/merge`, {
+      method: 'PUT', headers,
+      body: JSON.stringify({ merge_method: 'merge', commit_title: pr.title }),
+    });
+    const mergeData = await mergeResp.json();
+    if (!mergeResp.ok) return res.status(400).json({ error: mergeData.message || 'Merge failed', detail: mergeData });
+
+    res.json({ shipped: true, pr: { number: pr.number, title: pr.title, url: pr.html_url }, merge: mergeData });
+  } catch (e) { next(e); }
+});
+
 // GET /api/dev/stats — quick summary for portal header
 router.get('/stats', async (req, res, next) => {
   try {

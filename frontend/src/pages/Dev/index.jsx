@@ -549,29 +549,59 @@ function ChatPanel({ onAddItem, onClose }) {
 // ── Push to Production ────────────────────────────────────────────────────────
 
 function PushToProductionModal({ onClose }) {
-  const [status, setStatus] = useState(null);   // branch status from API
-  const [loading, setLoading] = useState(true);
-  const [pushing, setPushing] = useState(false);
-  const [result, setResult] = useState(null);
-  const [prTitle, setPrTitle] = useState('');
+  const [branchStatus, setBranchStatus] = useState(null);
+  const [testStatus, setTestStatus]     = useState(null);
+  const [loading, setLoading]           = useState(true);
+  const [shipping, setShipping]         = useState(false);
+  const [result, setResult]             = useState(null);
 
   useEffect(() => {
-    devApi.branchStatus()
-      .then(s => setStatus(s))
-      .catch(() => setStatus({ error: 'Could not fetch branch status' }))
+    setLoading(true);
+    Promise.all([devApi.branchStatus(), devApi.testStatus()])
+      .then(([b, t]) => { setBranchStatus(b); setTestStatus(t); })
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
-  const push = async () => {
-    setPushing(true);
+  const testsGreen = testStatus?.status === 'success';
+  const testsRunning = testStatus?.status === 'in_progress' || testStatus?.status === 'queued';
+  const nothingToShip = branchStatus?.ahead === 0;
+
+  const ship = async () => {
+    setShipping(true);
     try {
-      const r = await devApi.pushToProduction({ title: prTitle || undefined });
+      const r = await devApi.ship();
       setResult(r);
+      toast.success('Shipped to production!');
     } catch (e) {
-      toast.error('Failed to create PR');
+      toast.error(e?.response?.data?.error || 'Ship failed — check test results');
     } finally {
-      setPushing(false);
+      setShipping(false);
     }
+  };
+
+  const TestStatusBadge = () => {
+    if (!testStatus) return null;
+    if (testsRunning) return (
+      <span className="flex items-center gap-1.5 text-xs text-amber-300 bg-amber-950/40 border border-amber-800/40 px-2.5 py-1 rounded-full">
+        <Loader size={11} className="animate-spin" /> Running…
+      </span>
+    );
+    if (testsGreen) return (
+      <span className="flex items-center gap-1.5 text-xs text-emerald-300 bg-emerald-950/40 border border-emerald-800/40 px-2.5 py-1 rounded-full">
+        <CheckCircle size={11} /> Tests passed
+      </span>
+    );
+    if (testStatus.status === 'never_run') return (
+      <span className="flex items-center gap-1.5 text-xs text-slate-400 bg-slate-800 border border-slate-700 px-2.5 py-1 rounded-full">
+        <AlertCircle size={11} /> No test run yet
+      </span>
+    );
+    return (
+      <span className="flex items-center gap-1.5 text-xs text-red-300 bg-red-950/40 border border-red-800/40 px-2.5 py-1 rounded-full">
+        <AlertCircle size={11} /> Tests failed
+      </span>
+    );
   };
 
   return (
@@ -582,84 +612,108 @@ function PushToProductionModal({ onClose }) {
             <GitMerge size={17} className="text-white" />
           </div>
           <div className="flex-1">
-            <h2 className="font-bold text-white">Push to Production</h2>
-            <p className="text-xs text-slate-500">Open a PR from <code className="text-emerald-400">dev</code> → <code className="text-slate-300">main</code></p>
+            <h2 className="font-bold text-white">Ship to Production</h2>
+            <p className="text-xs text-slate-500">Merges <code className="text-emerald-400">dev</code> → <code className="text-slate-300">main</code> — Render auto-deploys</p>
           </div>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-300"><X size={18} /></button>
         </div>
 
         <div className="p-5 space-y-4">
-          {/* Branch status */}
-          <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <GitBranch size={14} className="text-slate-400" />
-              <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Branch status: dev vs main</span>
+          {loading ? (
+            <div className="flex items-center gap-2 text-slate-500 text-sm py-4 justify-center">
+              <Loader size={14} className="animate-spin" /> Checking status…
             </div>
-            {loading ? (
-              <div className="flex items-center gap-2 text-slate-500 text-sm"><Loader size={13} className="animate-spin" /> Checking…</div>
-            ) : status?.error ? (
-              <p className="text-sm text-red-400">{status.error}</p>
-            ) : (
-              <div className="space-y-2">
-                <div className="flex gap-4 text-sm">
-                  <span className={`font-semibold ${status.ahead > 0 ? 'text-emerald-400' : 'text-slate-500'}`}>
-                    ↑ {status.ahead ?? 0} ahead
-                  </span>
-                  <span className={`font-semibold ${status.behind > 0 ? 'text-amber-400' : 'text-slate-500'}`}>
-                    ↓ {status.behind ?? 0} behind
-                  </span>
+          ) : (
+            <>
+              {/* Branch status */}
+              <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <GitBranch size={14} className="text-slate-400" />
+                    <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">dev vs main</span>
+                  </div>
+                  <TestStatusBadge />
                 </div>
-                {status.commits?.length > 0 && (
-                  <div className="space-y-1 mt-2">
-                    {status.commits.map(c => (
-                      <div key={c.sha} className="flex items-start gap-2 text-xs">
-                        <code className="text-slate-600 flex-shrink-0">{c.sha}</code>
-                        <span className="text-slate-400 leading-snug">{c.message}</span>
+                {branchStatus?.error ? (
+                  <p className="text-sm text-red-400">{branchStatus.error}</p>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex gap-4 text-sm">
+                      <span className={`font-semibold ${branchStatus?.ahead > 0 ? 'text-emerald-400' : 'text-slate-500'}`}>
+                        ↑ {branchStatus?.ahead ?? 0} ahead
+                      </span>
+                      <span className={`font-semibold ${branchStatus?.behind > 0 ? 'text-amber-400' : 'text-slate-500'}`}>
+                        ↓ {branchStatus?.behind ?? 0} behind
+                      </span>
+                    </div>
+                    {branchStatus?.commits?.length > 0 && (
+                      <div className="space-y-1 mt-2">
+                        {branchStatus.commits.map(c => (
+                          <div key={c.sha} className="flex items-start gap-2 text-xs">
+                            <code className="text-slate-600 flex-shrink-0">{c.sha}</code>
+                            <span className="text-slate-400 leading-snug">{c.message}</span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
+                    {nothingToShip && <p className="text-xs text-slate-500">dev is up to date with main — nothing to ship.</p>}
                   </div>
                 )}
-                {status.ahead === 0 && (
-                  <p className="text-xs text-slate-500">dev is up to date with main — nothing to merge.</p>
-                )}
               </div>
-            )}
-          </div>
 
-          {!result ? (
-            <>
-              <div>
-                <label className="text-xs font-medium text-slate-500 block mb-1.5">PR title (optional)</label>
-                <input value={prTitle} onChange={e => setPrTitle(e.target.value)}
-                  placeholder={`Release: dev → main (${new Date().toISOString().slice(0, 10)})`}
-                  className="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
-              </div>
-              <div className="bg-amber-950/40 border border-amber-800/40 rounded-xl p-3 text-xs text-amber-300 leading-relaxed">
-                ⚠️ This opens a GitHub PR — you still need to approve and merge it on GitHub. Render will then auto-deploy <code>main</code>.
-              </div>
-              <div className="flex gap-2">
-                <button onClick={onClose} className="flex-1 py-2 border border-slate-700 text-slate-400 rounded-xl text-sm hover:text-slate-200 transition-colors">Cancel</button>
-                <button onClick={push} disabled={pushing || status?.ahead === 0 || loading}
-                  className="flex-1 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-40 text-white rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2">
-                  {pushing ? <><Loader size={14} className="animate-spin" /> Creating PR…</> : <><ArrowUpCircle size={14} /> Open PR</>}
-                </button>
-              </div>
+              {/* Test run link */}
+              {testStatus?.url && (
+                <a href={testStatus.url} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-xs text-slate-400 hover:text-slate-200 transition-colors">
+                  <ExternalLink size={11} /> Last test run: {testStatus.headCommit || testStatus.headSha || '—'}
+                </a>
+              )}
+
+              {!result ? (
+                <>
+                  {/* Status callout */}
+                  {testsRunning && (
+                    <div className="bg-amber-950/40 border border-amber-800/40 rounded-xl p-3 text-xs text-amber-300">
+                      Tests are running — wait for them to finish before shipping.
+                    </div>
+                  )}
+                  {!testsGreen && !testsRunning && testStatus?.status !== 'never_run' && (
+                    <div className="bg-red-950/40 border border-red-800/40 rounded-xl p-3 text-xs text-red-300">
+                      Last test run failed. Fix the issues and push to <code>dev</code> again to re-run tests.
+                    </div>
+                  )}
+                  {testStatus?.status === 'never_run' && (
+                    <div className="bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-slate-400">
+                      No test run found. Push a commit to <code>dev</code> to trigger the staging readiness check.
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <button onClick={onClose} className="flex-1 py-2 border border-slate-700 text-slate-400 rounded-xl text-sm hover:text-slate-200 transition-colors">Cancel</button>
+                    <button onClick={ship} disabled={shipping || !testsGreen || nothingToShip}
+                      className="flex-1 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2">
+                      {shipping
+                        ? <><Loader size={14} className="animate-spin" /> Shipping…</>
+                        : <><ArrowUpCircle size={14} /> Ship It</>}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-3">
+                  <div className="bg-emerald-950/60 border border-emerald-800/50 rounded-xl p-4 text-center">
+                    <CheckCircle size={24} className="text-emerald-400 mx-auto mb-2" />
+                    <p className="text-sm font-semibold text-emerald-300">Shipped to production!</p>
+                    <p className="text-xs text-slate-400 mt-1">{result.pr?.title}</p>
+                    <p className="text-xs text-slate-500 mt-1">Render is deploying main now — takes ~3 minutes.</p>
+                  </div>
+                  <a href={result.pr?.url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 rounded-xl text-sm font-medium transition-colors">
+                    <ExternalLink size={14} /> View merged PR
+                  </a>
+                  <button onClick={onClose} className="w-full py-2 text-slate-500 hover:text-slate-300 text-sm">Close</button>
+                </div>
+              )}
             </>
-          ) : (
-            <div className="space-y-3">
-              <div className="bg-emerald-950/60 border border-emerald-800/50 rounded-xl p-4 text-center">
-                <CheckCircle size={24} className="text-emerald-400 mx-auto mb-2" />
-                <p className="text-sm font-semibold text-emerald-300">
-                  {result.exists ? 'PR already open' : 'Pull request created!'}
-                </p>
-                <p className="text-xs text-slate-400 mt-1">{result.pr?.title}</p>
-              </div>
-              <a href={result.url} target="_blank" rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 rounded-xl text-sm font-medium transition-colors">
-                <ExternalLink size={14} /> View on GitHub
-              </a>
-              <button onClick={onClose} className="w-full py-2 text-slate-500 hover:text-slate-300 text-sm">Close</button>
-            </div>
           )}
         </div>
       </div>

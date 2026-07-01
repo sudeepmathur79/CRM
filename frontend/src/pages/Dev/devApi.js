@@ -54,4 +54,10 @@ export const devApi = {
 
   deployNow: () =>
     axios.post(`${BASE}/deploy-now`, {}, { headers: headers() }).then(r => r.data),
+
+  testStatus: () =>
+    axios.get(`${BASE}/test-status`, { headers: headers() }).then(r => r.data),
+
+  ship: () =>
+    axios.post(`${BASE}/ship`, {}, { headers: headers() }).then(r => r.data),
 };
