@@ -6,7 +6,7 @@ WORKDIR /frontend
 COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend/ .
-# bust: 2026-06-27
+# bust: 2026-07-02
 RUN npm run build
 
 # ── Stage 2: Production backend ───────────────────────────────────────────────
