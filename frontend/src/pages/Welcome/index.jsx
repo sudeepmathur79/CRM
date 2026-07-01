@@ -275,7 +275,7 @@ export default function WelcomePage() {
               className="flex items-start gap-5 rounded-2xl p-5 transition-all"
               style={{ background: '#fff', border: `1.5px solid ${ink}12`, boxShadow: `2px 3px 0 ${ink}0a` }}
             >
-              <div className="flex-shrink-0 text-3xl font-extrabold leading-none" style={{ color: terra, opacity: 0.18, fontVariantNumeric: 'tabular-nums', minWidth: '2.5rem' }}>
+              <div className="flex-shrink-0 text-3xl font-extrabold leading-none" style={{ color: '#E8804F', opacity: 1, fontVariantNumeric: 'tabular-nums', minWidth: '2.5rem' }}>
                 {f.n}
               </div>
               <div className="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: terra + '15' }}>
@@ -302,7 +302,7 @@ export default function WelcomePage() {
               { step: '03', title: 'Close deals, not spreadsheets', body: "Your pipeline stays current. Follow-up reminders fire on time. AI tells you which leads to prioritise." },
             ].map((s) => (
               <div key={s.step} className="relative">
-                <div className="text-6xl font-extrabold mb-4 leading-none" style={{ color: terra, opacity: 0.12 }}>{s.step}</div>
+                <div className="text-6xl font-extrabold mb-4 leading-none" style={{ color: '#E8804F', opacity: 1 }}>{s.step}</div>
                 <h3 className="text-base font-bold mb-2" style={{ color: ink }}>{s.title}</h3>
                 <p className="text-sm leading-relaxed" style={{ color: ink + 'aa' }}>{s.body}</p>
               </div>
