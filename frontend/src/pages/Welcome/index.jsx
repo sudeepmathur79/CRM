@@ -9,11 +9,11 @@ function SalesFlowLogo({ className = '' }) {
       <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: '#2B2A28' }}>
         <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-5 w-5">
           <path d="M4 22 L9 12 L13 18 L17 10 L23 22" stroke="#FAF6EF" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-          <circle cx="23" cy="22" r="2" fill="#E8804F"/>
+          <circle cx="23" cy="22" r="2" fill="#c65f2f"/>
         </svg>
       </div>
       <span className="font-bold tracking-tight text-lg" style={{ color: '#2B2A28' }}>
-        Sales<span style={{ color: '#E8804F' }}>Flow</span>
+        Sales<span style={{ color: '#c65f2f' }}>Flow</span>
       </span>
     </div>
   );
@@ -25,9 +25,9 @@ function Highlight({ children }) {
     <span className="relative inline-block">
       <span
         className="absolute inset-0 -skew-x-2 -rotate-1 rounded"
-        style={{ background: '#E8804F', opacity: 0.18, transform: 'skewX(-3deg) rotate(-1deg) scaleX(1.04)', bottom: '-2px', top: '-2px' }}
+        style={{ background: '#c65f2f', opacity: 0.18, transform: 'skewX(-3deg) rotate(-1deg) scaleX(1.04)', bottom: '-2px', top: '-2px' }}
       />
-      <span className="relative" style={{ color: '#E8804F' }}>{children}</span>
+      <span className="relative" style={{ color: '#c65f2f' }}>{children}</span>
     </span>
   );
 }
@@ -84,37 +84,37 @@ function PolaroidCard() {
 const FEATURES = [
   {
     n: '01',
-    icon: <Mic className="w-5 h-5" style={{ color: '#E8804F' }} />,
+    icon: <Mic className="w-5 h-5" style={{ color: '#c65f2f' }} />,
     title: 'Voice capture',
     body: 'Speak naturally after every call. AI pulls out names, companies, deal values, and next steps — no typing required.',
   },
   {
     n: '02',
-    icon: <Zap className="w-5 h-5" style={{ color: '#E8804F' }} />,
+    icon: <Zap className="w-5 h-5" style={{ color: '#c65f2f' }} />,
     title: 'AI lead scoring',
     body: 'Every lead is automatically scored 1–10 based on conversation content, sentiment, and engagement history.',
   },
   {
     n: '03',
-    icon: <BarChart2 className="w-5 h-5" style={{ color: '#E8804F' }} />,
+    icon: <BarChart2 className="w-5 h-5" style={{ color: '#c65f2f' }} />,
     title: 'Smart Add',
     body: 'Describe a lead in plain English and AI creates the record instantly. No form. No fields.',
   },
   {
     n: '04',
-    icon: <Bell className="w-5 h-5" style={{ color: '#E8804F' }} />,
+    icon: <Bell className="w-5 h-5" style={{ color: '#c65f2f' }} />,
     title: 'Follow-up reminders',
     body: 'Set follow-up dates on any lead. Get reminders before they go cold. No lead falls through the cracks.',
   },
   {
     n: '05',
-    icon: <BarChart2 className="w-5 h-5" style={{ color: '#E8804F' }} />,
+    icon: <BarChart2 className="w-5 h-5" style={{ color: '#c65f2f' }} />,
     title: 'Live pipeline',
     body: 'Kanban or list — your call. See every deal, stage, and value in one view. Filter in seconds.',
   },
   {
     n: '06',
-    icon: <Users className="w-5 h-5" style={{ color: '#E8804F' }} />,
+    icon: <Users className="w-5 h-5" style={{ color: '#c65f2f' }} />,
     title: 'Team ready',
     body: 'Add up to 2 team members on Pro. Assign leads, track activity, see performance — all in one workspace.',
   },
@@ -145,8 +145,8 @@ const PLANS = [
 function SectionLabel({ children }) {
   return (
     <div className="flex items-center gap-2 mb-3">
-      <div className="w-3 h-3 rounded-sm rotate-45" style={{ background: '#E8804F' }} />
-      <span className="text-xs font-bold uppercase tracking-widest" style={{ color: '#E8804F' }}>{children}</span>
+      <div className="w-3 h-3 rounded-sm rotate-45" style={{ background: '#c65f2f' }} />
+      <span className="text-xs font-bold uppercase tracking-widest" style={{ color: '#c65f2f' }}>{children}</span>
     </div>
   );
 }
@@ -154,7 +154,7 @@ function SectionLabel({ children }) {
 export default function WelcomePage() {
   const bg = '#FAF6EF';
   const ink = '#2B2A28';
-  const terra = '#E8804F';
+  const terra = '#c65f2f';
 
   return (
     <div className="min-h-screen font-sans antialiased" style={{ background: bg, color: ink }}>
