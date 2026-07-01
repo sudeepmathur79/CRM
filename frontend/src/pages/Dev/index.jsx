@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
-  closestCorners, useDroppable,
+  DndContext, DragOverlay, PointerSensor, TouchSensor, KeyboardSensor,
+  useSensor, useSensors, closestCorners, useDroppable,
 } from '@dnd-kit/core';
 import {
   SortableContext, verticalListSortingStrategy, useSortable, arrayMove,
@@ -172,14 +172,13 @@ function KanbanCard({ item, onClick, aiSuggestion }) {
   const p = PRIORITY_META[item.priority] || PRIORITY_META[2];
 
   return (
-    <div ref={setNodeRef} style={style}
-      className="bg-slate-800 border border-slate-700 rounded-xl p-3 shadow-sm hover:border-slate-500 transition-colors cursor-pointer group"
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}
+      className="bg-slate-800 border border-slate-700 rounded-xl p-3 shadow-sm hover:border-slate-500 transition-colors cursor-grab active:cursor-grabbing group"
       onClick={onClick}>
       <div className="flex items-start gap-2">
-        <button {...attributes} {...listeners} onClick={e => e.stopPropagation()}
-          className="mt-0.5 text-slate-600 hover:text-slate-400 flex-shrink-0 cursor-grab active:cursor-grabbing">
+        <span className="mt-0.5 text-slate-600 group-hover:text-slate-400 flex-shrink-0 transition-colors">
           <GripVertical size={14} />
-        </button>
+        </span>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-slate-100 leading-snug line-clamp-2">{item.title}</p>
           <div className="flex flex-wrap gap-1 mt-2">
@@ -1130,7 +1129,11 @@ export default function DevPortal() {
     }
   };
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(TouchSensor,   { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(KeyboardSensor),
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
