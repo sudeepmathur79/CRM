@@ -1,6 +1,6 @@
 # SalesFlow CRM — AI Developer Context
 
-This file is the single source of truth for any AI coding assistant (Claude Code, Cursor, Aider, Windsurf, Copilot, etc.) picking up development on this project. Read it fully before making any change.
+This file is the single source of truth for **any AI coding assistant** picking up development on this project — Claude Code, Cursor, Aider, Windsurf, Copilot, Gemini, or any future tool. The project is intentionally **model-neutral and tool-neutral**: no workflow step requires a specific AI model or IDE. Read this file fully before making any change.
 
 ---
 
@@ -32,15 +32,27 @@ crm/
 │       ├── main.jsx             # React entry
 │       ├── App.jsx              # Router (React Router v6)
 │       ├── pages/               # One folder per route
+│       │   └── Dev/             # Dev portal (index.jsx + devApi.js)
 │       ├── components/          # Shared UI components
 │       ├── hooks/               # Custom React hooks
 │       └── lib/                 # API client, utils
 ├── docs/
 │   └── USER_MANUAL.md           # End-user manual (keep updated when features change)
-├── tests/k6/                    # Performance test scenarios
-├── .github/workflows/           # CI/CD (ci.yml, nfr.yml, docs-check.yml)
+├── tests/
+│   ├── k6/                      # Performance test scenarios
+│   └── playwright/              # E2E UI tests (Python, targets staging)
+│       ├── conftest.py          # Browser fixture, warm-up, screenshots
+│       ├── helpers/auth.py      # Token injection helpers
+│       ├── requirements.txt
+│       └── tests/               # test_01_ … test_08_ (22 tests total)
+├── .github/workflows/
+│   ├── ci.yml                   # k6 smoke on dev push, full suite on PR to main
+│   ├── nfr.yml                  # On-demand performance tests
+│   ├── docs-check.yml           # Reminds to update USER_MANUAL.md
+│   └── staging-readiness.yml    # Playwright E2E on every push to dev → gates Ship It
 ├── Dockerfile                   # Multi-stage: frontend Vite build → Node backend
-└── CLAUDE.md                    # ← this file
+├── CLAUDE.md                    # ← this file
+└── ARCHITECTURE.md              # Deep system map
 ```
 
 ---
@@ -60,7 +72,7 @@ crm/
 | Payments | Stripe |
 | Error tracking | Sentry |
 | Deployment | Docker, Render (two services) |
-| CI/CD | GitHub Actions, k6 (performance tests) |
+| CI/CD | GitHub Actions, k6 (performance), Playwright (E2E) |
 
 ---
 
@@ -71,7 +83,11 @@ crm/
 | Production | https://crm-mjky.onrender.com | `main` | `srv-d8uetdj7uimc73e49k9g` |
 | Staging | https://crm-staging-sn50.onrender.com | `dev` | `srv-d90t0fvavr4c7390pou0` |
 
-**Branch workflow:** develop on `dev` → staging auto-deploys → promote via PR to `main` or use Dev Portal "Deploy Now".
+**Branch workflow:**
+1. Develop on `dev` → Render auto-deploys staging
+2. GitHub Actions runs 22 Playwright E2E tests against staging automatically
+3. Open dev portal → "Push to Production" → "Ship It" button — only enabled when tests are green
+4. Ship It auto-merges `dev → main` via GitHub API → Render deploys production
 
 Both environments share the **same Neon database**. Staging has its own JWT secrets (different from prod) so sessions are isolated.
 
@@ -127,6 +143,14 @@ SupportSession — superadmin support tickets
 - Tailwind for all styling. Dark mode via `dark:` classes — toggle stored in localStorage.
 - Page-level components in `src/pages/`, shared UI in `src/components/`.
 - Route protection via `<ProtectedRoute>` wrapper in `App.jsx`.
+- Auth is stored in `localStorage` under key `accessToken`. `AuthContext` calls `authApi.me()` on mount — always wait for `loading` to resolve before rendering route guards (see `App.jsx`).
+
+### Drag-and-drop (Dev Portal)
+
+- Uses `@dnd-kit/core` + `@dnd-kit/sortable`.
+- Sensors: `PointerSensor` + `TouchSensor` + `KeyboardSensor`, all with `{ delay: 150, tolerance: 5 }`.
+- Drag listeners are on the **full card div** (not just the grip handle) so dragging works from anywhere on the card.
+- Tap (< 150ms hold) = opens edit modal. Hold + move = drag. This is intentional.
 
 ### Prisma / DB
 
@@ -138,19 +162,59 @@ SupportSession — superadmin support tickets
 
 ## Dev Portal (`/dev`)
 
-The Dev Portal is a separate authenticated section (`DEV_SECRET` env var) that gives full control over the product backlog and has AI-powered build automation.
+The Dev Portal is a separate authenticated section (`DEV_SECRET` env var) that gives full control over the product backlog, AI-powered build automation, and one-click production deployment.
 
 **Endpoints** (all require `Authorization: Bearer <devToken>`):
-- `POST /api/dev/auth` — login with DEV_SECRET, returns JWT
+- `POST /api/dev/auth` — login with DEV_SECRET, returns token
 - `GET /api/dev/items` — all backlog items
+- `POST /api/dev/items` — create item
 - `PATCH /api/dev/items/:id` — update item (priority clamped 0-3)
+- `DELETE /api/dev/items/:id` — delete item
 - `POST /api/dev/ai-prioritise` — Groq analyses all items, returns suggested priorities
+- `POST /api/dev/ai-chat` — conversational AI that classifies asks into backlog items
 - `GET /api/dev/takeover` — SSE stream; AI autonomously builds top P0/P1 items
-- `POST /api/dev/build/:id` — build a single item
-- `POST /api/dev/deploy-now` — triggers Render production deploy via API
-- `POST /api/dev/push-to-production` — opens GitHub PR dev→main
+- `POST /api/dev/takeover/:id/pause` / `resume` / `DELETE` — control takeover session
+- `POST /api/dev/build/:id` — generate implementation plan for one item
+- `GET /api/dev/stats` — backlog summary counts
+- `GET /api/dev/branch-status` — compare dev vs main (commits ahead/behind)
+- `GET /api/dev/test-status` — latest staging-readiness CI run result for dev branch
+- `POST /api/dev/ship` — verify tests passed, auto-merge dev→main via GitHub API
+- `POST /api/dev/deploy-now` — trigger immediate Render production deploy (no PR)
+- `POST /api/dev/push-to-production` — open GitHub PR dev→main (without auto-merge)
 
-**Groq rate limits (on-demand tier):** 70b model = 12k TPM, 8b model = 6k TPM. `groqChat()` in `dev.routes.js` retries up to 3× on 429, parsing exact wait time from the error message.
+**Ship It flow:** `GET /api/dev/test-status` checks GitHub Actions `staging-readiness.yml` run on `dev`. `POST /api/dev/ship` blocks if tests didn't pass, then creates + merges the PR automatically.
+
+**Groq rate limits (on-demand tier):** 70b model = 12k TPM, 8b model = 6k TPM. `groqChat()` in `dev.routes.js` retries up to 3× on 429, parsing the exact wait time from the error message.
+
+---
+
+## Playwright E2E Tests
+
+**Location:** `tests/playwright/`
+**Target:** staging (`https://crm-staging-sn50.onrender.com`) — never production
+**Run:** `python3 -m pytest --tb=short -q` from `tests/playwright/`
+**CI trigger:** every push to `dev` via `.github/workflows/staging-readiness.yml`
+
+**22 tests across 8 files:**
+
+| File | Coverage |
+|---|---|
+| `test_01_login_page.py` | Login page UI elements |
+| `test_02_invalid_login.py` | Wrong credentials rejected, no token stored |
+| `test_03_dashboard.py` | KPI cards, date, Get Started checklist |
+| `test_04_leads.py` | Leads page, Smart Add button, lead create via API |
+| `test_05_kanban.py` | Kanban columns, New Lead button |
+| `test_06_settings.py` | Settings page, Sign Out in header, nav link |
+| `test_07_agent_rbac.py` | Agent sees own leads only, no Team tab, Smart Add visible |
+| `test_08_dev_portal.py` | Login, auth rejection, all columns, CRUD, drag-and-drop persistence, AI prioritise, branch status, test status, Ship It modal |
+
+**Auth injection pattern:** Tests use `page.context.add_init_script()` to seed `localStorage.accessToken` before React mounts. This avoids Turnstile and is required because `App.jsx` reads the token on first render.
+
+**Key conftest settings:**
+- Session-scoped warm-up fixture pings staging before any tests run (handles Render cold-start)
+- `context.set_default_timeout(60_000)` — staging can be slow
+- All heading/button assertions use `expect().to_be_visible(timeout=5_000)` not `.count() > 0`
+- Screenshots saved to `tests/playwright/evidence/` after every test (gitignored)
 
 ---
 
@@ -169,27 +233,32 @@ ANTHROPIC_API_KEY     # For drag-to-build in dev portal
 TURNSTILE_SECRET_KEY  # Cloudflare CAPTCHA validation
 TURNSTILE_SITE_KEY    # Passed to frontend via /api/config
 DEV_SECRET            # Dev portal login password
-MIGRATE_SECRET        # Protects /api/migrate/* endpoints (value: Salesflow2026)
+MIGRATE_SECRET        # Protects /api/migrate/* endpoints
 RENDER_API_KEY        # For Deploy Now button
-GITHUB_TOKEN          # For Push to Production PR creation
+GITHUB_TOKEN          # For Ship It (branch compare + auto-merge)
 GITHUB_REPO           # sudeepmathur79/CRM
+```
+
+Staging-only additions:
+```
+STAGING_URL           # https://crm-staging-sn50.onrender.com (used by takeover health check)
 ```
 
 ---
 
 ## Render API Rules
 
-**NEVER use `PUT /env-vars`** — it wipes all environment variables.
+**NEVER use `PUT /env-vars`** — it wipes all environment variables at once.
 
 Always use the individual variable endpoint:
 ```bash
-# Set a single var
-curl -X PUT "https://api.render.com/v1/services/{serviceId}/env-vars/{key}" \
+# Set a single var (safe)
+curl -X PUT "https://api.render.com/v1/services/{serviceId}/env-vars/{KEY}" \
   -H "Authorization: Bearer $RENDER_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"value": "new-value"}'
 
-# Get current vars first before changing anything
+# Always GET first to see current state
 curl "https://api.render.com/v1/services/{serviceId}/env-vars" \
   -H "Authorization: Bearer $RENDER_API_KEY"
 ```
@@ -211,36 +280,38 @@ node src/index.js      # runs on port 3000
 cd frontend
 npm install
 npm run dev            # runs on port 5173, proxies /api to :3000
+
+# Playwright tests (targets staging, not local)
+cd tests/playwright
+pip install -r requirements.txt
+playwright install chromium
+python3 -m pytest --tb=short -q
 ```
 
 The frontend Vite config proxies `/api/*` to `http://localhost:3000` so you don't need CORS configuration locally.
 
 ---
 
-## CI/CD
+## CI/CD Pipeline
 
-- `.github/workflows/ci.yml` — runs smoke k6 test on every push to `dev`, full suite on PR to `main`
-- `.github/workflows/nfr.yml` — on-demand performance tests (smoke/load/stress/soak/spike)
-- `.github/workflows/docs-check.yml` — reminds to update USER_MANUAL.md when frontend/routes change
+```
+push to dev
+  → Render deploys staging automatically
+  → staging-readiness.yml: waits for staging, runs 22 Playwright tests
+  → GitHub emails on failure
+  → Dev portal "Ship It" enabled only when tests green
+
+Ship It clicked in dev portal
+  → POST /api/dev/ship verifies test-status via GitHub API
+  → Creates PR dev→main + auto-merges
+  → Render deploys production automatically (~3 min)
+```
+
+Other workflows:
+- `ci.yml` — k6 smoke test on `dev` push, full k6 suite on PR to `main`
+- `nfr.yml` — on-demand performance tests (smoke/load/stress/soak/spike)
+- `docs-check.yml` — reminds to update `USER_MANUAL.md` when frontend/routes change
 - k6 tests use `TEST_BYPASS_TOKEN=k6-nfr-bypass-2026` to skip Turnstile in CI
-
----
-
-## Pending Work (Backlog)
-
-As of June 2026, 2 items remain in the backlog:
-1. **App Store + Play Store submission** (P2, Large) — Flutter mobile app packaging
-2. **CSV import with column mapping UI** (P2, Small) — frontend drag-to-map columns
-
-Full detailed backlog is visible in the Dev Portal at `/dev` (use DEV_SECRET to log in).
-
-Larger items tracked but not yet started:
-- Neon database branching for true staging isolation (requires Neon API key)
-- Agent interval Settings UI (frontend picker — backend already accepts the value)
-- Superadmin delete-org with typed challenge + 2FA
-- Superadmin TOTP 2FA enforcement
-- "What's New" modal (v1.5.0)
-- Audit log UI (Settings → Audit tab)
 
 ---
 
@@ -261,4 +332,6 @@ Larger items tracked but not yet started:
 - Do not set `isProd = process.env.NODE_ENV === 'production'` — staging uses `NODE_ENV=staging`
 - Do not add `BacklogItem.priority` values outside 0-3 — always clamp
 - Do not add comments explaining what code does — only add comments for non-obvious WHY
-- Do not push directly to `main` without testing on staging first (except hotfixes via Deploy Now)
+- Do not push directly to `main` without running tests on staging first (except hotfixes via Deploy Now)
+- Do not use `page.locator(...).count() > 0` in Playwright tests — use `expect().to_be_visible()` with a timeout
+- Do not put dnd-kit drag listeners only on a grip icon — put them on the full card div with delay activation constraint
