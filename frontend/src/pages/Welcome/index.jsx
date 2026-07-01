@@ -135,10 +135,19 @@ const PLANS = [
     name: 'Pro',
     price: '$29',
     period: '/month',
-    features: ['Unlimited lead captures', 'Voice capture + AI transcription', 'AI lead scoring', 'Follow-up reminders', 'Up to 2 team members', 'File & recording storage', 'Priority support'],
+    features: ['Unlimited lead captures', 'Voice capture + AI transcription', 'AI lead scoring', 'Follow-up reminders', 'Up to 3 team members', 'File & recording storage', 'Priority support'],
     cta: 'Get started',
     ctaHref: '/signup',
     highlight: true,
+  },
+  {
+    name: 'Enterprise',
+    price: null,
+    period: null,
+    features: ['Everything in Pro', 'Up to 10 team members', 'Custom onboarding', 'Dedicated account support', 'Audit log & activity export', 'SSO / SAML (on request)', 'SLA-backed uptime'],
+    cta: 'Talk to us',
+    ctaHref: 'mailto:support@aifstud.io',
+    highlight: false,
   },
 ];
 
@@ -640,13 +649,15 @@ export default function WelcomePage() {
         <h2 className="text-2xl sm:text-3xl font-bold mb-2" style={{ color: ink }}>Simple, honest pricing</h2>
         <p className="text-base mb-12" style={{ color: ink + '80' }}>Start free. Upgrade when you're ready.</p>
 
-        <div className="grid sm:grid-cols-2 gap-5">
+        <div className="grid sm:grid-cols-3 gap-5">
           {PLANS.map((plan) => (
             <div
               key={plan.name}
               className="rounded-2xl p-7 flex flex-col relative"
               style={plan.highlight
                 ? { background: ink, border: `2px solid ${ink}`, boxShadow: `4px 6px 0 ${terra}` }
+                : plan.name === 'Enterprise'
+                ? { background: '#fff', border: `1.5px solid ${ink}18` }
                 : { background: '#fff', border: `1.5px solid ${ink}18` }}
             >
               {plan.highlight && (
@@ -657,14 +668,23 @@ export default function WelcomePage() {
               <div className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: plan.highlight ? bg + 'aa' : ink + '80' }}>
                 {plan.name}
               </div>
-              <div className="flex items-end gap-1 mb-6">
-                <span className="text-4xl font-extrabold" style={{ color: plan.highlight ? bg : ink }}>{plan.price}</span>
-                {plan.period && <span className="text-sm mb-1" style={{ color: plan.highlight ? bg + '88' : ink + '70' }}>{plan.period}</span>}
+              <div className="mb-6">
+                {plan.price ? (
+                  <div className="flex items-end gap-1">
+                    <span className="text-4xl font-extrabold" style={{ color: plan.highlight ? bg : ink }}>{plan.price}</span>
+                    {plan.period && <span className="text-sm mb-1" style={{ color: plan.highlight ? bg + '88' : ink + '70' }}>{plan.period}</span>}
+                  </div>
+                ) : (
+                  <div>
+                    <span className="text-2xl font-extrabold" style={{ color: ink }}>Custom pricing</span>
+                    <p className="text-xs mt-1" style={{ color: ink + '60' }}>Based on team size &amp; needs</p>
+                  </div>
+                )}
               </div>
               <ul className="space-y-3 mb-8 flex-1">
                 {plan.features.map((f) => (
                   <li key={f} className="flex items-center gap-3 text-sm">
-                    <Check className="w-4 h-4 flex-shrink-0" style={{ color: plan.highlight ? terra : terra }} />
+                    <Check className="w-4 h-4 flex-shrink-0" style={{ color: terra }} />
                     <span style={{ color: plan.highlight ? bg + 'dd' : ink + 'cc' }}>{f}</span>
                   </li>
                 ))}
@@ -684,11 +704,6 @@ export default function WelcomePage() {
             </div>
           ))}
         </div>
-
-        <p className="text-center text-sm mt-8" style={{ color: ink + '70' }}>
-          Need more than 2 team members?{' '}
-          <a href="mailto:support@aifstud.io" className="underline" style={{ color: ink }}>Talk to us</a>
-        </p>
       </section>
 
       {/* GlassCast teaser */}
