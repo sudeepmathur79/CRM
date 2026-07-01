@@ -8,3 +8,11 @@ backend/node_modules/
 frontend/node_modules/
 frontend/dist/
 .claude/worktrees/
+.aider*
+
+# Playwright
+tests/playwright/evidence/
+tests/playwright/__pycache__/
+tests/playwright/tests/__pycache__/
+tests/playwright/helpers/__pycache__/
+tests/playwright/.pytest_cache/
