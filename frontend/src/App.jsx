@@ -20,6 +20,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
+import GlassCastPage from './pages/GlassCast';
 import SuperAdminPage from './pages/SuperAdmin';
 import DevPortal from './pages/Dev';
 
@@ -45,6 +46,7 @@ const AppRoutes = () => {
       <Route path="/reset-password" element={user ? <Navigate to="/" /> : <ResetPassword />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/privacy" element={<Privacy />} />
+      <Route path="/glasscast" element={<GlassCastPage />} />
       <Route path="/" element={user ? <Protected><Layout /></Protected> : <Navigate to="/welcome" />}>
         <Route index element={<DashboardPage />} />
         <Route path="leads" element={<LeadsPage />} />

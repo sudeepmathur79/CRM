@@ -413,30 +413,56 @@ export default function WelcomePage() {
 
       {/* GlassCast teaser */}
       <section className="max-w-4xl mx-auto px-4 sm:px-6 pb-20">
-        <div
-          className="rounded-2xl p-8 flex flex-col sm:flex-row items-center gap-6"
-          style={{ background: ink, border: `2px solid ${ink}` }}
-        >
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: terra + '22' }}>
-            <Glasses className="w-7 h-7" style={{ color: terra }} />
-          </div>
-          <div className="flex-1 text-center sm:text-left">
-            <div className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: terra }}>Coming soon</div>
-            <h3 className="text-xl font-bold mb-2" style={{ color: bg }}>
-              Introducing <span style={{ color: terra }}>GlassCast</span>
-            </h3>
-            <p className="text-sm leading-relaxed" style={{ color: bg + 'aa' }}>
-              SalesFlow hands-free. Smart glasses capture every meeting automatically. Walk in, have the conversation, walk out. Your CRM is already updated.
-            </p>
-          </div>
-          <a
-            href="mailto:support@aifstud.io?subject=GlassCast waitlist"
-            className="flex-shrink-0 inline-flex items-center gap-2 px-5 py-3 rounded-xl font-semibold text-sm whitespace-nowrap"
-            style={{ background: terra, color: '#fff' }}
+        <a href="/glasscast" className="block group">
+          <div
+            className="rounded-3xl overflow-hidden transition-all group-hover:shadow-2xl"
+            style={{ background: ink }}
           >
-            Join waitlist <ArrowRight className="w-4 h-4" />
-          </a>
-        </div>
+            {/* Top — glasses visualisation */}
+            <div className="px-8 pt-10 pb-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-6" style={{ background: terra + '25', color: terra }}>
+                <Glasses className="w-3.5 h-3.5" /> Coming soon · Ray-Ban Meta
+              </div>
+              <h3 className="text-2xl sm:text-3xl font-extrabold mb-3" style={{ color: bg }}>
+                Your CRM, in your<br />
+                <span style={{ color: terra }}>field of view.</span>
+              </h3>
+              <p className="text-sm leading-relaxed max-w-lg" style={{ color: bg + 'aa' }}>
+                GlassCast brings SalesFlow to your smart glasses. See your top leads, follow-up alerts, and deal status — without touching your phone. The heads-up display is built. Voice capture is next.
+              </p>
+            </div>
+
+            {/* Mini HUD preview */}
+            <div className="px-8 py-6">
+              <svg viewBox="0 0 480 140" className="w-full max-w-lg" xmlns="http://www.w3.org/2000/svg">
+                <rect x="8" y="20" width="200" height="100" rx="46" fill="none" stroke={bg} strokeWidth="6" opacity="0.3"/>
+                <rect x="272" y="20" width="200" height="100" rx="46" fill="none" stroke={bg} strokeWidth="6" opacity="0.3"/>
+                <path d="M208 65 L272 65" stroke={bg} strokeWidth="6" strokeLinecap="round" opacity="0.3"/>
+                <rect x="18" y="30" width="180" height="80" rx="40" fill={bg} opacity="0.06"/>
+                <text x="36" y="56" fontSize="8" fill={terra} fontWeight="700" fontFamily="monospace" letterSpacing="1">TOP LEADS</text>
+                <text x="36" y="71" fontSize="8" fill={bg} fontFamily="monospace" opacity="0.9">Sarah M.  ·  9/10</text>
+                <text x="36" y="83" fontSize="8" fill={bg} fontFamily="monospace" opacity="0.6">Priya S.  ·  8/10</text>
+                <text x="36" y="95" fontSize="8" fill={bg} fontFamily="monospace" opacity="0.4">James O.  ·  7/10</text>
+                <rect x="282" y="30" width="180" height="80" rx="40" fill={bg} opacity="0.06"/>
+                <text x="300" y="56" fontSize="8" fill={terra} fontWeight="700" fontFamily="monospace" letterSpacing="1">FOLLOW-UPS</text>
+                <text x="300" y="71" fontSize="8" fill="#f59e0b" fontFamily="monospace" opacity="0.9">2 overdue  ⚠</text>
+                <text x="300" y="83" fontSize="8" fill={bg} fontFamily="monospace" opacity="0.6">Next: Sarah M.</text>
+                <text x="300" y="95" fontSize="8" fill={bg} fontFamily="monospace" opacity="0.4">Today 3pm</text>
+                <circle cx="458" cy="28" r="4" fill={terra}><animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite"/></circle>
+              </svg>
+            </div>
+
+            {/* Bottom CTA bar */}
+            <div className="flex items-center justify-between px-8 py-5 border-t" style={{ borderColor: bg + '12' }}>
+              <p className="text-xs font-medium" style={{ color: bg + '60' }}>
+                Early access · Pro subscribers first
+              </p>
+              <span className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm" style={{ background: terra, color: '#fff' }}>
+                Learn more &amp; join waitlist <ArrowRight className="w-4 h-4" />
+              </span>
+            </div>
+          </div>
+        </a>
       </section>
 
       {/* Footer */}
