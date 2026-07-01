@@ -675,9 +675,8 @@ export default function WelcomePage() {
                     {plan.period && <span className="text-sm mb-1" style={{ color: plan.highlight ? bg + '88' : ink + '70' }}>{plan.period}</span>}
                   </div>
                 ) : (
-                  <div>
-                    <span className="text-2xl font-extrabold" style={{ color: ink }}>Custom pricing</span>
-                    <p className="text-xs mt-1" style={{ color: ink + '60' }}>Based on team size &amp; needs</p>
+                  <div className="h-10 flex items-center">
+                    <span className="text-sm" style={{ color: ink + '60' }}>Pricing on request</span>
                   </div>
                 )}
               </div>
