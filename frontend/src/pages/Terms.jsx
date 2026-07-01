@@ -25,7 +25,7 @@ export default function Terms() {
           <p>You must be at least 18 years old and legally capable of entering a binding contract to use the Service. By using the Service on behalf of an organisation, you represent that you have authority to bind that organisation.</p>
 
           <h2 className="text-base font-semibold mt-8 mb-2 text-gray-900 dark:text-white">3. Account Registration and Security</h2>
-          <p>You must provide accurate, current, and complete information when creating an account. You are responsible for maintaining the confidentiality of your login credentials and for all activity that occurs under your account. Notify us immediately at <a href="mailto:support@salesflowcrm.io" className="text-indigo-600 hover:underline">support@salesflowcrm.io</a> if you suspect unauthorised access.</p>
+          <p>You must provide accurate, current, and complete information when creating an account. You are responsible for maintaining the confidentiality of your login credentials and for all activity that occurs under your account. Notify us immediately at <a href="mailto:support@aifstud.io" className="text-indigo-600 hover:underline">support@aifstud.io</a> if you suspect unauthorised access.</p>
           <p>We reserve the right to suspend or terminate accounts that appear to have been compromised or are being used in breach of these Terms.</p>
 
           <h2 className="text-base font-semibold mt-8 mb-2 text-gray-900 dark:text-white">4. Subscription Plans and Pricing</h2>
@@ -39,7 +39,7 @@ export default function Terms() {
 
           <h2 className="text-base font-semibold mt-8 mb-2 text-gray-900 dark:text-white">6. Cancellation and Refunds</h2>
           <p>You may cancel your subscription at any time from Settings → Billing. Cancellation takes effect at the end of the current billing period; you retain access to paid features until then. We do not offer pro-rata refunds for unused time within a billing period.</p>
-          <p><strong>Statutory cooling-off (UK and EU consumers):</strong> If you are a consumer (not purchasing for business purposes) and reside in the UK or EEA, you have the right to cancel within 14 days of purchase without giving a reason. To exercise this right, email <a href="mailto:support@salesflowcrm.io" className="text-indigo-600 hover:underline">support@salesflowcrm.io</a>. If you have already used the Service during this period, we may charge a pro-rata amount for use to date.</p>
+          <p><strong>Statutory cooling-off (UK and EU consumers):</strong> If you are a consumer (not purchasing for business purposes) and reside in the UK or EEA, you have the right to cancel within 14 days of purchase without giving a reason. To exercise this right, email <a href="mailto:support@aifstud.io" className="text-indigo-600 hover:underline">support@aifstud.io</a>. If you have already used the Service during this period, we may charge a pro-rata amount for use to date.</p>
           <p><strong>Australian consumers:</strong> Nothing in these Terms limits rights you have under the Australian Consumer Law.</p>
 
           <h2 className="text-base font-semibold mt-8 mb-2 text-gray-900 dark:text-white">7. Acceptable Use</h2>
@@ -97,7 +97,7 @@ export default function Terms() {
           <p>If any provision of these Terms is found to be unenforceable, the remaining provisions remain in full force. Our failure to enforce any provision does not waive our right to enforce it in the future. These Terms, together with the Privacy Policy, constitute the entire agreement between you and us regarding the Service.</p>
 
           <h2 className="text-base font-semibold mt-8 mb-2 text-gray-900 dark:text-white">19. Contact</h2>
-          <p>For questions about these Terms, contact us at <a href="mailto:support@salesflowcrm.io" className="text-indigo-600 hover:underline">support@salesflowcrm.io</a>. We aim to respond within 5 business days.</p>
+          <p>For questions about these Terms, contact us at <a href="mailto:support@aifstud.io" className="text-indigo-600 hover:underline">support@aifstud.io</a>. We aim to respond within 5 business days.</p>
         </div>
 
         <p className="text-center text-xs text-gray-400 mt-6">

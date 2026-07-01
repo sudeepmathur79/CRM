@@ -18,7 +18,7 @@ export default function Privacy() {
           <p className="text-xs text-gray-500 mb-8">This policy applies to users worldwide. Jurisdiction-specific supplements are included in Sections 10–14.</p>
 
           <p>SalesFlow CRM ("SalesFlow", "we", "us") is operated from the United Kingdom. We are the data controller for personal data we collect directly. For personal data you enter about your leads and contacts, you are the data controller and we act as your data processor.</p>
-          <p className="mt-2">This Privacy Policy explains what personal data we collect, why we collect it, how we use it, and your rights. If you have questions, contact us at <a href="mailto:privacy@salesflowcrm.io" className="text-indigo-600 hover:underline">privacy@salesflowcrm.io</a>.</p>
+          <p className="mt-2">This Privacy Policy explains what personal data we collect, why we collect it, how we use it, and your rights. If you have questions, contact us at <a href="mailto:privacy@aifstud.io" className="text-indigo-600 hover:underline">privacy@aifstud.io</a>.</p>
 
           <h2 className="text-base font-semibold mt-8 mb-2 text-gray-900 dark:text-white">1. What Data We Collect</h2>
           <p><strong>Account data:</strong> Name, email address, organisation name, and hashed password when you create an account.</p>
@@ -100,7 +100,7 @@ export default function Privacy() {
             <li><strong>Export:</strong> Request your Customer Data in a machine-readable format (CSV)</li>
             <li><strong>Withdraw consent:</strong> Opt out of non-essential analytics at any time</li>
           </ul>
-          <p className="mt-2">To exercise any of these rights, email <a href="mailto:privacy@salesflowcrm.io" className="text-indigo-600 hover:underline">privacy@salesflowcrm.io</a>. We will respond within 30 days (or sooner as required by applicable law).</p>
+          <p className="mt-2">To exercise any of these rights, email <a href="mailto:privacy@aifstud.io" className="text-indigo-600 hover:underline">privacy@aifstud.io</a>. We will respond within 30 days (or sooner as required by applicable law).</p>
 
           <h2 className="text-base font-semibold mt-8 mb-2 text-gray-900 dark:text-white">10. UK and EU Users (UK GDPR / EU GDPR)</h2>
           <p>You have the following additional rights under UK GDPR and EU GDPR:</p>
@@ -114,13 +114,13 @@ export default function Privacy() {
           <p><strong>EU users</strong> may lodge a complaint with the data protection authority in your country of residence. A list of EU DPAs is available at <a href="https://edpb.europa.eu/about-edpb/about-edpb/members_en" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">edpb.europa.eu</a>.</p>
 
           <h2 className="text-base font-semibold mt-8 mb-2 text-gray-900 dark:text-white">11. Australian Users (Privacy Act 1988)</h2>
-          <p>We comply with the Australian Privacy Act 1988 and the Australian Privacy Principles (APPs). You have the right to access and correct your personal information held by us. If you believe we have not complied with the APPs, you may first contact us at <a href="mailto:privacy@salesflowcrm.io" className="text-indigo-600 hover:underline">privacy@salesflowcrm.io</a> to resolve the matter. If unresolved, you may lodge a complaint with the Office of the Australian Information Commissioner (OAIC) at <a href="https://www.oaic.gov.au" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">oaic.gov.au</a>.</p>
+          <p>We comply with the Australian Privacy Act 1988 and the Australian Privacy Principles (APPs). You have the right to access and correct your personal information held by us. If you believe we have not complied with the APPs, you may first contact us at <a href="mailto:privacy@aifstud.io" className="text-indigo-600 hover:underline">privacy@aifstud.io</a> to resolve the matter. If unresolved, you may lodge a complaint with the Office of the Australian Information Commissioner (OAIC) at <a href="https://www.oaic.gov.au" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">oaic.gov.au</a>.</p>
 
           <h2 className="text-base font-semibold mt-8 mb-2 text-gray-900 dark:text-white">12. Indian Users (Digital Personal Data Protection Act 2023)</h2>
-          <p>We process personal data of Indian users as a Data Fiduciary under the Digital Personal Data Protection Act 2023 (DPDPA). We collect and process your data on the basis of your consent (provided at signup) and for the purposes described in this policy. You have the right to access, correct, and erase your personal data, and to withdraw consent. To exercise these rights, contact our Grievance Officer at <a href="mailto:privacy@salesflowcrm.io" className="text-indigo-600 hover:underline">privacy@salesflowcrm.io</a>. We will respond within the timeframes prescribed by the DPDPA.</p>
+          <p>We process personal data of Indian users as a Data Fiduciary under the Digital Personal Data Protection Act 2023 (DPDPA). We collect and process your data on the basis of your consent (provided at signup) and for the purposes described in this policy. You have the right to access, correct, and erase your personal data, and to withdraw consent. To exercise these rights, contact our Grievance Officer at <a href="mailto:privacy@aifstud.io" className="text-indigo-600 hover:underline">privacy@aifstud.io</a>. We will respond within the timeframes prescribed by the DPDPA.</p>
 
           <h2 className="text-base font-semibold mt-8 mb-2 text-gray-900 dark:text-white">13. US Users (CCPA / State Privacy Laws)</h2>
-          <p>If you are a California resident, you have rights under the California Consumer Privacy Act (CCPA) including the right to know, delete, and opt out of the sale of personal information. We do not sell personal information. For other US state privacy laws (Virginia, Colorado, Texas, etc.), many of the rights described in Section 9 apply. To exercise your rights, email <a href="mailto:privacy@salesflowcrm.io" className="text-indigo-600 hover:underline">privacy@salesflowcrm.io</a>.</p>
+          <p>If you are a California resident, you have rights under the California Consumer Privacy Act (CCPA) including the right to know, delete, and opt out of the sale of personal information. We do not sell personal information. For other US state privacy laws (Virginia, Colorado, Texas, etc.), many of the rights described in Section 9 apply. To exercise your rights, email <a href="mailto:privacy@aifstud.io" className="text-indigo-600 hover:underline">privacy@aifstud.io</a>.</p>
 
           <h2 className="text-base font-semibold mt-8 mb-2 text-gray-900 dark:text-white">14. Other Jurisdictions</h2>
           <p>For users in jurisdictions not specifically addressed above, we apply UK GDPR standards as our baseline, which we consider to meet or exceed the requirements of most data protection frameworks globally.</p>
@@ -133,7 +133,7 @@ export default function Privacy() {
 
           <h2 className="text-base font-semibold mt-8 mb-2 text-gray-900 dark:text-white">17. Contact</h2>
           <p>For privacy enquiries or to exercise your rights:<br />
-          Email: <a href="mailto:privacy@salesflowcrm.io" className="text-indigo-600 hover:underline">privacy@salesflowcrm.io</a><br />
+          Email: <a href="mailto:privacy@aifstud.io" className="text-indigo-600 hover:underline">privacy@aifstud.io</a><br />
           We aim to respond within 5 business days and will complete all requests within 30 days (or as required by applicable law).</p>
         </div>
 

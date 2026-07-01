@@ -95,7 +95,7 @@ const PLANS = [
     period: '',
     features: ['Everything in Pro', 'Unlimited team members', 'Manager dashboard', 'Custom onboarding', 'Dedicated support'],
     cta: 'Contact us',
-    ctaHref: 'mailto:support@salesflowcrm.io',
+    ctaHref: 'mailto:support@aifstud.io',
     highlight: false,
   },
 ];
@@ -373,7 +373,7 @@ export default function WelcomePage() {
 
             <div className="flex-shrink-0 text-center">
               <a
-                href="mailto:support@salesflowcrm.io?subject=GlassCast waitlist"
+                href="mailto:support@aifstud.io?subject=GlassCast waitlist"
                 className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 transition-colors px-6 py-3 rounded-xl font-semibold text-sm shadow-lg shadow-indigo-600/30 whitespace-nowrap"
               >
                 Join the waitlist <ArrowRight className="w-4 h-4" />
@@ -392,7 +392,7 @@ export default function WelcomePage() {
           <div className="flex gap-6">
             <a href="/login" className="hover:text-slate-300 transition-colors">Sign in</a>
             <a href="/signup" className="hover:text-slate-300 transition-colors">Sign up</a>
-            <a href="mailto:support@salesflowcrm.io" className="hover:text-slate-300 transition-colors">Contact</a>
+            <a href="mailto:support@aifstud.io" className="hover:text-slate-300 transition-colors">Contact</a>
           </div>
         </div>
       </footer>
