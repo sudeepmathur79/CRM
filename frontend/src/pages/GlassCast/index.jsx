@@ -26,6 +26,66 @@ function GlassCastLogo() {
   );
 }
 
+// ── Meeting scene illustration ───────────────────────────────────────────────
+function MeetingScene() {
+  return (
+    <div className="relative w-full max-w-2xl mx-auto select-none">
+      <svg viewBox="0 0 560 320" className="w-full" xmlns="http://www.w3.org/2000/svg">
+        {/* Room / table */}
+        <ellipse cx="280" cy="230" rx="220" ry="40" fill={ink} opacity="0.06"/>
+        <rect x="80" y="200" width="400" height="16" rx="8" fill={ink} opacity="0.10"/>
+
+        {/* Person left (client) — silhouette */}
+        <ellipse cx="155" cy="188" rx="28" ry="28" fill={ink} opacity="0.10"/>
+        <rect x="127" y="200" width="56" height="70" rx="28" fill={ink} opacity="0.08"/>
+
+        {/* Person right (user with glasses) — slightly larger / focal */}
+        <ellipse cx="405" cy="182" rx="32" ry="32" fill={terra} opacity="0.18"/>
+        {/* Glasses on face */}
+        <rect x="380" y="170" width="50" height="22" rx="10" fill="none" stroke={ink} strokeWidth="3.5" opacity="0.7"/>
+        <path d="M405 181 L405 181" stroke={ink} strokeWidth="3.5" strokeLinecap="round" opacity="0.5"/>
+        {/* Left lens */}
+        <rect x="382" y="172" width="21" height="18" rx="8" fill={ink} opacity="0.5"/>
+        {/* Right lens */}
+        <rect x="407" y="172" width="21" height="18" rx="8" fill={ink} opacity="0.5"/>
+        {/* Nose bridge */}
+        <path d="M403 181 L408 181" stroke={ink} strokeWidth="3" strokeLinecap="round" opacity="0.7"/>
+        {/* Body */}
+        <rect x="373" y="214" width="64" height="80" rx="32" fill={terra} opacity="0.12"/>
+
+        {/* HUD overlay — floating from glasses */}
+        <rect x="240" y="80" width="190" height="100" rx="12" fill={ink} opacity="0.88"/>
+        <rect x="240" y="80" width="190" height="100" rx="12" fill="none" stroke={terra} strokeWidth="1.5" opacity="0.5"/>
+        {/* Connector line from glasses to HUD */}
+        <path d="M405 171 Q380 140 430 80" stroke={terra} strokeWidth="1" strokeDasharray="4,3" opacity="0.35"/>
+        {/* HUD content */}
+        <text x="255" y="100" fontSize="7.5" fill={terra} fontWeight="700" fontFamily="monospace" letterSpacing="1">NEXT: SARAH MITCHELL</text>
+        <rect x="255" y="105" width="90" height="2.5" rx="1.25" fill={terra} opacity="0.3"/>
+        <text x="255" y="116" fontSize="7" fill="#FAF6EF" fontFamily="monospace" opacity="0.8">Score  9/10  ·  Proposal stage</text>
+        <text x="255" y="128" fontSize="7" fill="#f59e0b" fontFamily="monospace" opacity="0.9">⚠  Follow-up overdue 2 days</text>
+        <rect x="255" y="134" width="155" height="1" fill="#FAF6EF" opacity="0.1"/>
+        <text x="255" y="145" fontSize="7" fill="#FAF6EF" fontFamily="monospace" opacity="0.55">Last: Discussed Q3 budget</text>
+        <text x="255" y="155" fontSize="7" fill="#FAF6EF" fontFamily="monospace" opacity="0.4">Acme Corp  ·  £24k deal value</text>
+        {/* Live dot */}
+        <circle cx="415" cy="90" r="4" fill={terra}>
+          <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="415" cy="90" r="4" fill={terra} opacity="0.3">
+          <animate attributeName="r" values="4;9;4" dur="2s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0.3;0;0.3" dur="2s" repeatCount="indefinite"/>
+        </circle>
+
+        {/* Speech bubbles between people */}
+        <ellipse cx="280" cy="165" rx="55" ry="20" fill={ink} opacity="0.04"/>
+        <rect x="240" y="148" width="80" height="28" rx="10" fill="#fff" opacity="0.08"/>
+
+        {/* Caption */}
+        <text x="280" y="305" fontSize="9" fill={ink} opacity="0.35" fontFamily="sans-serif" textAnchor="middle">Your pipeline, visible in your field of view · no phone required</text>
+      </svg>
+    </div>
+  );
+}
+
 // ── HUD Visualisation ────────────────────────────────────────────────────────
 function GlassesHero() {
   return (
@@ -191,6 +251,13 @@ export default function GlassCastPage() {
         <p className="text-xs mt-4" style={{ color: ink + '60' }}>
           Early access goes to Pro subscribers first. No spam. Unsubscribe any time.
         </p>
+      </section>
+
+      {/* Meeting scene */}
+      <section className="max-w-4xl mx-auto px-4 sm:px-6 pb-4">
+        <div className="rounded-3xl p-6 sm:p-10" style={{ background: '#fff', border: `1.5px solid ${inkFaint}` }}>
+          <MeetingScene />
+        </div>
       </section>
 
       {/* Glasses visualisation */}

@@ -1,4 +1,5 @@
-import { ArrowRight, Check, Mic, BarChart2, Users, Zap, Bell, Glasses } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowRight, Check, Mic, BarChart2, Users, Zap, Bell, Glasses, X } from 'lucide-react';
 
 const highlightSignIn = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('signin') === '1';
 
@@ -155,6 +156,7 @@ export default function WelcomePage() {
   const bg = '#FAF6EF';
   const ink = '#2B2A28';
   const terra = '#c65f2f';
+  const [glasscastOpen, setGlasscastOpen] = useState(false);
 
   return (
     <div className="min-h-screen font-sans antialiased" style={{ background: bg, color: ink }}>
@@ -262,6 +264,125 @@ export default function WelcomePage() {
         </div>
       </section>
 
+      {/* Built for */}
+      <section className="max-w-4xl mx-auto px-4 sm:px-6 py-16">
+        <SectionLabel>Built for</SectionLabel>
+        <h2 className="text-2xl sm:text-3xl font-bold mb-2" style={{ color: ink }}>If you sell without a sales team, this is for you.</h2>
+        <p className="text-base mb-10" style={{ color: ink + '80' }}>SalesFlow is built around one thing: helping one person manage more deals without hiring anyone.</p>
+        <div className="grid sm:grid-cols-3 gap-6">
+          {/* Consultant */}
+          <div className="rounded-2xl overflow-hidden" style={{ background: '#fff', border: `1.5px solid ${ink}12`, boxShadow: `2px 3px 0 ${ink}0a` }}>
+            <div className="h-44 flex items-center justify-center p-4" style={{ background: '#FAF6EF' }}>
+              <svg viewBox="0 0 200 130" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+                {/* Desk */}
+                <rect x="20" y="100" width="160" height="6" rx="3" fill="#2B2A28" opacity="0.12"/>
+                {/* Laptop */}
+                <rect x="55" y="52" width="90" height="56" rx="5" fill="#2B2A28" opacity="0.08"/>
+                <rect x="60" y="57" width="80" height="43" rx="3" fill="#1e293b"/>
+                {/* Screen — mini CRM */}
+                <rect x="65" y="62" width="35" height="3.5" rx="1.5" fill="#c65f2f" opacity="0.9"/>
+                <rect x="65" y="70" width="65" height="3" rx="1.5" fill="#FAF6EF" opacity="0.25"/>
+                <rect x="65" y="76" width="50" height="3" rx="1.5" fill="#FAF6EF" opacity="0.18"/>
+                <rect x="65" y="82" width="58" height="3" rx="1.5" fill="#FAF6EF" opacity="0.18"/>
+                <rect x="65" y="88" width="42" height="3" rx="1.5" fill="#FAF6EF" opacity="0.12"/>
+                {/* Score badge */}
+                <rect x="112" y="68" width="22" height="10" rx="3" fill="#c65f2f" opacity="0.8"/>
+                <text x="115" y="76" fontSize="6" fill="#FAF6EF" fontWeight="700" fontFamily="monospace">9/10</text>
+                {/* Laptop base */}
+                <rect x="48" y="108" width="104" height="5" rx="2.5" fill="#2B2A28" opacity="0.10"/>
+                {/* Person silhouette */}
+                <circle cx="100" cy="32" r="10" fill="#c65f2f" opacity="0.25"/>
+                <circle cx="100" cy="30" r="7" fill="#c65f2f" opacity="0.5"/>
+                {/* Speech bubble */}
+                <rect x="112" y="12" width="58" height="22" rx="7" fill="#c65f2f" opacity="0.12"/>
+                <path d="M114 34 L110 42 L120 34" fill="#c65f2f" opacity="0.12"/>
+                <rect x="118" y="18" width="38" height="3" rx="1.5" fill="#c65f2f" opacity="0.45"/>
+                <rect x="118" y="24" width="28" height="3" rx="1.5" fill="#c65f2f" opacity="0.3"/>
+              </svg>
+            </div>
+            <div className="p-5">
+              <p className="text-xs font-bold uppercase tracking-widest mb-1.5" style={{ color: terra }}>Consultants &amp; freelancers</p>
+              <p className="text-sm leading-relaxed" style={{ color: ink + 'aa' }}>You're the whole sales function. Keep every client conversation captured and every follow-up on track — without a CRM admin.</p>
+            </div>
+          </div>
+
+          {/* Founder */}
+          <div className="rounded-2xl overflow-hidden" style={{ background: '#fff', border: `1.5px solid ${ink}12`, boxShadow: `2px 3px 0 ${ink}0a` }}>
+            <div className="h-44 flex items-center justify-center p-4" style={{ background: '#FAF6EF' }}>
+              <svg viewBox="0 0 200 130" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+                {/* Kanban board */}
+                <rect x="10" y="30" width="52" height="85" rx="5" fill="#2B2A28" opacity="0.06"/>
+                <rect x="74" y="30" width="52" height="85" rx="5" fill="#2B2A28" opacity="0.06"/>
+                <rect x="138" y="30" width="52" height="85" rx="5" fill="#c65f2f" opacity="0.08"/>
+                {/* Column headers */}
+                <rect x="16" y="36" width="30" height="5" rx="2.5" fill="#2B2A28" opacity="0.2"/>
+                <rect x="80" y="36" width="30" height="5" rx="2.5" fill="#2B2A28" opacity="0.2"/>
+                <rect x="144" y="36" width="30" height="5" rx="2.5" fill="#c65f2f" opacity="0.5"/>
+                {/* Cards col 1 */}
+                <rect x="16" y="46" width="40" height="20" rx="3" fill="#fff" opacity="0.8"/>
+                <rect x="20" y="50" width="25" height="3" rx="1.5" fill="#2B2A28" opacity="0.3"/>
+                <rect x="20" y="56" width="18" height="2.5" rx="1.25" fill="#2B2A28" opacity="0.15"/>
+                <rect x="16" y="70" width="40" height="20" rx="3" fill="#fff" opacity="0.8"/>
+                <rect x="20" y="74" width="25" height="3" rx="1.5" fill="#2B2A28" opacity="0.3"/>
+                <rect x="20" y="80" width="18" height="2.5" rx="1.25" fill="#2B2A28" opacity="0.15"/>
+                {/* Cards col 2 */}
+                <rect x="80" y="46" width="40" height="20" rx="3" fill="#fff" opacity="0.8"/>
+                <rect x="84" y="50" width="25" height="3" rx="1.5" fill="#2B2A28" opacity="0.3"/>
+                <rect x="84" y="56" width="18" height="2.5" rx="1.25" fill="#2B2A28" opacity="0.15"/>
+                {/* Cards col 3 (won) */}
+                <rect x="144" y="46" width="40" height="20" rx="3" fill="#c65f2f" opacity="0.15"/>
+                <rect x="148" y="50" width="25" height="3" rx="1.5" fill="#c65f2f" opacity="0.5"/>
+                <rect x="148" y="56" width="18" height="2.5" rx="1.25" fill="#c65f2f" opacity="0.35"/>
+                <rect x="144" y="70" width="40" height="20" rx="3" fill="#c65f2f" opacity="0.15"/>
+                <rect x="148" y="74" width="25" height="3" rx="1.5" fill="#c65f2f" opacity="0.5"/>
+                <rect x="148" y="80" width="18" height="2.5" rx="1.25" fill="#c65f2f" opacity="0.35"/>
+                {/* Checkmark on won column */}
+                <circle cx="176" cy="105" r="8" fill="#c65f2f" opacity="0.15"/>
+                <path d="M171 105 L175 109 L181 101" stroke="#c65f2f" strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.8"/>
+              </svg>
+            </div>
+            <div className="p-5">
+              <p className="text-xs font-bold uppercase tracking-widest mb-1.5" style={{ color: terra }}>Startup founders</p>
+              <p className="text-sm leading-relaxed" style={{ color: ink + 'aa' }}>You're in back-to-back meetings all week. SalesFlow keeps your pipeline alive without asking you to become a CRM power user.</p>
+            </div>
+          </div>
+
+          {/* Small team */}
+          <div className="rounded-2xl overflow-hidden" style={{ background: '#fff', border: `1.5px solid ${ink}12`, boxShadow: `2px 3px 0 ${ink}0a` }}>
+            <div className="h-44 flex items-center justify-center p-4" style={{ background: '#FAF6EF' }}>
+              <svg viewBox="0 0 200 130" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+                {/* 3 people */}
+                <circle cx="60" cy="35" r="10" fill="#c65f2f" opacity="0.2"/>
+                <circle cx="60" cy="33" r="7" fill="#c65f2f" opacity="0.4"/>
+                <path d="M42 70 Q42 52 60 52 Q78 52 78 70" fill="#c65f2f" opacity="0.12"/>
+                <circle cx="100" cy="30" r="11" fill="#2B2A28" opacity="0.12"/>
+                <circle cx="100" cy="28" r="8" fill="#2B2A28" opacity="0.3"/>
+                <path d="M80 68 Q80 48 100 48 Q120 48 120 68" fill="#2B2A28" opacity="0.08"/>
+                <circle cx="140" cy="35" r="10" fill="#c65f2f" opacity="0.2"/>
+                <circle cx="140" cy="33" r="7" fill="#c65f2f" opacity="0.4"/>
+                <path d="M122 70 Q122 52 140 52 Q158 52 158 70" fill="#c65f2f" opacity="0.12"/>
+                {/* Arrows pointing to pipeline */}
+                <path d="M60 75 L90 88" stroke="#c65f2f" strokeWidth="1.5" strokeDasharray="3,2" opacity="0.4"/>
+                <path d="M100 72 L100 85" stroke="#2B2A28" strokeWidth="1.5" strokeDasharray="3,2" opacity="0.3"/>
+                <path d="M140 75 L110 88" stroke="#c65f2f" strokeWidth="1.5" strokeDasharray="3,2" opacity="0.4"/>
+                {/* Shared pipeline */}
+                <rect x="40" y="90" width="120" height="30" rx="6" fill="#2B2A28" opacity="0.07"/>
+                <rect x="46" y="96" width="28" height="4" rx="2" fill="#c65f2f" opacity="0.5"/>
+                <rect x="80" y="96" width="28" height="4" rx="2" fill="#2B2A28" opacity="0.25"/>
+                <rect x="114" y="96" width="28" height="4" rx="2" fill="#2B2A28" opacity="0.2"/>
+                <rect x="46" y="104" width="18" height="3" rx="1.5" fill="#2B2A28" opacity="0.15"/>
+                <rect x="80" y="104" width="22" height="3" rx="1.5" fill="#2B2A28" opacity="0.15"/>
+                <rect x="114" y="104" width="14" height="3" rx="1.5" fill="#2B2A28" opacity="0.15"/>
+              </svg>
+            </div>
+            <div className="p-5">
+              <p className="text-xs font-bold uppercase tracking-widest mb-1.5" style={{ color: terra }}>Small sales teams</p>
+              <p className="text-sm leading-relaxed" style={{ color: ink + 'aa' }}>Up to 3 people sharing one pipeline. Assign leads, track who's following up, and see every deal in one place.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Features — numbered rows */}
       <section id="features" className="max-w-4xl mx-auto px-4 sm:px-6 py-16">
         <SectionLabel>Features</SectionLabel>
@@ -275,7 +396,7 @@ export default function WelcomePage() {
               className="flex items-start gap-5 rounded-2xl p-5 transition-all"
               style={{ background: '#fff', border: `1.5px solid ${ink}12`, boxShadow: `2px 3px 0 ${ink}0a` }}
             >
-              <div className="flex-shrink-0 text-3xl font-extrabold leading-none" style={{ color: '#2B2A28', opacity: 1, fontVariantNumeric: 'tabular-nums', minWidth: '2.5rem' }}>
+              <div className="flex-shrink-0 text-3xl font-extrabold leading-none" style={{ color: '#e8804f', opacity: 1, fontVariantNumeric: 'tabular-nums', minWidth: '2.5rem' }}>
                 {f.n}
               </div>
               <div className="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: terra + '15' }}>
@@ -296,17 +417,120 @@ export default function WelcomePage() {
           <SectionLabel>How it works</SectionLabel>
           <h2 className="text-2xl sm:text-3xl font-bold mb-12" style={{ color: ink }}>From meeting to CRM in under a minute</h2>
           <div className="grid sm:grid-cols-3 gap-8">
-            {[
-              { step: '01', title: 'Sign up in 30 seconds', body: "No credit card. No setup wizard. Create your account and you're in — with a live pipeline ready to use." },
-              { step: '02', title: 'Add leads by voice or text', body: "Tap the mic and describe a lead, or use Smart Add to type in plain English. AI does the data entry." },
-              { step: '03', title: 'Close deals, not spreadsheets', body: "Your pipeline stays current. Follow-up reminders fire on time. AI tells you which leads to prioritise." },
-            ].map((s) => (
-              <div key={s.step} className="relative">
-                <div className="text-6xl font-extrabold mb-4 leading-none" style={{ color: '#2B2A28', opacity: 1 }}>{s.step}</div>
-                <h3 className="text-base font-bold mb-2" style={{ color: ink }}>{s.title}</h3>
-                <p className="text-sm leading-relaxed" style={{ color: ink + 'aa' }}>{s.body}</p>
+            {/* Step 01 */}
+            <div className="relative">
+              <div className="text-6xl font-extrabold mb-4 leading-none" style={{ color: '#e8804f', opacity: 1 }}>01</div>
+              <div className="rounded-2xl overflow-hidden mb-5" style={{ background: '#fff', border: `1.5px solid ${ink}10` }}>
+                <svg viewBox="0 0 220 130" className="w-full" xmlns="http://www.w3.org/2000/svg">
+                  {/* Browser chrome */}
+                  <rect x="0" y="0" width="220" height="130" rx="8" fill="#f8fafc"/>
+                  <rect x="0" y="0" width="220" height="22" rx="8" fill="#e2e8f0"/>
+                  <rect x="0" y="16" width="220" height="6" fill="#e2e8f0"/>
+                  <circle cx="12" cy="11" r="3.5" fill="#ef4444" opacity="0.6"/>
+                  <circle cx="22" cy="11" r="3.5" fill="#f59e0b" opacity="0.6"/>
+                  <circle cx="32" cy="11" r="3.5" fill="#22c55e" opacity="0.6"/>
+                  {/* Form */}
+                  <rect x="40" y="32" width="140" height="8" rx="4" fill="#c65f2f" opacity="0.18"/>
+                  <rect x="60" y="33" width="80" height="6" rx="3" fill="#c65f2f" opacity="0.4"/>
+                  <rect x="40" y="46" width="140" height="14" rx="4" fill="#fff" stroke="#2B2A28" strokeOpacity="0.12" strokeWidth="1"/>
+                  <rect x="45" y="51" width="60" height="4" rx="2" fill="#2B2A28" opacity="0.2"/>
+                  <rect x="40" y="65" width="140" height="14" rx="4" fill="#fff" stroke="#2B2A28" strokeOpacity="0.12" strokeWidth="1"/>
+                  <rect x="45" y="70" width="70" height="4" rx="2" fill="#2B2A28" opacity="0.15"/>
+                  <rect x="40" y="84" width="140" height="14" rx="4" fill="#fff" stroke="#2B2A28" strokeOpacity="0.12" strokeWidth="1"/>
+                  <rect x="45" y="89" width="50" height="4" rx="2" fill="#2B2A28" opacity="0.15"/>
+                  {/* CTA button */}
+                  <rect x="55" y="104" width="110" height="18" rx="6" fill="#c65f2f"/>
+                  <rect x="80" y="109" width="60" height="8" rx="4" fill="#FAF6EF" opacity="0.7"/>
+                  {/* Checkmark badge */}
+                  <circle cx="185" cy="104" r="12" fill="#22c55e" opacity="0.9"/>
+                  <path d="M179 104 L183 108 L191 98" stroke="#fff" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+                </svg>
               </div>
-            ))}
+              <h3 className="text-base font-bold mb-2" style={{ color: ink }}>Sign up in 30 seconds</h3>
+              <p className="text-sm leading-relaxed" style={{ color: ink + 'aa' }}>No credit card. No setup wizard. Create your account and you're in — with a live pipeline ready to use.</p>
+            </div>
+
+            {/* Step 02 */}
+            <div className="relative">
+              <div className="text-6xl font-extrabold mb-4 leading-none" style={{ color: '#e8804f', opacity: 1 }}>02</div>
+              <div className="rounded-2xl overflow-hidden mb-5" style={{ background: '#fff', border: `1.5px solid ${ink}10` }}>
+                <svg viewBox="0 0 220 130" className="w-full" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="0" y="0" width="220" height="130" rx="8" fill="#0f172a"/>
+                  {/* Mic circle */}
+                  <circle cx="110" cy="50" r="28" fill="#c65f2f" opacity="0.15"/>
+                  <circle cx="110" cy="50" r="18" fill="#c65f2f" opacity="0.25"/>
+                  {/* Mic icon */}
+                  <rect x="104" y="36" width="12" height="20" rx="6" fill="#c65f2f" opacity="0.9"/>
+                  <path d="M98 52 Q98 62 110 62 Q122 62 122 52" stroke="#c65f2f" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.9"/>
+                  <line x1="110" y1="62" x2="110" y2="68" stroke="#c65f2f" strokeWidth="2" opacity="0.7"/>
+                  {/* Waveform */}
+                  <rect x="40" y="80" width="4" height="10" rx="2" fill="#c65f2f" opacity="0.4"/>
+                  <rect x="48" y="75" width="4" height="20" rx="2" fill="#c65f2f" opacity="0.55"/>
+                  <rect x="56" y="78" width="4" height="14" rx="2" fill="#c65f2f" opacity="0.45"/>
+                  <rect x="64" y="72" width="4" height="26" rx="2" fill="#c65f2f" opacity="0.7"/>
+                  <rect x="72" y="76" width="4" height="18" rx="2" fill="#c65f2f" opacity="0.55"/>
+                  <rect x="80" y="79" width="4" height="12" rx="2" fill="#c65f2f" opacity="0.4"/>
+                  <rect x="136" y="80" width="4" height="10" rx="2" fill="#c65f2f" opacity="0.4"/>
+                  <rect x="144" y="75" width="4" height="20" rx="2" fill="#c65f2f" opacity="0.55"/>
+                  <rect x="152" y="78" width="4" height="14" rx="2" fill="#c65f2f" opacity="0.45"/>
+                  <rect x="160" y="72" width="4" height="26" rx="2" fill="#c65f2f" opacity="0.7"/>
+                  <rect x="168" y="77" width="4" height="16" rx="2" fill="#c65f2f" opacity="0.55"/>
+                  <rect x="176" y="80" width="4" height="10" rx="2" fill="#c65f2f" opacity="0.4"/>
+                  {/* Lead card emerging */}
+                  <rect x="60" y="104" width="100" height="20" rx="5" fill="#1e293b"/>
+                  <rect x="67" y="109" width="45" height="3.5" rx="1.5" fill="#FAF6EF" opacity="0.6"/>
+                  <rect x="67" y="115" width="30" height="3" rx="1.5" fill="#FAF6EF" opacity="0.3"/>
+                  <rect x="130" y="108" width="22" height="12" rx="3" fill="#c65f2f" opacity="0.7"/>
+                  <text x="133" y="117" fontSize="7" fill="#FAF6EF" fontWeight="700" fontFamily="monospace">9/10</text>
+                </svg>
+              </div>
+              <h3 className="text-base font-bold mb-2" style={{ color: ink }}>Add leads by voice or text</h3>
+              <p className="text-sm leading-relaxed" style={{ color: ink + 'aa' }}>Tap the mic and describe a lead, or use Smart Add to type in plain English. AI does the data entry.</p>
+            </div>
+
+            {/* Step 03 */}
+            <div className="relative">
+              <div className="text-6xl font-extrabold mb-4 leading-none" style={{ color: '#e8804f', opacity: 1 }}>03</div>
+              <div className="rounded-2xl overflow-hidden mb-5" style={{ background: '#fff', border: `1.5px solid ${ink}10` }}>
+                <svg viewBox="0 0 220 130" className="w-full" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="0" y="0" width="220" height="130" rx="8" fill="#f8fafc"/>
+                  {/* Kanban columns */}
+                  <rect x="6" y="14" width="60" height="110" rx="5" fill="#2B2A28" opacity="0.05"/>
+                  <rect x="80" y="14" width="60" height="110" rx="5" fill="#2B2A28" opacity="0.05"/>
+                  <rect x="154" y="14" width="60" height="110" rx="5" fill="#c65f2f" opacity="0.07"/>
+                  {/* Column labels */}
+                  <rect x="12" y="19" width="35" height="5" rx="2.5" fill="#2B2A28" opacity="0.2"/>
+                  <rect x="86" y="19" width="40" height="5" rx="2.5" fill="#2B2A28" opacity="0.2"/>
+                  <rect x="160" y="19" width="28" height="5" rx="2.5" fill="#c65f2f" opacity="0.6"/>
+                  {/* Cards col 1 */}
+                  <rect x="11" y="30" width="50" height="22" rx="3" fill="#fff" stroke="#2B2A28" strokeOpacity="0.08" strokeWidth="1"/>
+                  <rect x="16" y="35" width="30" height="3.5" rx="1.5" fill="#2B2A28" opacity="0.3"/>
+                  <rect x="16" y="41" width="22" height="3" rx="1.5" fill="#2B2A28" opacity="0.15"/>
+                  <rect x="11" y="56" width="50" height="22" rx="3" fill="#fff" stroke="#2B2A28" strokeOpacity="0.08" strokeWidth="1"/>
+                  <rect x="16" y="61" width="28" height="3.5" rx="1.5" fill="#2B2A28" opacity="0.3"/>
+                  <rect x="16" y="67" width="18" height="3" rx="1.5" fill="#2B2A28" opacity="0.15"/>
+                  {/* Cards col 2 */}
+                  <rect x="85" y="30" width="50" height="22" rx="3" fill="#fff" stroke="#2B2A28" strokeOpacity="0.08" strokeWidth="1"/>
+                  <rect x="90" y="35" width="30" height="3.5" rx="1.5" fill="#2B2A28" opacity="0.3"/>
+                  <rect x="90" y="41" width="22" height="3" rx="1.5" fill="#2B2A28" opacity="0.15"/>
+                  {/* Cards col 3 — WON (highlighted) */}
+                  <rect x="159" y="30" width="50" height="22" rx="3" fill="#c65f2f" opacity="0.15"/>
+                  <rect x="164" y="35" width="30" height="3.5" rx="1.5" fill="#c65f2f" opacity="0.6"/>
+                  <rect x="164" y="41" width="22" height="3" rx="1.5" fill="#c65f2f" opacity="0.35"/>
+                  <rect x="159" y="56" width="50" height="22" rx="3" fill="#c65f2f" opacity="0.15"/>
+                  <rect x="164" y="61" width="28" height="3.5" rx="1.5" fill="#c65f2f" opacity="0.6"/>
+                  <rect x="164" y="67" width="18" height="3" rx="1.5" fill="#c65f2f" opacity="0.35"/>
+                  <rect x="159" y="82" width="50" height="22" rx="3" fill="#c65f2f" opacity="0.15"/>
+                  <rect x="164" y="87" width="30" height="3.5" rx="1.5" fill="#c65f2f" opacity="0.6"/>
+                  <rect x="164" y="93" width="18" height="3" rx="1.5" fill="#c65f2f" opacity="0.35"/>
+                  {/* Win badge */}
+                  <circle cx="184" cy="115" r="9" fill="#c65f2f"/>
+                  <path d="M179 115 L183 119 L190 108" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <h3 className="text-base font-bold mb-2" style={{ color: ink }}>Close deals, not spreadsheets</h3>
+              <p className="text-sm leading-relaxed" style={{ color: ink + 'aa' }}>Your pipeline stays current. Follow-up reminders fire on time. AI tells you which leads to prioritise.</p>
+            </div>
           </div>
         </div>
       </section>
@@ -351,6 +575,54 @@ export default function WelcomePage() {
           >
             Get started free <ArrowRight className="w-4 h-4" />
           </a>
+        </div>
+      </section>
+
+      {/* Before / After comparison */}
+      <section className="max-w-4xl mx-auto px-4 sm:px-6 py-16">
+        <SectionLabel>The difference</SectionLabel>
+        <h2 className="text-2xl sm:text-3xl font-bold mb-10" style={{ color: ink }}>Less chaos. More closed deals.</h2>
+        <div className="grid sm:grid-cols-2 gap-5">
+          {/* Before */}
+          <div className="rounded-2xl p-6" style={{ background: '#fff', border: `1.5px solid ${ink}12` }}>
+            <p className="text-xs font-bold uppercase tracking-widest mb-5" style={{ color: ink + '50' }}>Without SalesFlow</p>
+            <div className="space-y-3">
+              {[
+                'Leads in WhatsApp, notes, and your head',
+                'Forgetting to follow up for two weeks',
+                'Copy-pasting contact details into a spreadsheet',
+                'No idea which deal is closest to closing',
+                'Re-reading old emails before every call',
+              ].map((item) => (
+                <div key={item} className="flex items-start gap-3">
+                  <div className="flex-shrink-0 w-4 h-4 rounded-full mt-0.5 flex items-center justify-center" style={{ background: ink + '12' }}>
+                    <span style={{ color: ink + '50', fontSize: '10px', lineHeight: 1 }}>✕</span>
+                  </div>
+                  <span className="text-sm leading-relaxed" style={{ color: ink + '80' }}>{item}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* After */}
+          <div className="rounded-2xl p-6" style={{ background: ink }}>
+            <p className="text-xs font-bold uppercase tracking-widest mb-5" style={{ color: terra }}>With SalesFlow</p>
+            <div className="space-y-3">
+              {[
+                'Every lead captured by voice — in 20 seconds',
+                'Reminders fire automatically before deals go cold',
+                'AI creates the record from plain English',
+                'AI score tells you who to call first',
+                'Full conversation history on every lead',
+              ].map((item) => (
+                <div key={item} className="flex items-start gap-3">
+                  <div className="flex-shrink-0 w-4 h-4 rounded-full mt-0.5 flex items-center justify-center" style={{ background: terra + '30' }}>
+                    <span style={{ color: terra, fontSize: '10px', lineHeight: 1 }}>✓</span>
+                  </div>
+                  <span className="text-sm leading-relaxed" style={{ color: '#FAF6EF' + 'cc' }}>{item}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -413,7 +685,7 @@ export default function WelcomePage() {
 
       {/* GlassCast teaser */}
       <section className="max-w-4xl mx-auto px-4 sm:px-6 pb-20">
-        <a href="/glasscast" className="block group">
+        <button onClick={() => setGlasscastOpen(true)} className="block w-full text-left group cursor-pointer">
           <div
             className="rounded-3xl overflow-hidden transition-all group-hover:shadow-2xl"
             style={{ background: ink }}
@@ -462,8 +734,38 @@ export default function WelcomePage() {
               </span>
             </div>
           </div>
-        </a>
+        </button>
       </section>
+
+      {/* GlassCast modal */}
+      {glasscastOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(43,42,40,0.7)', backdropFilter: 'blur(6px)' }}
+          onClick={() => setGlasscastOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl"
+            style={{ maxHeight: '90vh', background: bg }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setGlasscastOpen(false)}
+              className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full flex items-center justify-center transition-all"
+              style={{ background: ink + '18' }}
+            >
+              <X className="w-4 h-4" style={{ color: ink }} />
+            </button>
+            <iframe
+              src="/glasscast"
+              title="GlassCast"
+              className="w-full border-0"
+              style={{ height: '85vh' }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="border-t" style={{ borderColor: ink + '15' }}>

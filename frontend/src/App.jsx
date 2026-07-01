@@ -23,6 +23,7 @@ import Privacy from './pages/Privacy';
 import GlassCastPage from './pages/GlassCast';
 import SuperAdminPage from './pages/SuperAdmin';
 import DevPortal from './pages/Dev';
+import CookieBanner from './components/CookieBanner';
 
 const Protected = ({ children }) => {
   const { user, loading } = useAuth();
@@ -67,6 +68,7 @@ export default function App() {
     <ThemeProvider>
       <AuthProvider>
         <AppRoutes />
+        <CookieBanner />
       </AuthProvider>
     </ThemeProvider>
   );
