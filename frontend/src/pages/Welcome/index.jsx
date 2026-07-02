@@ -144,7 +144,7 @@ const PLANS = [
     name: 'Enterprise',
     price: null,
     period: null,
-    features: ['Everything in Pro', 'Up to 10 team members', 'Custom onboarding', 'Dedicated account support', 'Audit log & activity export', 'SSO / SAML (on request)', 'SLA-backed uptime'],
+    features: [],
     cta: 'Talk to us',
     ctaHref: 'mailto:support@aifstud.io',
     highlight: false,
@@ -680,14 +680,22 @@ export default function WelcomePage() {
                   </div>
                 )}
               </div>
-              <ul className="space-y-3 mb-8 flex-1">
-                {plan.features.map((f) => (
-                  <li key={f} className="flex items-center gap-3 text-sm">
-                    <Check className="w-4 h-4 flex-shrink-0" style={{ color: terra }} />
-                    <span style={{ color: plan.highlight ? bg + 'dd' : ink + 'cc' }}>{f}</span>
-                  </li>
-                ))}
-              </ul>
+              {plan.features.length > 0 ? (
+                <ul className="space-y-3 mb-8 flex-1">
+                  {plan.features.map((f) => (
+                    <li key={f} className="flex items-center gap-3 text-sm">
+                      <Check className="w-4 h-4 flex-shrink-0" style={{ color: terra }} />
+                      <span style={{ color: plan.highlight ? bg + 'dd' : ink + 'cc' }}>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="mb-8 flex-1">
+                  <p className="text-sm leading-relaxed" style={{ color: ink + '80' }}>
+                    Tailored to your team's size and needs. Get in touch and we'll put together the right package.
+                  </p>
+                </div>
+              )}
               <a
                 href={plan.ctaHref}
                 className="w-full text-center px-4 py-3 rounded-xl font-semibold text-sm transition-all"
